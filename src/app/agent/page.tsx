@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Bot, User, Loader2, Wand2 } from 'lucide-react';
+import { Mic, MicOff, Bot, User, Loader2, Wand2, Send } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,8 @@ import { useGoals } from '@/context/GoalContext';
 import { talkToAgent } from '@/ai/flows/agent-flow';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   sender: 'user' | 'agent';
@@ -19,17 +21,19 @@ export default function AgentPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [inputText, setInputText] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const { goals, tasks } = useGoals();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-
+  const [isSpeechRecognitionSupported, setIsSpeechRecognitionSupported] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Dynamically import for client-side only
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
     if (SpeechRecognition) {
+      setIsSpeechRecognitionSupported(true);
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.lang = 'pt-BR';
@@ -37,14 +41,19 @@ export default function AgentPage() {
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        setMessages((prev) => [...prev, { sender: 'user', text: transcript }]);
         handleSendToAgent(transcript);
       };
 
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            toast({
+                variant: 'destructive',
+                title: 'Permissão de Microfone Negada',
+                description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
+            });
+        }
         setIsRecording(false);
-        setIsProcessing(false);
       };
 
       recognition.onend = () => {
@@ -63,7 +72,7 @@ export default function AgentPage() {
             audioRef.current = null;
         }
     };
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     // Scroll to bottom when new messages are added
@@ -75,9 +84,12 @@ export default function AgentPage() {
     }
   }, [messages]);
 
-
   const handleSendToAgent = async (text: string) => {
+    if (!text.trim()) return;
+
     setIsProcessing(true);
+    setMessages((prev) => [...prev, { sender: 'user', text }]);
+
     try {
       const response = await talkToAgent({
         query: text,
@@ -92,7 +104,7 @@ export default function AgentPage() {
       if (response.audioResponse) {
         const audio = new Audio(response.audioResponse);
         audioRef.current = audio;
-        audio.play();
+        audio.play().catch(console.error);
         audio.onended = () => setIsProcessing(false);
       } else {
         setIsProcessing(false);
@@ -100,28 +112,42 @@ export default function AgentPage() {
 
     } catch (error) {
       console.error('Error talking to agent:', error);
-      setMessages((prev) => [...prev, { sender: 'agent', text: "Desculpe, não consegui processar sua solicitação." }]);
+      let errorMessage = "Desculpe, não consegui processar sua solicitação.";
+      if (error instanceof Error && error.message.includes('API key not valid')) {
+        errorMessage = "A chave da API do Gemini não é válida. Verifique o arquivo .env.";
+      }
+      setMessages((prev) => [...prev, { sender: 'agent', text: errorMessage }]);
       setIsProcessing(false);
     }
   };
 
   const handleToggleRecording = () => {
     if (!recognitionRef.current) {
-        alert("Seu navegador não suporta a API de reconhecimento de voz.");
+        toast({
+            variant: "destructive",
+            title: "Não suportado",
+            description: "Seu navegador não suporta a API de reconhecimento de voz."
+        });
         return;
     }
 
     if (isRecording) {
       recognitionRef.current.stop();
-      setIsRecording(false);
     } else {
-      setMessages([]); // Clear previous conversation
+      if(messages.length > 0) setMessages([]); // Clear previous conversation on new voice input
       recognitionRef.current.start();
       setIsRecording(true);
     }
   };
 
-  const agentIsSpeaking = isRecording || isProcessing;
+  const handleTextSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if(messages.length > 0 && !isRecording && !isProcessing) setMessages([]);
+    handleSendToAgent(inputText);
+    setInputText('');
+  }
+
+  const agentIsSpeaking = isProcessing;
 
   return (
     <div className="container mx-auto max-w-2xl p-4 sm:p-6 md:p-8">
@@ -148,24 +174,24 @@ export default function AgentPage() {
                     agentIsSpeaking ? 'scale-100' : 'scale-0'
                 )}></div>
                 
-                <Button
-                size="icon"
-                className="h-24 w-24 rounded-full shadow-lg"
-                onClick={handleToggleRecording}
-                disabled={isProcessing && !isRecording}
-                >
-                {isProcessing && !isRecording ? (
-                    <Loader2 className="h-10 w-10 animate-spin" />
-                ) : isRecording ? (
-                    <MicOff className="h-10 w-10" />
-                ) : (
-                    <Mic className="h-10 w-10" />
-                )}
-                </Button>
+                 {isSpeechRecognitionSupported && <Button
+                    size="icon"
+                    className="h-24 w-24 rounded-full shadow-lg"
+                    onClick={handleToggleRecording}
+                    disabled={isProcessing}
+                    >
+                    {isProcessing && !isRecording ? (
+                        <Loader2 className="h-10 w-10 animate-spin" />
+                    ) : isRecording ? (
+                        <MicOff className="h-10 w-10" />
+                    ) : (
+                        <Mic className="h-10 w-10" />
+                    )}
+                </Button>}
             </div>
             
              <p className="text-center text-sm text-muted-foreground h-4">
-                {isRecording ? 'Ouvindo...' : isProcessing ? 'Processando...' : 'Clique no microfone para começar'}
+                {isRecording ? 'Ouvindo...' : isProcessing ? 'Processando...' : isSpeechRecognitionSupported ? 'Clique no microfone para falar ou digite abaixo' : 'Digite sua pergunta abaixo'}
             </p>
 
             <ScrollArea className="h-64 w-full rounded-md border p-4" ref={scrollAreaRef}>
@@ -210,10 +236,20 @@ export default function AgentPage() {
                 )}
               </div>
             </ScrollArea>
+             <form onSubmit={handleTextSubmit} className="w-full flex items-center gap-2">
+                <Input 
+                    placeholder="Digite sua pergunta..."
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    disabled={isProcessing || isRecording}
+                />
+                <Button type="submit" disabled={isProcessing || isRecording || !inputText.trim()}>
+                    <Send className="h-4 w-4" />
+                </Button>
+            </form>
           </CardContent>
         </Card>
       </main>
     </div>
   );
 }
-
