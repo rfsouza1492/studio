@@ -7,12 +7,16 @@ import { format } from "date-fns";
 import { PlusCircle } from "lucide-react";
 import React from "react";
 import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
+import { cn } from "@/lib/utils";
 
 interface CalendarEventItemProps {
     event: CalendarEvent;
+    isSelected: boolean;
+    onSelectionChange: (eventId: string, isSelected: boolean) => void;
 }
 
-export function CalendarEventItem({ event }: CalendarEventItemProps) {
+export function CalendarEventItem({ event, isSelected, onSelectionChange }: CalendarEventItemProps) {
     const { goals, addGoal, addTask } = useGoals();
     const { toast } = useToast();
 
@@ -73,11 +77,28 @@ export function CalendarEventItem({ event }: CalendarEventItemProps) {
         });
     };
 
+    const handleCheckboxChange = (checked: boolean | 'indeterminate') => {
+        if (typeof checked === 'boolean') {
+            onSelectionChange(event.id, checked);
+        }
+    };
+
     return (
-        <div className="flex items-center justify-between rounded-lg border bg-card p-4 shadow-sm transition-all hover:bg-accent/50">
-            <div className="flex-1">
-                <p className="font-semibold text-card-foreground">{event.summary}</p>
-                <p className="text-sm text-muted-foreground">{getEventTime(event)}</p>
+        <div className={cn(
+            "flex items-center justify-between rounded-lg border bg-card p-4 shadow-sm transition-all",
+            isSelected ? "bg-accent/80 border-primary/50" : "hover:bg-accent/50"
+        )}>
+            <div className="flex flex-1 items-center gap-4">
+                <Checkbox
+                    id={`select-event-${event.id}`}
+                    checked={isSelected}
+                    onCheckedChange={handleCheckboxChange}
+                    aria-label={`Selecionar evento ${event.summary}`}
+                />
+                <div className="flex-1">
+                    <p className="font-semibold text-card-foreground">{event.summary}</p>
+                    <p className="text-sm text-muted-foreground">{getEventTime(event)}</p>
+                </div>
             </div>
             <Button variant="ghost" size="sm" onClick={handleCreateTask}>
                 <PlusCircle className="mr-2 h-4 w-4" />
