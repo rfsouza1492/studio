@@ -16,13 +16,7 @@ export async function talkToAgent(input: AgentInput): Promise<AgentOutput> {
   return agentFlow(input);
 }
 
-
-// Definição do prompt
-const agentPrompt = ai.definePrompt({
-    name: 'agentPrompt',
-    input: { schema: AgentInputSchema },
-    output: { schema: z.object({ textResponse: AgentOutputSchema.shape.textResponse }) },
-    prompt: `
+const promptTemplate = `
         Você é Flow, um assistente de produtividade amigável e inteligente para o aplicativo GoalFlow.
         Sua personalidade é concisa, prestativa e um pouco espirituosa.
         Sua principal função é ajudar os usuários com suas metas e tarefas, mas você também pode responder a perguntas de conhecimento geral.
@@ -46,9 +40,7 @@ const agentPrompt = ai.definePrompt({
         "{{{query}}}"
 
         Responda à pergunta do usuário de forma clara e direta.
-    `,
-    model: 'googleai/gemini-2.5-flash',
-});
+    `;
 
 
 async function toWav(
@@ -86,43 +78,35 @@ const agentFlow = ai.defineFlow(
     outputSchema: AgentOutputSchema,
   },
   async (input) => {
-    // 1. Gerar a resposta em texto
-    const llmResponse = await agentPrompt(input);
-    const textResponse = llmResponse.output?.textResponse ?? "Não consegui entender, pode repetir?";
+    const { output } = await ai.generate({
+        model: 'googleai/gemini-2.5-flash',
+        prompt: promptTemplate,
+        input: input,
+        config: {
+          responseModalities: ['TEXT', 'AUDIO'],
+          speechConfig: {
+              voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: 'Algenib' },
+              },
+          },
+      },
+    });
 
-    // 2. Gerar a resposta em áudio (TTS)
+    const textResponse = output?.message.text() ?? "Não consegui entender, pode repetir?";
+    const audioPart = output?.message.content.find(part => part.media);
+
     let audioResponse: string | undefined = undefined;
-    try {
-        const { media } = await ai.generate({
-            model: 'googleai/gemini-2.5-flash-preview-tts',
-            config: {
-                responseModalities: ['AUDIO'],
-                speechConfig: {
-                    voiceConfig: {
-                        prebuiltVoiceConfig: { voiceName: 'Algenib' },
-                    },
-                },
-            },
-            prompt: textResponse,
-        });
-
-        if (media?.url) {
-          // A resposta da API é uma data URI: 'data:audio/pcm;base64,....'
-          // Precisamos extrair apenas os dados base64.
-          const base64PcmData = media.url.substring(media.url.indexOf(',') + 1);
-          const audioBuffer = Buffer.from(base64PcmData, 'base64');
-          
-          // Converter o áudio PCM para o formato WAV
-          const wavBase64 = await toWav(audioBuffer);
-          audioResponse = `data:audio/wav;base64,${wavBase64}`;
-        }
-    } catch (error) {
-        console.error("Erro ao gerar a resposta de áudio (TTS):", error);
-        // O fluxo continua mesmo que o áudio falhe, retornando apenas a resposta em texto.
+    if (audioPart?.media?.url) {
+      try {
+        const base64PcmData = audioPart.media.url.substring(audioPart.media.url.indexOf(',') + 1);
+        const audioBuffer = Buffer.from(base64PcmData, 'base64');
+        const wavBase64 = await toWav(audioBuffer);
+        audioResponse = `data:audio/wav;base64,${wavBase64}`;
+      } catch (error) {
+        console.error("Erro ao converter áudio PCM para WAV:", error);
+      }
     }
 
-
-    // 3. Retornar ambas as respostas
     return {
       textResponse,
       audioResponse,
