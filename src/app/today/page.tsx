@@ -1,20 +1,64 @@
+
 'use client';
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useGoals } from '@/context/GoalContext';
 import { TaskItem } from '@/components/tasks/TaskItem';
 import { Header } from '@/components/layout/Header';
 import { ListTodo } from 'lucide-react';
-import { isToday } from 'date-fns';
+import { isToday, isPast, startOfToday } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
+import { Task } from '@/app/types';
 
 export default function TodayPage() {
-  const { tasks } = useGoals();
+  const { tasks, editTask, addTask } = useGoals();
+
+  // This effect will run once on component mount to handle recurring tasks
+  useEffect(() => {
+    const today = startOfToday();
+    const tasksToUpdate: Task[] = [];
+    const tasksToAdd: Parameters<typeof addTask>[] = [];
+
+    tasks.forEach(task => {
+        // Handle daily recurring tasks that are in the past and not completed
+        if (task.recurrence === 'Daily' && task.deadline && isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline)) && !task.completed) {
+           
+            // Create a new task for today based on the old one
+            const newDeadline = new Date(task.deadline);
+            newDeadline.setHours(today.getHours(), today.getMinutes(), today.getSeconds(), today.getMilliseconds());
+            const todayDeadline = startOfToday();
+            todayDeadline.setHours(new Date(task.deadline).getHours(), new Date(task.deadline).getMinutes());
+
+            tasksToAdd.push([
+                task.goalId,
+                task.title,
+                task.priority,
+                task.recurrence,
+                todayDeadline,
+                task.duration,
+                false
+            ]);
+            
+            // Mark the old task as non-recurring to stop it from being processed again
+            tasksToUpdate.push({ ...task, recurrence: 'None' });
+        }
+    });
+
+    if (tasksToUpdate.length > 0 || tasksToAdd.length > 0) {
+        console.log(`Re-scheduling ${tasksToAdd.length} daily task(s) for today.`);
+        // Batch updates and additions
+        tasksToUpdate.forEach(editTask);
+        tasksToAdd.forEach(args => addTask(...args));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once when the page loads
 
   const todayTasks = useMemo(() => {
-    return tasks.filter(task => task.deadline && isToday(new Date(task.deadline)));
+    return tasks
+        .filter(task => task.deadline && isToday(new Date(task.deadline)))
+        .sort((a,b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime());
   }, [tasks]);
 
   return (
