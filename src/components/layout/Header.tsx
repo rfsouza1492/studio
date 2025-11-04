@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useGoogleApi } from '@/context/GoogleApiContext';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,12 +48,13 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] p-0">
-                <div className='p-6'>
-                    <Link href="/" className="flex items-center gap-3">
-                      <Target className="h-7 w-7 text-primary" />
-                      <h1 className="text-2xl font-bold text-foreground">GoalFlow</h1>
-                    </Link>
-                </div>
+                <SheetHeader className='p-6'>
+                  <SheetTitle className="sr-only">Menu Principal</SheetTitle>
+                  <Link href="/" className="flex items-center gap-3">
+                    <Target className="h-7 w-7 text-primary" />
+                    <h1 className="text-2xl font-bold text-foreground">GoalFlow</h1>
+                  </Link>
+                </SheetHeader>
               <Separator />
               <div className="flex flex-col gap-4 p-4">
                 <nav className="flex flex-col gap-1">
