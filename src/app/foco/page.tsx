@@ -13,29 +13,21 @@ type TimerMode = 'pomodoro' | 'shortBreak';
 const POMODORO_DURATION = 25 * 60;
 const SHORT_BREAK_DURATION = 5 * 60;
 
-// TODO: Substitua este URL pelo URL do seu webhook da Alexa.
-const ALEXA_WEBHOOK_URL = 'https://maker.ifttt.com/trigger/AGENDA/with/key/cipAdC-9yKzt9BXa8nRG0o';
-
 async function sendFocusStartWebhook(taskName: string, durationMinutes: number) {
-    if (!ALEXA_WEBHOOK_URL || ALEXA_WEBHOOK_URL.includes('example.com')) {
-        console.warn('URL do webhook da Alexa não configurado. O webhook não será enviado.');
-        return;
-    }
-
     try {
-        await fetch(ALEXA_WEBHOOK_URL, {
+        await fetch('/api/webhook', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                value1: taskName, // Nome da tarefa
-                value2: durationMinutes, // Duração em minutos
+                taskName: taskName,
+                durationMinutes: durationMinutes,
             }),
         });
-        console.log('Webhook de início de foco enviado para a Alexa.');
+        console.log('Webhook de início de foco enviado para o servidor proxy.');
     } catch (error) {
-        console.error('Falha ao enviar o webhook para a Alexa:', error);
+        console.error('Falha ao enviar o webhook para o servidor proxy:', error);
     }
 }
 
