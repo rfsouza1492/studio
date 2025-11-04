@@ -26,6 +26,7 @@ const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.goog
 declare global {
   interface Window {
     gapi: any;
+    google: any;
   }
 }
 
