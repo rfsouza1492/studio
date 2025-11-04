@@ -76,8 +76,8 @@ export function Header() {
             </Button>
           ) : (
             <Button onClick={signIn} disabled={!isGapiReady}>
-              <LogIn className="-ml-1 h-5 w-5" />
-              <span>Connect Calendar</span>
+              <CalendarDays className="-ml-1 h-5 w-5" />
+              <span>Connect</span>
             </Button>
           )}
 
