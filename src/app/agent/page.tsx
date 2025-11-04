@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Bot, User, Loader2, Wand2, Send, AlertTriangle } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -19,9 +19,6 @@ interface Message {
   text: string;
 }
 
-// NOTE: We check for the API key on the client-side inside useEffect to avoid hydration errors.
-const apiKey = process.env.GEMINI_API_KEY;
-
 export default function AgentPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -36,11 +33,20 @@ export default function AgentPage() {
   const [isClient, setIsClient] = useState(false);
   const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
 
+  const showPermissionErrorToast = useCallback(() => {
+    toast({
+        variant: 'destructive',
+        title: 'Permissão de Microfone Negada',
+        description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
+    });
+  }, [toast]);
+
   useEffect(() => {
     setIsClient(true);
-    setIsApiKeyConfigured(!!apiKey);
+    // This variable is replaced by Next.js at build time.
+    setIsApiKeyConfigured(!!process.env.GEMINI_API_KEY);
 
-    // Dynamically import for client-side only
+    // Check for SpeechRecognition API
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       setIsSpeechRecognitionSupported(true);
@@ -57,11 +63,7 @@ export default function AgentPage() {
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            toast({
-                variant: 'destructive',
-                title: 'Permissão de Microfone Negada',
-                description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
-            });
+            showPermissionErrorToast();
         }
         setIsRecording(false);
       };
@@ -82,7 +84,7 @@ export default function AgentPage() {
             audioRef.current = null;
         }
     };
-  }, [toast]);
+  }, [showPermissionErrorToast]);
 
   useEffect(() => {
     // Scroll to bottom when new messages are added
@@ -166,7 +168,10 @@ export default function AgentPage() {
             <Skeleton className="h-40 w-40 rounded-full" />
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-10 w-full" />
+            <div className="flex w-full gap-2">
+                <Skeleton className="h-10 flex-grow" />
+                <Skeleton className="h-10 w-10" />
+            </div>
           </div>
       )
     }
@@ -185,89 +190,82 @@ export default function AgentPage() {
 
     return (
         <>
-            <div className="relative flex h-40 w-40 items-center justify-center">
-                <div className={cn(
-                    "absolute h-full w-full rounded-full bg-primary/10 transition-transform duration-1000",
-                    agentIsSpeaking ? 'scale-100' : 'scale-0'
-                )}></div>
-                <div className={cn(
-                    "absolute h-full w-full rounded-full bg-primary/20 transition-transform delay-200 duration-1000",
-                    agentIsSpeaking ? 'scale-100' : 'scale-0'
-                )}></div>
-                
-                 {isSpeechRecognitionSupported && <Button
-                    size="icon"
-                    className="h-24 w-24 rounded-full shadow-lg"
-                    onClick={handleToggleRecording}
-                    disabled={isProcessing}
-                    >
-                    {isProcessing && !isRecording ? (
-                        <Loader2 className="h-10 w-10 animate-spin" />
-                    ) : isRecording ? (
-                        <MicOff className="h-10 w-10" />
-                    ) : (
-                        <Mic className="h-10 w-10" />
-                    )}
-                </Button>}
-            </div>
-            
-             <p className="text-center text-sm text-muted-foreground h-4">
-                {isRecording ? 'Ouvindo...' : isProcessing ? 'Processando...' : isSpeechRecognitionSupported ? 'Clique no microfone para falar ou digite abaixo' : 'Digite sua pergunta abaixo'}
-            </p>
-
-            <ScrollArea className="h-64 w-full rounded-md border p-4" ref={scrollAreaRef}>
-                 <div className="space-y-4">
-                {messages.length > 0 ? (
-                  messages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={cn(
-                        'flex items-start gap-3',
-                        msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                      )}
-                    >
-                      {msg.sender === 'agent' && (
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                          <Bot className="h-5 w-5" />
-                        </span>
-                      )}
-                      <div
-                        className={cn(
-                          'max-w-xs rounded-lg px-4 py-2 text-sm',
-                          msg.sender === 'user'
-                            ? 'rounded-br-none bg-primary text-primary-foreground'
-                            : 'rounded-bl-none bg-muted'
-                        )}
-                      >
-                        {msg.text}
-                      </div>
-                       {msg.sender === 'user' && (
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                          <User className="h-5 w-5" />
-                        </span>
-                      )}
+             {messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                         <div className={cn(
+                            "relative flex h-40 w-40 items-center justify-center rounded-full bg-primary/10 transition-transform duration-300",
+                            isRecording && "scale-110"
+                        )}>
+                            <div className={cn(
+                                "absolute h-full w-full rounded-full bg-primary/10 transition-transform duration-500",
+                                isRecording && "scale-150 opacity-0"
+                            )}></div>
+                            <Wand2 className="h-16 w-16 text-primary" />
+                        </div>
+                        <p className="mt-6 text-lg text-muted-foreground">
+                            {isRecording ? "Ouvindo..." : "Pressione o microfone para começar"}
+                        </p>
                     </div>
-                  ))
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
-                    <Wand2 className="h-10 w-10 mb-4" />
-                    <h3 className="font-semibold">Nenhuma conversa iniciada.</h3>
-                    <p className="text-sm">Pergunte algo como "Quais são minhas tarefas para hoje?" ou "Resuma meu progresso".</p>
-                  </div>
+                    <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+                        <div className="space-y-6">
+                            {messages.map((msg, index) => (
+                                <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : '')}>
+                                    {msg.sender === 'agent' && (
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                           <Bot className="h-5 w-5" />
+                                        </div>
+                                    )}
+                                    <div className={cn(
+                                        "max-w-md rounded-xl px-4 py-3 text-sm",
+                                        msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                                    )}>
+                                        <p>{msg.text}</p>
+                                    </div>
+                                    {msg.sender === 'user' && (
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                           <User className="h-5 w-5" />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            {isProcessing && !agentIsSpeaking && (
+                                <div className="flex items-start gap-3">
+                                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                        <Bot className="h-5 w-5" />
+                                    </div>
+                                    <div className="max-w-md rounded-xl bg-muted px-4 py-3 text-sm">
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+             )}
+            <div className="mt-auto flex items-center gap-2 p-4">
+                <form onSubmit={handleTextSubmit} className="flex-1 flex items-center gap-2">
+                    <Input 
+                        placeholder="Digite sua pergunta..."
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        disabled={isRecording || isProcessing}
+                    />
+                    <Button type="submit" size="icon" variant="ghost" disabled={!inputText || isProcessing || isRecording}>
+                        <Send className="h-5 w-5" />
+                    </Button>
+                </form>
+
+                {isSpeechRecognitionSupported && (
+                     <Button 
+                        size="icon" 
+                        onClick={handleToggleRecording} 
+                        disabled={isProcessing}
+                        variant={isRecording ? 'destructive' : 'default'}
+                    >
+                        {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    </Button>
                 )}
-              </div>
-            </ScrollArea>
-             <form onSubmit={handleTextSubmit} className="w-full flex items-center gap-2">
-                <Input 
-                    placeholder="Digite sua pergunta..."
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    disabled={isProcessing || isRecording}
-                />
-                <Button type="submit" disabled={isProcessing || isRecording || !inputText.trim()}>
-                    <Send className="h-4 w-4" />
-                </Button>
-            </form>
+            </div>
         </>
     );
   }
@@ -276,23 +274,19 @@ export default function AgentPage() {
     <div className="container mx-auto max-w-2xl p-4 sm:p-6 md:p-8">
       <Header />
       <main className="mt-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bot className="h-6 w-6 text-primary" />
-              <span>Agente GoalFlow</span>
-            </CardTitle>
-            <CardDescription>
-              Converse com o agente para obter informações sobre suas metas e tarefas.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-6">
-            {renderContent()}
-          </CardContent>
+        <Card className="flex h-[70vh] flex-col">
+           <CardHeader>
+                <CardTitle className='flex items-center gap-2'>
+                    <Bot className='h-6 w-6 text-primary' />
+                    <span>Agente IA</span>
+                </CardTitle>
+                <CardDescription>Converse com o Flow, seu assistente de produtividade.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col justify-between p-0">
+               {renderContent()}
+            </CardContent>
         </Card>
       </main>
     </div>
   );
 }
-
-    
