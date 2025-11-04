@@ -40,6 +40,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
       deadline: task?.deadline ? new Date(task.deadline) : undefined,
       recurrence: task?.recurrence || 'None',
       time: task?.deadline ? format(new Date(task.deadline), 'HH:mm') : "09:00",
+      duration: task?.duration || undefined,
     },
   });
 
@@ -51,6 +52,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
         deadline: task?.deadline ? new Date(task.deadline) : undefined,
         recurrence: task?.recurrence || 'None',
         time: task?.deadline ? format(new Date(task.deadline), 'HH:mm') : "09:00",
+        duration: task?.duration || undefined,
       });
     }
   }, [open, task, form]);
@@ -64,10 +66,10 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
     }
     
     if (isEditMode) {
-      editTask({ ...task, ...values, deadline: combinedDeadline?.toISOString() });
+      editTask({ ...task, ...values, deadline: combinedDeadline?.toISOString(), duration: values.duration });
       toast({ title: "Task Updated", description: "Your task has been updated." });
     } else {
-      addTask(goalId, values.title, values.priority, values.recurrence, combinedDeadline);
+      addTask(goalId, values.title, values.priority, values.recurrence, combinedDeadline, values.duration);
       toast({ title: "Task Added", description: "A new task has been added to your goal." });
     }
     onOpenChange(false);
@@ -201,6 +203,19 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                     )}
                  />
             </div>
+             <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                    <FormItem>
+                        <Label>Duração (minutos)</Label>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 30" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+                />
             <DialogFooter>
               <Button type="submit">{isEditMode ? 'Save Changes' : 'Add Task'}</Button>
             </DialogFooter>

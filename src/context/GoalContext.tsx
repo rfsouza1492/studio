@@ -14,7 +14,7 @@ type Action =
   | { type: 'ADD_GOAL'; payload: { name: string } }
   | { type: 'EDIT_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: { id: string } }
-  | { type: 'ADD_TASK'; payload: { goalId: string; title: string; priority: Priority; recurrence: Recurrence; deadline?: string } }
+  | { type: 'ADD_TASK'; payload: { goalId: string; title: string; priority: Priority; recurrence: Recurrence; deadline?: string; duration?: number; } }
   | { type: 'EDIT_TASK'; payload: Task }
   | { type: 'DELETE_TASK'; payload: { id: string } }
   | { type: 'TOGGLE_TASK'; payload: { id: string } };
@@ -51,6 +51,7 @@ const goalReducer = (state: State, action: Action): State => {
         priority: action.payload.priority,
         deadline: action.payload.deadline,
         recurrence: action.payload.recurrence,
+        duration: action.payload.duration,
       };
       return { ...state, tasks: [...state.tasks, newTask] };
     case 'EDIT_TASK':
@@ -153,7 +154,7 @@ export const useGoals = () => {
   const editGoal = (goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal });
   const deleteGoal = (id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } });
 
-  const addTask = (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date) => dispatch({ type: 'ADD_TASK', payload: { goalId, title, priority, recurrence, deadline: deadline?.toISOString() } });
+  const addTask = (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number) => dispatch({ type: 'ADD_TASK', payload: { goalId, title, priority, recurrence, deadline: deadline?.toISOString(), duration } });
   const editTask = (task: Task) => dispatch({ type: 'EDIT_TASK', payload: task });
   const deleteTask = (id: string) => dispatch({ type: 'DELETE_TASK', payload: { id } });
   const toggleTask = (id: string) => dispatch({ type: 'TOGGLE_TASK', payload: { id } });

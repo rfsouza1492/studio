@@ -7,6 +7,7 @@ export const taskSchema = z.object({
   deadline: z.date().optional(),
   time: z.string().optional(),
   recurrence: z.enum(recurrences),
+  duration: z.coerce.number().min(0).optional(),
 }).refine(data => {
     if (data.deadline && data.time) {
         const combined = new Date(data.deadline);

@@ -12,6 +12,7 @@ export interface Task {
   priority: Priority;
   deadline?: string;
   recurrence: Recurrence;
+  duration?: number; // in minutes
 }
 
 export interface Goal {
