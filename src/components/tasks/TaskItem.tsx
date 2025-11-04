@@ -5,12 +5,14 @@ import { useGoals } from '@/context/GoalContext';
 import { Checkbox } from '../ui/checkbox';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown, XCircle, AlertCircle, Clock, CheckCircle2, Minus, Repeat, Timer } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown, XCircle, AlertCircle, Clock, CheckCircle2, Minus, Repeat, Timer, CalendarPlus } from 'lucide-react';
 import { cn, getDeadlineStatus } from '@/lib/utils';
 import { AddOrEditTaskDialog } from '../dialogs/AddOrEditTaskDialog';
 import { DeleteConfirmationDialog } from '../dialogs/DeleteConfirmationDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { format } from 'date-fns';
+import { useGoogleApi } from '@/context/GoogleApiContext';
+import { useToast } from '@/hooks/use-toast';
 
 const priorityConfig = {
   High: { icon: ChevronsUp, color: 'text-red-500' },
@@ -28,6 +30,8 @@ const deadlineIcons = {
 
 export function TaskItem({ task }: { task: Task }) {
   const { toggleTask, deleteTask } = useGoals();
+  const { isSignedIn, createEvent } = useGoogleApi();
+  const { toast } = useToast();
   const [editTaskOpen, setEditTaskOpen] = React.useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = React.useState(false);
 
@@ -37,6 +41,15 @@ export function TaskItem({ task }: { task: Task }) {
   const deadlineStatus = getDeadlineStatus(task.deadline);
   const DeadlineIcon = deadlineIcons[deadlineStatus.icon];
 
+  const handleCreateEvent = () => {
+    if (!isSignedIn || !task.deadline || !task.duration) return;
+
+    createEvent(task.title, new Date(task.deadline), task.duration);
+    toast({
+      title: 'Evento Criado no Google Calendar',
+      description: `O evento "${task.title}" foi adicionado à sua agenda.`,
+    });
+  };
 
   return (
     <>
@@ -72,6 +85,20 @@ export function TaskItem({ task }: { task: Task }) {
         </div>
 
         <div className='flex items-center gap-2'>
+        {isSignedIn && task.deadline && task.duration && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCreateEvent}>
+                  <CalendarPlus className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Adicionar ao Google Calendar</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {task.duration && task.duration > 0 && (
           <TooltipProvider>
             <Tooltip>
