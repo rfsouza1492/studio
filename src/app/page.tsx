@@ -115,26 +115,30 @@ const initialData = {
 
 export default function Home() {
   const { goals, addGoal, addTask, tasks } = useGoals();
-  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
-    // Only load initial data if localStorage is empty and data hasn't been loaded yet.
-    if (goals.length === 0 && tasks.length === 0 && !dataLoaded) {
+    // This effect runs once on mount to ensure initial data is loaded
+    // if the local storage is empty.
+    if (localStorage.getItem('goalFlowState') === null || goals.length === 0) {
       const todayGoalName = 'Agenda de Hoje';
       const tomorrowGoalName = 'Agenda de Amanhã';
+      
+      const todayGoal = { name: todayGoalName };
+      const tomorrowGoal = { name: tomorrowGoalName };
 
-      addGoal({ name: todayGoalName });
-      addGoal({ name: tomorrowGoalName });
-      setDataLoaded(true); // Mark as loaded to prevent re-loading
+      // Add goals
+      addGoal(todayGoal);
+      addGoal(tomorrowGoal);
+      
+      // We need to find the goals we just created in the next render cycle,
+      // so we can't add tasks immediately.
     }
-  }, [goals.length, tasks.length, dataLoaded, addGoal]);
+  }, [addGoal, goals.length]);
+
 
   useEffect(() => {
-    // This effect runs after the goals have been created.
-    if (dataLoaded && goals.length >= 2) {
+      // This effect runs when goals change, and adds tasks if they are missing.
       const todayGoal = goals.find(g => g.name === 'Agenda de Hoje');
-      const tomorrowGoal = goals.find(g => g.name === 'Agenda de Amanhã');
-      
       if (todayGoal && tasks.filter(t => t.goalId === todayGoal.id).length === 0) {
         initialData.today.forEach(task => {
           addTask(
@@ -148,7 +152,8 @@ export default function Home() {
           );
         });
       }
-
+      
+      const tomorrowGoal = goals.find(g => g.name === 'Agenda de Amanhã');
       if (tomorrowGoal && tasks.filter(t => t.goalId === tomorrowGoal.id).length === 0) {
         initialData.tomorrow.forEach(task => {
            addTask(
@@ -162,8 +167,8 @@ export default function Home() {
           );
         });
       }
-    }
-  }, [dataLoaded, goals, tasks, addTask]);
+  }, [goals, tasks, addTask])
+
 
   return (
     <div className="container mx-auto max-w-6xl p-4 sm:p-6 md:p-8">
