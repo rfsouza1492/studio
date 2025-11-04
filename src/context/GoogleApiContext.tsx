@@ -54,36 +54,33 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, []);
 
   useEffect(() => {
-    // Define the callback function on the window object
-    window.initClient = () => {
-      window.gapi.client.init({
-        apiKey: API_KEY,
-        clientId: CLIENT_ID,
-        scope: SCOPES,
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-      }).then(() => {
-        setIsGapiReady(true);
-        const authInstance = window.gapi.auth2.getAuthInstance();
-        if (authInstance) {
-          authInstance.isSignedIn.listen(updateSigninStatus);
-          updateSigninStatus(authInstance.isSignedIn.get());
-        }
-      }).catch((err: any) => {
-        console.error("Error initializing gapi client", err);
-      });
-    };
-    
-    // Load the GAPI script
     const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js?onload=initClient';
+    script.src = 'https://apis.google.com/js/api.js';
     script.async = true;
     script.defer = true;
+    script.onload = () => {
+      window.gapi.load('client:auth2', () => {
+        window.gapi.client.init({
+          apiKey: API_KEY,
+          clientId: CLIENT_ID,
+          scope: SCOPES,
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+        }).then(() => {
+          setIsGapiReady(true);
+          const authInstance = window.gapi.auth2.getAuthInstance();
+          if (authInstance) {
+            authInstance.isSignedIn.listen(updateSigninStatus);
+            updateSigninStatus(authInstance.isSignedIn.get());
+          }
+        }).catch((err: any) => {
+          console.error("Error initializing gapi client", err);
+        });
+      });
+    };
     document.body.appendChild(script);
 
     return () => {
-      // Clean up the script and the global callback
       document.body.removeChild(script);
-      delete window.initClient;
     };
   }, [updateSigninStatus]);
 
