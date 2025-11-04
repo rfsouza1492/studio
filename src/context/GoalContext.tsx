@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch } from 'react';
-import { Goal, Task, Priority } from '@/app/types';
+import { Goal, Task, Priority, Recurrence } from '@/app/types';
+import { addDays, addMonths, addWeeks } from 'date-fns';
 
 interface State {
   goals: Goal[];
@@ -13,7 +14,7 @@ type Action =
   | { type: 'ADD_GOAL'; payload: { name: string } }
   | { type: 'EDIT_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: { id: string } }
-  | { type: 'ADD_TASK'; payload: { goalId: string; title: string; priority: Priority; deadline?: string } }
+  | { type: 'ADD_TASK'; payload: { goalId: string; title: string; priority: Priority; recurrence: Recurrence; deadline?: string } }
   | { type: 'EDIT_TASK'; payload: Task }
   | { type: 'DELETE_TASK'; payload: { id: string } }
   | { type: 'TOGGLE_TASK'; payload: { id: string } };
@@ -49,6 +50,7 @@ const goalReducer = (state: State, action: Action): State => {
         completed: false,
         priority: action.payload.priority,
         deadline: action.payload.deadline,
+        recurrence: action.payload.recurrence,
       };
       return { ...state, tasks: [...state.tasks, newTask] };
     case 'EDIT_TASK':
@@ -61,13 +63,40 @@ const goalReducer = (state: State, action: Action): State => {
         ...state,
         tasks: state.tasks.filter(t => t.id !== action.payload.id),
       };
-    case 'TOGGLE_TASK':
+    case 'TOGGLE_TASK': {
+      const task = state.tasks.find(t => t.id === action.payload.id);
+      if (task?.recurrence && task.recurrence !== 'None' && task.deadline) {
+        const currentDeadline = new Date(task.deadline);
+        let nextDeadline: Date;
+
+        switch (task.recurrence) {
+          case 'Daily':
+            nextDeadline = addDays(currentDeadline, 1);
+            break;
+          case 'Weekly':
+            nextDeadline = addWeeks(currentDeadline, 1);
+            break;
+          case 'Monthly':
+            nextDeadline = addMonths(currentDeadline, 1);
+            break;
+          default:
+            nextDeadline = currentDeadline;
+            break;
+        }
+
+        const updatedTask: Task = { ...task, deadline: nextDeadline.toISOString() };
+        return {
+          ...state,
+          tasks: state.tasks.map(t => t.id === action.payload.id ? updatedTask : t)
+        };
+      }
       return {
         ...state,
         tasks: state.tasks.map(t =>
           t.id === action.payload.id ? { ...t, completed: !t.completed } : t
         ),
       };
+    }
     default:
       return state;
   }
@@ -83,11 +112,12 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       const storedState = localStorage.getItem('goalFlowState');
       if (storedState) {
         const parsedState = JSON.parse(storedState);
-        // Add default priority to tasks that don't have one
+        // Add default values for backward compatibility
         if (parsedState.tasks) {
           parsedState.tasks = parsedState.tasks.map((t: any) => ({
             ...t,
             priority: t.priority || 'Medium',
+            recurrence: t.recurrence || 'None',
           }));
         }
         dispatch({ type: 'SET_STATE', payload: parsedState });
@@ -123,7 +153,7 @@ export const useGoals = () => {
   const editGoal = (goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal });
   const deleteGoal = (id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } });
 
-  const addTask = (goalId: string, title: string, priority: Priority, deadline?: Date) => dispatch({ type: 'ADD_TASK', payload: { goalId, title, priority, deadline: deadline?.toISOString() } });
+  const addTask = (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date) => dispatch({ type: 'ADD_TASK', payload: { goalId, title, priority, recurrence, deadline: deadline?.toISOString() } });
   const editTask = (task: Task) => dispatch({ type: 'EDIT_TASK', payload: task });
   const deleteTask = (id: string) => dispatch({ type: 'DELETE_TASK', payload: { id } });
   const toggleTask = (id: string) => dispatch({ type: 'TOGGLE_TASK', payload: { id } });

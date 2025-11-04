@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { Task, priorities } from '@/app/types';
+import { Task, priorities, recurrences } from '@/app/types';
 import { useGoals } from '@/context/GoalContext';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -38,6 +38,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
       title: task?.title || "",
       priority: task?.priority || "Medium",
       deadline: task?.deadline ? new Date(task.deadline) : undefined,
+      recurrence: task?.recurrence || 'None',
     },
   });
 
@@ -47,16 +48,17 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
         title: task?.title || "",
         priority: task?.priority || "Medium",
         deadline: task?.deadline ? new Date(task.deadline) : undefined,
+        recurrence: task?.recurrence || 'None',
       });
     }
   }, [open, task, form]);
 
   const onSubmit = (values: z.infer<typeof taskSchema>) => {
     if (isEditMode) {
-      editTask({ ...task, title: values.title, priority: values.priority, deadline: values.deadline?.toISOString() });
+      editTask({ ...task, ...values, deadline: values.deadline?.toISOString() });
       toast({ title: "Task Updated", description: "Your task has been updated." });
     } else {
-      addTask(goalId, values.title, values.priority, values.deadline);
+      addTask(goalId, values.title, values.priority, values.recurrence, values.deadline);
       toast({ title: "Task Added", description: "A new task has been added to your goal." });
     }
     onOpenChange(false);
@@ -86,28 +88,52 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                 </FormItem>
               )}
             />
-             <FormField
-              control={form.control}
-              name="priority"
-              render={({ field }) => (
-                <FormItem>
-                  <Label>Priority</Label>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a priority" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {priorities.map(priority => (
-                        <SelectItem key={priority} value={priority}>{priority}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem>
+                    <Label>Priority</Label>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a priority" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {priorities.map(priority => (
+                          <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="recurrence"
+                render={({ field }) => (
+                  <FormItem>
+                    <Label>Recurrence</Label>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select frequency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {recurrences.map(rec => (
+                          <SelectItem key={rec} value={rec}>{rec}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="deadline"

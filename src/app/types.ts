@@ -1,6 +1,8 @@
 export const priorities = ["Low", "Medium", "High"] as const;
+export const recurrences = ["None", "Daily", "Weekly", "Monthly"] as const;
 
 export type Priority = (typeof priorities)[number];
+export type Recurrence = (typeof recurrences)[number];
 
 export interface Task {
   id: string;
@@ -9,6 +11,7 @@ export interface Task {
   completed: boolean;
   priority: Priority;
   deadline?: string;
+  recurrence: Recurrence;
 }
 
 export interface Goal {

@@ -5,7 +5,7 @@ import { useGoals } from '@/context/GoalContext';
 import { Checkbox } from '../ui/checkbox';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown, XCircle, AlertCircle, Clock, CheckCircle2, Minus } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown, XCircle, AlertCircle, Clock, CheckCircle2, Minus, Repeat } from 'lucide-react';
 import { cn, getDeadlineStatus } from '@/lib/utils';
 import { AddOrEditTaskDialog } from '../dialogs/AddOrEditTaskDialog';
 import { DeleteConfirmationDialog } from '../dialogs/DeleteConfirmationDialog';
@@ -72,6 +72,18 @@ export function TaskItem({ task }: { task: Task }) {
         </div>
 
         <div className='flex items-center gap-2'>
+        {task.recurrence !== 'None' && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Repeat className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Recurs {task.recurrence.toLowerCase()}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {task.deadline && (
             <TooltipProvider>
               <Tooltip>
