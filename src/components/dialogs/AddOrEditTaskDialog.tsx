@@ -10,10 +10,15 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form';
 import { taskSchema } from '@/lib/schemas';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { cn } from '@/lib/utils';
+import { CalendarIcon } from 'lucide-react';
+import { Calendar } from '../ui/calendar';
+import { format } from 'date-fns';
 
 interface AddOrEditTaskDialogProps {
   open: boolean;
@@ -32,6 +37,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
     defaultValues: {
       title: task?.title || "",
       priority: task?.priority || "Medium",
+      deadline: task?.deadline ? new Date(task.deadline) : undefined,
     },
   });
 
@@ -40,16 +46,17 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
       form.reset({
         title: task?.title || "",
         priority: task?.priority || "Medium",
+        deadline: task?.deadline ? new Date(task.deadline) : undefined,
       });
     }
   }, [open, task, form]);
 
   const onSubmit = (values: z.infer<typeof taskSchema>) => {
     if (isEditMode) {
-      editTask({ ...task, title: values.title, priority: values.priority });
+      editTask({ ...task, title: values.title, priority: values.priority, deadline: values.deadline?.toISOString() });
       toast({ title: "Task Updated", description: "Your task has been updated." });
     } else {
-      addTask(goalId, values.title, values.priority);
+      addTask(goalId, values.title, values.priority, values.deadline);
       toast({ title: "Task Added", description: "A new task has been added to your goal." });
     }
     onOpenChange(false);
@@ -97,6 +104,49 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="deadline"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <Label>Deadline</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) => {
+                           const today = new Date();
+                           today.setHours(0,0,0,0);
+                           return date < today;
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}

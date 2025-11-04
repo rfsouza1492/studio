@@ -8,6 +8,7 @@ export interface Task {
   title: string;
   completed: boolean;
   priority: Priority;
+  deadline?: string;
 }
 
 export interface Goal {

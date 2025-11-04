@@ -5,16 +5,25 @@ import { useGoals } from '@/context/GoalContext';
 import { Checkbox } from '../ui/checkbox';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown, XCircle, AlertCircle, Clock, CheckCircle2, Minus } from 'lucide-react';
+import { cn, getDeadlineStatus } from '@/lib/utils';
 import { AddOrEditTaskDialog } from '../dialogs/AddOrEditTaskDialog';
 import { DeleteConfirmationDialog } from '../dialogs/DeleteConfirmationDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { format } from 'date-fns';
 
 const priorityConfig = {
   High: { icon: ChevronsUp, color: 'text-red-500' },
   Medium: { icon: ChevronUp, color: 'text-yellow-500' },
   Low: { icon: ChevronDown, color: 'text-green-500' },
+};
+
+const deadlineIcons = {
+  XCircle,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  Minus,
 };
 
 export function TaskItem({ task }: { task: Task }) {
@@ -25,54 +34,78 @@ export function TaskItem({ task }: { task: Task }) {
   const PriorityIcon = priorityConfig[task.priority]?.icon || ChevronDown;
   const priorityColor = priorityConfig[task.priority]?.color || 'text-muted-foreground';
 
+  const deadlineStatus = getDeadlineStatus(task.deadline);
+  const DeadlineIcon = deadlineIcons[deadlineStatus.icon];
+
+
   return (
     <>
       <div className="group flex items-center justify-between rounded-md bg-background p-2 pr-1 transition-colors hover:bg-accent">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-1 items-center gap-3 overflow-hidden">
           <Checkbox
             id={`task-${task.id}`}
             checked={task.completed}
             onCheckedChange={() => toggleTask(task.id)}
             aria-label={`Mark task ${task.title} as ${task.completed ? 'incomplete' : 'complete'}`}
           />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className={cn("cursor-default", priorityColor)}>
-                  <PriorityIcon className="h-4 w-4" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{task.priority} Priority</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+           <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={cn("cursor-default", priorityColor)}>
+                    <PriorityIcon className="h-4 w-4 flex-shrink-0" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{task.priority} Priority</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
-          <label
-            htmlFor={`task-${task.id}`}
-            className={cn("text-sm transition-colors", task.completed && "text-muted-foreground line-through")}
-          >
-            {task.title}
-          </label>
+            <label
+              htmlFor={`task-${task.id}`}
+              className={cn("truncate text-sm transition-colors", task.completed && "text-muted-foreground line-through")}
+            >
+              {task.title}
+            </label>
+           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => setEditTaskOpen(true)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              <span>Edit</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => setDeleteTaskOpen(true)} className="text-destructive focus:text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+
+        <div className='flex items-center gap-2'>
+        {task.deadline && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <div className={cn("flex items-center gap-1 text-xs", deadlineStatus.color)}>
+                    <DeadlineIcon className="h-4 w-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">{format(new Date(task.deadline), "MMM d")}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{deadlineStatus.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setEditTaskOpen(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                <span>Edit</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setDeleteTaskOpen(true)} className="text-destructive focus:text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Delete</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <AddOrEditTaskDialog open={editTaskOpen} onOpenChange={setEditTaskOpen} task={task} goalId={task.goalId} />
       <DeleteConfirmationDialog
