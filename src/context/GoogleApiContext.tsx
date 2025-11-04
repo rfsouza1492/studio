@@ -20,7 +20,7 @@ interface GoogleApiContextType {
 const GoogleApiContext = createContext<GoogleApiContextType | undefined>(undefined);
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+const CLIENT_ID = '859574091958-fi657c59q9ucnpoun6u9mf9ifptvlssk.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile';
 
 export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
