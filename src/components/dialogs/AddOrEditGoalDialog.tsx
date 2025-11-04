@@ -17,9 +17,10 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { goalSchema } from '@/lib/schemas';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '../ui/separator';
 
 interface AddOrEditGoalDialogProps {
   open: boolean;
@@ -36,21 +37,36 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
     resolver: zodResolver(goalSchema),
     defaultValues: {
       name: goal?.name || "",
+      kpiName: goal?.kpiName || "",
+      kpiCurrent: goal?.kpiCurrent || 0,
+      kpiTarget: goal?.kpiTarget || 0,
     },
   });
 
   useEffect(() => {
     if (open) {
-      form.reset({ name: goal?.name || "" });
+      form.reset({
+        name: goal?.name || "",
+        kpiName: goal?.kpiName || "",
+        kpiCurrent: goal?.kpiCurrent || 0,
+        kpiTarget: goal?.kpiTarget || 0,
+      });
     }
   }, [open, goal, form]);
 
   const onSubmit = (values: z.infer<typeof goalSchema>) => {
+    const goalData = {
+        ...values,
+        kpiName: values.kpiName || undefined,
+        kpiCurrent: values.kpiCurrent,
+        kpiTarget: values.kpiTarget,
+    };
+
     if (isEditMode) {
-      editGoal({ ...goal, name: values.name });
+      editGoal({ ...goal, ...goalData });
       toast({ title: "Goal Updated", description: `The goal "${values.name}" has been updated.` });
     } else {
-      addGoal(values.name);
+      addGoal(goalData);
       toast({ title: "Goal Created", description: `The goal "${values.name}" has been created.` });
     }
     onOpenChange(false);
@@ -62,7 +78,7 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
         <DialogHeader>
           <DialogTitle>{isEditMode ? 'Edit Goal' : 'Create New Goal'}</DialogTitle>
           <DialogDescription>
-            {isEditMode ? "Update the name of your goal." : "What's the next big thing you want to achieve?"}
+            {isEditMode ? "Update your goal and its KPI." : "Define your goal and set a KPI to track progress."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -72,14 +88,60 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <Label htmlFor="name" className="sr-only">Goal Name</Label>
+                  <FormLabel>Goal Name</FormLabel>
                   <FormControl>
-                    <Input id="name" placeholder="e.g., Learn Next.js" {...field} />
+                    <Input placeholder="e.g., Learn Next.js" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
+            <Separator />
+            
+            <h4 className="text-sm font-medium">Key Performance Indicator (KPI)</h4>
+             <FormField
+              control={form.control}
+              name="kpiName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>KPI Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Pages Read, Km Ran" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+               <FormField
+                control={form.control}
+                name="kpiCurrent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current Value</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="kpiTarget"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Target Value</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="100" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <DialogFooter>
               <Button type="submit">{isEditMode ? 'Save Changes' : 'Create Goal'}</Button>
             </DialogFooter>

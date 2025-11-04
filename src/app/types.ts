@@ -18,4 +18,7 @@ export interface Task {
 export interface Goal {
   id: string;
   name: string;
+  kpiName?: string;
+  kpiTarget?: number;
+  kpiCurrent?: number;
 }

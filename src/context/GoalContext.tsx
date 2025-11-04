@@ -11,7 +11,7 @@ interface State {
 
 type Action =
   | { type: 'SET_STATE'; payload: State }
-  | { type: 'ADD_GOAL'; payload: { name: string } }
+  | { type: 'ADD_GOAL'; payload: { name: string, kpiName?: string, kpiCurrent?: number, kpiTarget?: number } }
   | { type: 'EDIT_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: { id: string } }
   | { type: 'ADD_TASK'; payload: { goalId: string; title: string; priority: Priority; recurrence: Recurrence; deadline?: string; duration?: number; } }
@@ -29,7 +29,13 @@ const goalReducer = (state: State, action: Action): State => {
     case 'SET_STATE':
       return action.payload;
     case 'ADD_GOAL':
-      const newGoal: Goal = { id: crypto.randomUUID(), name: action.payload.name };
+      const newGoal: Goal = { 
+        id: crypto.randomUUID(), 
+        name: action.payload.name,
+        kpiName: action.payload.kpiName,
+        kpiCurrent: action.payload.kpiCurrent,
+        kpiTarget: action.payload.kpiTarget,
+      };
       return { ...state, goals: [...state.goals, newGoal] };
     case 'EDIT_GOAL':
       return {
@@ -113,6 +119,14 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       const storedState = localStorage.getItem('goalFlowState');
       if (storedState) {
         const parsedState = JSON.parse(storedState);
+        if (parsedState.goals) {
+          parsedState.goals = parsedState.goals.map((g: any) => ({
+            ...g,
+            kpiName: g.kpiName || undefined,
+            kpiCurrent: g.kpiCurrent || 0,
+            kpiTarget: g.kpiTarget || 0,
+          }));
+        }
         // Add default values for backward compatibility
         if (parsedState.tasks) {
           parsedState.tasks = parsedState.tasks.map((t: any) => ({
@@ -150,7 +164,7 @@ export const useGoals = () => {
   }
   const { state, dispatch } = context;
 
-  const addGoal = (name: string) => dispatch({ type: 'ADD_GOAL', payload: { name } });
+  const addGoal = (payload: { name: string, kpiName?: string, kpiCurrent?: number, kpiTarget?: number }) => dispatch({ type: 'ADD_GOAL', payload });
   const editGoal = (goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal });
   const deleteGoal = (id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } });
 

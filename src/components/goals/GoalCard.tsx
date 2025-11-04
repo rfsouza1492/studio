@@ -24,8 +24,32 @@ export function GoalCard({ goal }: GoalCardProps) {
   const [addTaskOpen, setAddTaskOpen] = React.useState(false);
 
   const goalTasks = useMemo(() => tasks.filter(t => t.goalId === goal.id), [tasks, goal.id]);
-  const completedTasks = useMemo(() => goalTasks.filter(t => t.completed).length, [goalTasks]);
-  const progress = useMemo(() => (goalTasks.length > 0 ? (completedTasks / goalTasks.length) * 100 : 0), [completedTasks, goalTasks.length]);
+  
+  const { progress, progressText } = useMemo(() => {
+    if (goal.kpiTarget && goal.kpiTarget > 0) {
+      const current = goal.kpiCurrent || 0;
+      const target = goal.kpiTarget;
+      const progressValue = (current / target) * 100;
+      const kpiText = goal.kpiName ? `: ${goal.kpiName}` : '';
+      return {
+        progress: progressValue,
+        progressText: `${current} / ${target}${kpiText}`
+      };
+    }
+    
+    // Fallback to task-based progress
+    const completedTasks = goalTasks.filter(t => t.completed).length;
+    const totalTasks = goalTasks.length;
+    if (totalTasks > 0) {
+      return {
+        progress: (completedTasks / totalTasks) * 100,
+        progressText: `${completedTasks} of ${totalTasks} tasks completed`
+      };
+    }
+
+    return { progress: 0, progressText: 'No tasks yet' };
+  }, [goal, goalTasks]);
+
 
   return (
     <>
@@ -34,7 +58,7 @@ export function GoalCard({ goal }: GoalCardProps) {
           <div>
             <CardTitle className="font-headline text-xl">{goal.name}</CardTitle>
             <CardDescription className="mt-1">
-              {goalTasks.length > 0 ? `${completedTasks} of ${goalTasks.length} tasks completed` : 'No tasks yet'}
+              {progressText}
             </CardDescription>
           </div>
           <DropdownMenu>

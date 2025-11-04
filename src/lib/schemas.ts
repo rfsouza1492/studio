@@ -30,4 +30,15 @@ export const taskSchema = z.object({
 
 export const goalSchema = z.object({
   name: z.string().min(1, { message: "Goal name cannot be empty." }),
+  kpiName: z.string().optional(),
+  kpiCurrent: z.coerce.number().min(0).optional(),
+  kpiTarget: z.coerce.number().min(0).optional(),
+}).refine(data => {
+    if (data.kpiTarget !== undefined && data.kpiCurrent !== undefined) {
+        return data.kpiCurrent <= data.kpiTarget;
+    }
+    return true;
+}, {
+    message: "Current value cannot be greater than target value.",
+    path: ["kpiCurrent"],
 });
