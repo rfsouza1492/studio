@@ -15,69 +15,82 @@ const GoogleApiContext = createContext<GoogleApiContextType | undefined>(undefin
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile';
 
 export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; } | null>(null);
   const [gapi, setGapi] = useState<any>(null);
 
+  useEffect(() => {
+    import('gapi-script').then((gapiModule) => {
+      const gapiInstance = gapiModule.gapi;
+      setGapi(gapiInstance);
+    });
+  }, []);
+
   const updateSigninStatus = (signedIn: boolean) => {
     setIsSignedIn(signedIn);
     if (signedIn && gapi) {
-        const profile = gapi.auth2.getAuthInstance().currentUser.get().getBasicProfile();
-        setUser({
-          name: profile.getName(),
-          email: profile.getEmail(),
-        });
+        try {
+            const profile = gapi.auth2.getAuthInstance().currentUser.get().getBasicProfile();
+            if (profile) {
+                setUser({
+                  name: profile.getName(),
+                  email: profile.getEmail(),
+                });
+            }
+        } catch (error) {
+            console.error("Error getting user profile", error);
+            setUser(null);
+        }
     } else {
         setUser(null);
     }
   };
 
   useEffect(() => {
-    import('gapi-script').then((gapiModule) => {
-        const gapiInstance = gapiModule.gapi;
-        setGapi(gapiInstance);
+    if (!gapi) return;
 
-        const start = () => {
-        gapiInstance.client
-            .init({
-            apiKey: API_KEY,
-            clientId: CLIENT_ID,
-            scope: SCOPES,
-            })
-            .then(() => {
-            const authInstance = gapiInstance.auth2.getAuthInstance();
-            setIsSignedIn(authInstance.isSignedIn.get());
+    const initClient = () => {
+      gapi.client.init({
+        apiKey: API_KEY,
+        clientId: CLIENT_ID,
+        scope: SCOPES,
+      }).then(() => {
+        const authInstance = gapi.auth2.getAuthInstance();
+        if (authInstance) {
             authInstance.isSignedIn.listen(updateSigninStatus);
-            if (authInstance.isSignedIn.get()) {
-                const profile = authInstance.currentUser.get().getBasicProfile();
-                setUser({
-                name: profile.getName(),
-                email: profile.getEmail(),
-                });
-            }
-            })
-            .catch((error: any) => {
-            console.error('Error initializing GAPI client', error);
-            });
-        };
+            updateSigninStatus(authInstance.isSignedIn.get());
+        }
+      }).catch((error: any) => {
+        console.error('Error initializing GAPI client', error);
+      });
+    };
 
-        gapiInstance.load('client:auth2', start);
-    });
+    gapi.load('client:auth2', initClient);
   }, [gapi]);
 
   const signIn = () => {
-    if (gapi) gapi.auth2.getAuthInstance().signIn();
+    if (gapi && gapi.auth2) {
+        const authInstance = gapi.auth2.getAuthInstance();
+        if (authInstance) {
+            authInstance.signIn();
+        }
+    }
   };
 
   const signOut = () => {
-    if (gapi) gapi.auth2.getAuthInstance().signOut();
+    if (gapi && gapi.auth2) {
+        const authInstance = gapi.auth2.getAuthInstance();
+        if (authInstance) {
+            authInstance.signOut();
+        }
+    }
   };
 
   const createEvent = (summary: string, startTime: Date, duration: number) => {
-    if (!isSignedIn || !gapi) {
+    if (!isSignedIn || !gapi || !gapi.client || !gapi.client.calendar) {
       console.log('User not signed in or GAPI not loaded. Cannot create event.');
       return;
     }
