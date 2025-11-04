@@ -8,17 +8,16 @@ import { Button } from '@/components/ui/button';
 import React, { useEffect, useState } from 'react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
 
-// Helper to create a date object for today with a specific time
+// Helper to create a date object for a specific date with a specific time
 const createDate = (hours: number, minutes: number) => {
-  const date = new Date();
+  const date = new Date(2024, 10, 3); // November 3, 2024
   date.setHours(hours, minutes, 0, 0);
   return date;
 };
 
-// Helper to create a date object for tomorrow with a specific time
+// Helper to create a date object for the next day with a specific time
 const createTomorrowDate = (hours: number, minutes: number) => {
-    const date = new Date();
-    date.setDate(date.getDate() + 1);
+    const date = new Date(2024, 10, 4); // November 4, 2024
     date.setHours(hours, minutes, 0, 0);
     return date;
 };
@@ -199,5 +198,3 @@ function EmptyState() {
     </>
   );
 }
-
-    
