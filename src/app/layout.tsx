@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { GoalProvider } from '@/context/GoalContext';
 import { Toaster } from '@/components/ui/toaster';
+import { GoogleApiProvider } from '@/context/GoogleApiContext';
 
 export const metadata: Metadata = {
   title: 'GoalFlow',
@@ -24,10 +25,12 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <GoalProvider>
-          {children}
-          <Toaster />
-        </GoalProvider>
+        <GoogleApiProvider>
+          <GoalProvider>
+            {children}
+            <Toaster />
+          </GoalProvider>
+        </GoogleApiProvider>
       </body>
     </html>
   );

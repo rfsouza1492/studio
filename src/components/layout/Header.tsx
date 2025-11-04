@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ListTodo, Target, Home } from 'lucide-react';
+import { Plus, ListTodo, Target, Home, User, LogIn } from 'lucide-react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
 import Link from 'next/link';
 import {
@@ -14,10 +14,12 @@ import {
 } from '@/components/ui/navigation-menu';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useGoogleApi } from '@/context/GoogleApiContext';
 
 export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const pathname = usePathname();
+  const { isSignedIn, signIn, signOut, user } = useGoogleApi();
 
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
@@ -51,6 +53,18 @@ export function Header() {
               ))}
             </NavigationMenuList>
           </NavigationMenu>
+
+          {isSignedIn ? (
+            <Button onClick={signOut} variant="outline">
+              <User className="-ml-1 h-5 w-5" />
+              <span>{user?.name}</span>
+            </Button>
+          ) : (
+            <Button onClick={signIn}>
+              <LogIn className="-ml-1 h-5 w-5" />
+              <span>Connect Calendar</span>
+            </Button>
+          )}
 
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="-ml-1 h-5 w-5" />

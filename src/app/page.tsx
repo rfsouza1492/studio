@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { useGoals } from '@/context/GoalContext';
 import { Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
 
 // Helper to create a date object for a specific date with a specific time
@@ -114,32 +114,37 @@ const initialData = {
 
 
 export default function Home() {
-  const { goals, addGoal, addTask, tasks } = useGoals();
+  const { goals, addGoal, addTask } = useGoals();
 
   useEffect(() => {
     // This effect runs once on mount to ensure initial data is loaded
     // if the local storage is empty.
-    if (localStorage.getItem('goalFlowState') === null || goals.length === 0) {
+    const hasBeenLoaded = localStorage.getItem('goalFlowInitialDataLoaded');
+    if (!hasBeenLoaded) {
       const todayGoalName = 'Agenda de Hoje';
       const tomorrowGoalName = 'Agenda de Amanhã';
       
-      const todayGoal = { name: todayGoalName };
-      const tomorrowGoal = { name: tomorrowGoalName };
+      addGoal({ name: todayGoalName });
+      addGoal({ name: tomorrowGoalName });
 
-      // Add goals
-      addGoal(todayGoal);
-      addGoal(tomorrowGoal);
+      // The logic to add tasks will be triggered in the next effect
+      // once the goals are in the state.
       
-      // We need to find the goals we just created in the next render cycle,
-      // so we can't add tasks immediately.
+      localStorage.setItem('goalFlowInitialDataLoaded', 'true');
     }
-  }, [addGoal, goals.length]);
+  }, [addGoal]);
 
 
   useEffect(() => {
-      // This effect runs when goals change, and adds tasks if they are missing.
       const todayGoal = goals.find(g => g.name === 'Agenda de Hoje');
-      if (todayGoal && tasks.filter(t => t.goalId === todayGoal.id).length === 0) {
+      const tomorrowGoal = goals.find(g => g.name === 'Agenda de Amanhã');
+      
+      // Check if goals exist and if tasks for them have already been added.
+      // This is a simple check; a more robust solution would track added tasks by goal ID.
+      const areTodayTasksMissing = todayGoal && goals.find(g => g.id === todayGoal.id) && !initialData.today.some(t => t.title.includes('Reunião weekly sync'));
+      const areTomorrowTasksMissing = tomorrowGoal && goals.find(g => g.id === tomorrowGoal.id) && !initialData.tomorrow.some(t => t.title.includes('Passear com o Woody'));
+
+      if (todayGoal && areTodayTasksMissing) {
         initialData.today.forEach(task => {
           addTask(
             todayGoal.id,
@@ -153,8 +158,7 @@ export default function Home() {
         });
       }
       
-      const tomorrowGoal = goals.find(g => g.name === 'Agenda de Amanhã');
-      if (tomorrowGoal && tasks.filter(t => t.goalId === tomorrowGoal.id).length === 0) {
+      if (tomorrowGoal && areTomorrowTasksMissing) {
         initialData.tomorrow.forEach(task => {
            addTask(
             tomorrowGoal.id,
@@ -167,7 +171,7 @@ export default function Home() {
           );
         });
       }
-  }, [goals, tasks, addTask])
+  }, [goals, addTask])
 
 
   return (

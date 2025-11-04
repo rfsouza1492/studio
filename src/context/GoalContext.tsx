@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { addDays, addMonths, addWeeks } from 'date-fns';
+import { useGoogleApi } from './GoogleApiContext';
 
 interface State {
   goals: Goal[];
@@ -15,7 +16,7 @@ type Action =
   | { type: 'ADD_GOAL'; payload: { name: string, kpiName?: string, kpiCurrent?: number, kpiTarget?: number } }
   | { type: 'EDIT_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: { id: string } }
-  | { type: 'ADD_TASK'; payload: { goalId: string; title: string; priority: Priority; recurrence: Recurrence; deadline?: string; duration?: number; completed?: boolean; } }
+  | { type: 'ADD_TASK'; payload: Task }
   | { type: 'EDIT_TASK'; payload: Task }
   | { type: 'DELETE_TASK'; payload: { id: string } }
   | { type: 'TOGGLE_TASK'; payload: { id: string } };
@@ -50,17 +51,7 @@ const goalReducer = (state: State, action: Action): State => {
         tasks: state.tasks.filter(t => t.goalId !== action.payload.id),
       };
     case 'ADD_TASK':
-      const newTask: Task = {
-        id: crypto.randomUUID(),
-        goalId: action.payload.goalId,
-        title: action.payload.title,
-        completed: action.payload.completed || false,
-        priority: action.payload.priority,
-        deadline: action.payload.deadline,
-        recurrence: action.payload.recurrence,
-        duration: action.payload.duration,
-      };
-      return { ...state, tasks: [...state.tasks, newTask] };
+      return { ...state, tasks: [...state.tasks, action.payload] };
     case 'EDIT_TASK':
       return {
         ...state,
@@ -166,17 +157,33 @@ export const useGoals = () => {
     throw new Error('useGoals must be used within a GoalProvider');
   }
   const { state, dispatch } = context;
+  const { createEvent } = useGoogleApi();
 
   const addGoal = (payload: { name: string, kpiName?: string, kpiCurrent?: number, kpiTarget?: number }) => dispatch({ type: 'ADD_GOAL', payload });
   const editGoal = (goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal });
   const deleteGoal = (id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } });
 
-  const addTask = (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number, completed?: boolean) => dispatch({ type: 'ADD_TASK', payload: { goalId, title, priority, recurrence, deadline: deadline?.toISOString(), completed, duration } });
+  const addTask = (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number, completed?: boolean) => {
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      goalId,
+      title,
+      completed: completed || false,
+      priority,
+      recurrence,
+      deadline: deadline?.toISOString(),
+      duration,
+    };
+    dispatch({ type: 'ADD_TASK', payload: newTask });
+    
+    if (deadline && duration) {
+        createEvent(title, deadline, duration);
+    }
+  };
+
   const editTask = (task: Task) => dispatch({ type: 'EDIT_TASK', payload: task });
   const deleteTask = (id: string) => dispatch({ type: 'DELETE_TASK', payload: { id } });
   const toggleTask = (id: string) => dispatch({ type: 'TOGGLE_TASK', payload: { id } });
 
   return { ...state, addGoal, editGoal, deleteGoal, addTask, editTask, deleteTask, toggleTask };
 };
-
-    
