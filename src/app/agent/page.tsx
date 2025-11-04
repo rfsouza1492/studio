@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Bot, User, Loader2, Wand2, Send, AlertTriangle } from 'lucide-react';
+import { Mic, MicOff, Bot, User, Loader2, Wand2, Send, AlertTriangle, TriangleAlert } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,8 +43,8 @@ export default function AgentPage() {
 
   useEffect(() => {
     setIsClient(true);
-    // This variable is replaced by Next.js at build time.
-    setIsApiKeyConfigured(!!process.env.GEMINI_API_KEY);
+    // This variable is exposed by Next.js at build time.
+    setIsApiKeyConfigured(!!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
 
     // Check for SpeechRecognition API
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -179,10 +179,10 @@ export default function AgentPage() {
     if (!isApiKeyConfigured) {
         return (
             <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                <TriangleAlert className="h-4 w-4" />
                 <AlertTitle>Configuração Necessária</AlertTitle>
                 <AlertDescription>
-                A chave da API do Gemini não foi configurada. Por favor, adicione sua chave ao arquivo <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">.env</code> como <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">GEMINI_API_KEY=SUA_CHAVE_AQUI</code> e reinicie o servidor.
+                A chave da API do Gemini não foi configurada. Por favor, adicione sua chave ao arquivo <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">.env</code> como <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">NEXT_PUBLIC_GEMINI_API_KEY=SUA_CHAVE_AQUI</code> e reinicie o servidor.
                 </AlertDescription>
             </Alert>
         );
