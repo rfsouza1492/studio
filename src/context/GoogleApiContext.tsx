@@ -20,7 +20,7 @@ interface GoogleApiContextType {
 const GoogleApiContext = createContext<GoogleApiContextType | undefined>(undefined);
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-const CLIENT_ID = "1093153839293-uin7g98t29ol1c0f8s3a8g3p5c4o23s2.apps.googleusercontent.com";
+const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile';
 
 export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -57,6 +57,8 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
               apiKey: API_KEY,
               clientId: CLIENT_ID,
               scope: SCOPES,
+              // Required for new Google Identity Services library
+              discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
             }).then(() => {
               const instance = gapi.auth2.getAuthInstance();
               setAuthInstance(instance);
