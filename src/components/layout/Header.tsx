@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useGoogleApi } from '@/context/GoogleApiContext';
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
 export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -34,18 +34,23 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left">
-              <div className="flex flex-col gap-4 py-8">
-                 <Link href="/" className="flex items-center gap-3 px-4">
-                    <Target className="h-8 w-8 text-primary" />
-                    <h1 className="text-2xl font-bold text-foreground">GoalFlow</h1>
-                </Link>
-                <nav className="flex flex-col gap-2 mt-8">
+              <SheetHeader className="text-left">
+                  <SheetTitle>Menu Principal</SheetTitle>
+                  <SheetDescription asChild>
+                    <Link href="/" className="flex items-center gap-3 py-4">
+                      <Target className="h-8 w-8 text-primary" />
+                      <h1 className="text-2xl font-bold text-foreground">GoalFlow</h1>
+                    </Link>
+                  </SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-col gap-4 py-4">
+                <nav className="flex flex-col gap-2">
                   {navLinks.map((link) => (
                     <SheetClose asChild key={link.href}>
                       <Link
                         href={link.href}
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-4 py-3 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground",
                           pathname === link.href && "bg-accent text-accent-foreground"
                         )}
                       >
