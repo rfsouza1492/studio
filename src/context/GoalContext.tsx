@@ -175,10 +175,6 @@ export const useGoals = () => {
       duration,
     };
     dispatch({ type: 'ADD_TASK', payload: newTask });
-    
-    if (deadline && duration) {
-        createEvent(title, deadline, duration);
-    }
   };
 
   const editTask = (task: Task) => dispatch({ type: 'EDIT_TASK', payload: task });
