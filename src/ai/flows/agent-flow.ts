@@ -78,34 +78,43 @@ const agentFlow = ai.defineFlow(
     outputSchema: AgentOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
-        model: 'googleai/gemini-2.5-flash',
-        prompt: promptTemplate,
-        input: input,
-        config: {
-          responseModalities: ['TEXT', 'AUDIO'],
-          speechConfig: {
-              voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: 'Algenib' },
+    // Etapa 1: Gerar a resposta em texto
+    const textResponseGeneration = await ai.generate({
+      prompt: promptTemplate,
+      input: input,
+      model: 'googleai/gemini-2.5-flash',
+    });
+    const textResponse = textResponseGeneration.text ?? "Não consegui entender, pode repetir?";
+    
+    let audioResponse: string | undefined = undefined;
+
+    try {
+      // Etapa 2: Gerar a resposta em áudio (TTS) a partir do texto gerado
+      const audioResponseGeneration = await ai.generate({
+          model: 'googleai/gemini-2.5-flash-preview-tts',
+          prompt: textResponse,
+          config: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                  voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                  },
               },
           },
-      },
-    });
+      });
 
-    const textResponse = output?.message.text() ?? "Não consegui entender, pode repetir?";
-    const audioPart = output?.message.content.find(part => part.media);
-
-    let audioResponse: string | undefined = undefined;
-    if (audioPart?.media?.url) {
-      try {
-        const base64PcmData = audioPart.media.url.substring(audioPart.media.url.indexOf(',') + 1);
-        const audioBuffer = Buffer.from(base64PcmData, 'base64');
-        const wavBase64 = await toWav(audioBuffer);
-        audioResponse = `data:audio/wav;base64,${wavBase64}`;
-      } catch (error) {
-        console.error("Erro ao converter áudio PCM para WAV:", error);
+      const audioPart = audioResponseGeneration.media;
+      if (audioPart?.url) {
+          const base64PcmData = audioPart.url.substring(audioPart.url.indexOf(',') + 1);
+          const audioBuffer = Buffer.from(base64PcmData, 'base64');
+          const wavBase64 = await toWav(audioBuffer);
+          audioResponse = `data:audio/wav;base64,${wavBase64}`;
       }
+    } catch (error) {
+        console.error("Erro ao gerar ou converter áudio:", error);
+        // Continua sem áudio se houver um erro
     }
+
 
     return {
       textResponse,
