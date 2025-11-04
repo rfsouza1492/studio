@@ -1,3 +1,2 @@
-
-// Flows will be imported for their side effects in this file.
-import './flows/agent-flow';
+// This file can be used for development-specific AI flow registrations.
+// It's currently empty but is kept for future use.

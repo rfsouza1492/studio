@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Bot, User, Loader2, Wand2, Send } from 'lucide-react';
+import { Mic, MicOff, Bot, User, Loader2, Wand2, Send, AlertTriangle } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,11 +11,14 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface Message {
   sender: 'user' | 'agent';
   text: string;
 }
+
+const isApiKeyConfigured = !!process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 export default function AgentPage() {
   const [isRecording, setIsRecording] = useState(false);
@@ -85,7 +88,7 @@ export default function AgentPage() {
   }, [messages]);
 
   const handleSendToAgent = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || !isApiKeyConfigured) return;
 
     setIsProcessing(true);
     setMessages((prev) => [...prev, { sender: 'user', text }]);
@@ -113,8 +116,8 @@ export default function AgentPage() {
     } catch (error) {
       console.error('Error talking to agent:', error);
       let errorMessage = "Desculpe, não consegui processar sua solicitação.";
-      if (error instanceof Error && error.message.includes('API key not valid')) {
-        errorMessage = "A chave da API do Gemini não é válida. Verifique o arquivo .env.";
+      if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('400 Bad Request'))) {
+        errorMessage = "A chave da API do Gemini não é válida ou não foi configurada corretamente. Verifique o arquivo .env.";
       }
       setMessages((prev) => [...prev, { sender: 'agent', text: errorMessage }]);
       setIsProcessing(false);
@@ -164,6 +167,17 @@ export default function AgentPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-6">
+
+          {!isApiKeyConfigured ? (
+               <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Configuração Necessária</AlertTitle>
+                  <AlertDescription>
+                    A chave da API do Gemini não foi configurada. Por favor, adicione sua chave ao arquivo <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">.env</code> como <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">GEMINI_API_KEY=SUA_CHAVE_AQUI</code> e reinicie o servidor.
+                  </AlertDescription>
+                </Alert>
+          ) : (
+            <>
             <div className="relative flex h-40 w-40 items-center justify-center">
                 <div className={cn(
                     "absolute h-full w-full rounded-full bg-primary/10 transition-transform duration-1000",
@@ -178,7 +192,7 @@ export default function AgentPage() {
                     size="icon"
                     className="h-24 w-24 rounded-full shadow-lg"
                     onClick={handleToggleRecording}
-                    disabled={isProcessing}
+                    disabled={isProcessing || !isApiKeyConfigured}
                     >
                     {isProcessing && !isRecording ? (
                         <Loader2 className="h-10 w-10 animate-spin" />
@@ -241,15 +255,19 @@ export default function AgentPage() {
                     placeholder="Digite sua pergunta..."
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    disabled={isProcessing || isRecording}
+                    disabled={isProcessing || isRecording || !isApiKeyConfigured}
                 />
-                <Button type="submit" disabled={isProcessing || isRecording || !inputText.trim()}>
+                <Button type="submit" disabled={isProcessing || isRecording || !inputText.trim() || !isApiKeyConfigured}>
                     <Send className="h-4 w-4" />
                 </Button>
             </form>
+            </>
+          )}
+
           </CardContent>
         </Card>
       </main>
     </div>
   );
 }
+
