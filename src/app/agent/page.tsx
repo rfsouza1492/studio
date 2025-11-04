@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Bot, User, Loader2, Wand2, Send, TriangleAlert } from 'lucide-react';
+import { Mic, MicOff, Bot, User, Loader2, Send, TriangleAlert } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +43,7 @@ export default function AgentPage() {
 
   useEffect(() => {
     setIsClient(true);
+    // This check now happens only on the client-side
     setIsApiKeyConfigured(!!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -55,6 +56,7 @@ export default function AgentPage() {
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
+        // Add user message first, then send to agent
         setMessages((prev) => [...prev, { sender: 'user', text: transcript }]);
         handleSendToAgent(transcript);
       };
@@ -70,6 +72,8 @@ export default function AgentPage() {
 
       recognition.onend = () => {
         setIsRecording(false);
+        // Set processing only if it was in a recording state,
+        // otherwise it would trigger on any stop (e.g. error)
         if (isRecording) { 
            setIsProcessing(true);
         }
@@ -87,7 +91,8 @@ export default function AgentPage() {
             audioRef.current = null;
         }
     };
-  }, [showPermissionErrorToast, isRecording]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -121,8 +126,10 @@ export default function AgentPage() {
         const audio = new Audio(response.audioResponse);
         audioRef.current = audio;
         audio.play().catch(console.error);
+        // The processing state should end when audio finishes
         audio.onended = () => setIsProcessing(false);
       } else {
+        // Or immediately if there's no audio
         setIsProcessing(false);
       }
 
@@ -171,7 +178,9 @@ export default function AgentPage() {
     if (!isClient) {
       return (
           <div className="flex flex-col items-center justify-center p-8 text-center">
-            <Skeleton className="h-40 w-40 rounded-full" />
+            <div className="relative flex h-40 w-40 items-center justify-center rounded-full bg-primary/10">
+                <Skeleton className="h-16 w-16" />
+            </div>
             <Skeleton className="mt-6 h-4 w-1/2" />
           </div>
       )
