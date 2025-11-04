@@ -25,58 +25,57 @@ const CLIENT_ID = '859574091958-fi657c59q9ucnpoun6u9mf9ifptvlssk.apps.googleuser
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile';
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 
-
 export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; } | null>(null);
   const [isGapiReady, setIsGapiReady] = useState(false);
-  const [gapiInstance, setGapiInstance] = useState<any>(null);
-
 
   useEffect(() => {
     const initClient = async () => {
       try {
-        const gapi = await loadGapiInsideDOM();
-        setGapiInstance(gapi);
+        const gapiInstance = await loadGapiInsideDOM();
         
         await new Promise<void>((resolve, reject) => {
-            gapi.load('client:auth2', () => {
-                gapi.client.init({
+            gapiInstance.load('client:auth2', () => {
+                gapiInstance.client.init({
                     clientId: CLIENT_ID,
                     scope: SCOPES,
                     discoveryDocs: DISCOVERY_DOCS,
                 }).then(() => {
+                    const authInstance = gapiInstance.auth2.getAuthInstance();
+                    if(!authInstance) {
+                        console.error("Auth instance could not be retrieved after init.");
+                        reject(new Error("Auth instance could not be retrieved after init."));
+                        return;
+                    }
+                    
+                    setIsGapiReady(true);
+                    
+                    const updateStatus = (signedIn: boolean) => {
+                        setIsSignedIn(signedIn);
+                        if (signedIn) {
+                            const profile = authInstance.currentUser.get().getBasicProfile();
+                            if (profile) {
+                                setUser({
+                                    name: profile.getName(),
+                                    email: profile.getEmail(),
+                                });
+                            }
+                        } else {
+                            setUser(null);
+                        }
+                    };
+
+                    authInstance.isSignedIn.listen(updateStatus);
+                    updateStatus(authInstance.isSignedIn.get());
                     resolve();
+
                 }, (err: any) => {
+                    console.error("Error initializing gapi client", err);
                     reject(err);
                 });
             });
         });
-        
-        const authInstance = gapi.auth2.getAuthInstance();
-        if(!authInstance) {
-            throw new Error("Failed to get auth instance");
-        }
-
-        setIsGapiReady(true);
-        
-        const updateStatus = (signedIn: boolean) => {
-            setIsSignedIn(signedIn);
-            if (signedIn) {
-                const profile = authInstance.currentUser.get().getBasicProfile();
-                if (profile) {
-                    setUser({
-                        name: profile.getName(),
-                        email: profile.getEmail(),
-                    });
-                }
-            } else {
-                setUser(null);
-            }
-        };
-
-        authInstance.isSignedIn.listen(updateStatus);
-        updateStatus(authInstance.isSignedIn.get());
 
       } catch (error) {
         console.error('Error initializing Google API client', error);
@@ -85,22 +84,22 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     initClient();
   }, []);
 
-  const signIn = () => {
-    if (isGapiReady && gapiInstance) {
-      gapiInstance.auth2.getAuthInstance().signIn();
+  const signIn = useCallback(() => {
+    if (isGapiReady) {
+      gapi.auth2.getAuthInstance().signIn();
     } else {
       console.error("GAPI not ready for sign-in.");
     }
-  };
+  }, [isGapiReady]);
 
-  const signOut = () => {
-    if (isGapiReady && gapiInstance) {
-      gapiInstance.auth2.getAuthInstance().signOut();
+  const signOut = useCallback(() => {
+    if (isGapiReady) {
+      gapi.auth2.getAuthInstance().signOut();
     }
-  };
+  }, [isGapiReady]);
   
-  const createEvent = async (summary: string, startTime: Date, duration: number) => {
-    if (!isSignedIn || !isGapiReady || !gapiInstance) return;
+  const createEvent = useCallback(async (summary: string, startTime: Date, duration: number) => {
+    if (!isSignedIn || !isGapiReady) return;
     
     const endTime = addMinutes(startTime, duration);
 
@@ -117,7 +116,7 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     try {
-      const request = gapiInstance.client.calendar.events.insert({
+      const request = gapi.client.calendar.events.insert({
         calendarId: 'primary',
         resource: event,
       });
@@ -128,16 +127,16 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     } catch (error) {
         console.error("Error creating event:", error);
     }
-  };
+  }, [isSignedIn, isGapiReady]);
 
-  const listTodayEvents = async (): Promise<CalendarEvent[]> => {
-    if (!isSignedIn || !isGapiReady || !gapiInstance) return [];
+  const listTodayEvents = useCallback(async (): Promise<CalendarEvent[]> => {
+    if (!isSignedIn || !isGapiReady) return [];
        
     const todayStart = startOfToday();
     const todayEnd = endOfToday();
 
     try {
-      const response = await gapiInstance.client.calendar.events.list({
+      const response = await gapi.client.calendar.events.list({
         'calendarId': 'primary',
         'timeMin': todayStart.toISOString(),
         'timeMax': todayEnd.toISOString(),
@@ -150,7 +149,7 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
       console.error('Error fetching calendar events:', error);
       return [];
     }
-  };
+  }, [isSignedIn, isGapiReady]);
 
   return (
     <GoogleApiContext.Provider value={{ isSignedIn, isGapiReady, signIn, signOut, createEvent, listTodayEvents, user }}>
