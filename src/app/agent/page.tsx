@@ -40,35 +40,13 @@ export default function AgentPage() {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognitionAPI) {
       setIsSpeechRecognitionSupported(true);
-      recognitionRef.current = new SpeechRecognitionAPI();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.lang = 'pt-BR';
-      recognitionRef.current.interimResults = false;
-
-      recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setIsProcessing(true);
-        handleSendToAgent(transcript);
-      };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          toast({
-              variant: 'destructive',
-              title: 'Permissão de Microfone Negada',
-              description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
-          });
-        }
-        setIsRecording(false);
-        setIsProcessing(false);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsRecording(false);
-      };
+      const recognition = new SpeechRecognitionAPI();
+      recognition.continuous = false;
+      recognition.lang = 'pt-BR';
+      recognition.interimResults = false;
+      recognitionRef.current = recognition;
     }
-  }, [toast]);
+  }, []);
 
   const handleSendToAgent = async (text: string) => {
     if (!text.trim() || !isApiKeyConfigured) {
@@ -124,8 +102,32 @@ export default function AgentPage() {
 
     if (isRecording) {
       recognitionRef.current.stop();
+      setIsRecording(false);
     } else {
-      setMessages([]); // Clear previous conversation on new voice input
+      setMessages([]);
+      
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        handleSendToAgent(transcript);
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          toast({
+              variant: 'destructive',
+              title: 'Permissão de Microfone Negada',
+              description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
+          });
+        }
+        setIsRecording(false);
+        setIsProcessing(false);
+      };
+
+       recognitionRef.current.onend = () => {
+        setIsRecording(false);
+      };
+      
       recognitionRef.current.start();
       setIsRecording(true);
     }
@@ -267,5 +269,7 @@ export default function AgentPage() {
     </div>
   );
 }
+
+    
 
     
