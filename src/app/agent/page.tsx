@@ -37,7 +37,7 @@ export default function AgentPage() {
     setIsClient(true);
     setIsApiKeyConfigured(!!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
     
-    if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
       setIsSpeechRecognitionSupported(true);
     }
   }, []);
@@ -166,7 +166,9 @@ export default function AgentPage() {
       return (
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <div className="relative flex h-40 w-40 items-center justify-center rounded-full bg-primary/10">
-                <Skeleton className="h-16 w-16" />
+                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <Bot className="h-10 w-10" />
+                </div>
             </div>
             <Skeleton className="mt-6 h-4 w-1/2" />
           </div>
