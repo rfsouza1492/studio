@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useGoals } from '@/context/GoalContext';
-import { Task } from '@/app/types';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,24 +11,6 @@ type TimerMode = 'pomodoro' | 'shortBreak';
 
 const POMODORO_DURATION = 25 * 60;
 const SHORT_BREAK_DURATION = 5 * 60;
-
-async function sendFocusStartWebhook(taskName: string, durationMinutes: number) {
-    try {
-        await fetch('/api/webhook', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                taskName: taskName,
-                durationMinutes: durationMinutes,
-            }),
-        });
-        console.log('Webhook de início de foco enviado para o servidor proxy.');
-    } catch (error) {
-        console.error('Falha ao enviar o webhook para o servidor proxy:', error);
-    }
-}
 
 
 export default function FocoPage() {
@@ -44,14 +25,8 @@ export default function FocoPage() {
     const selectedTask = useMemo(() => tasks.find(task => task.id === selectedTaskId), [tasks, selectedTaskId]);
 
      const handleTimerToggle = useCallback(() => {
-        const newIsActive = !isActive;
-        setIsActive(newIsActive);
-
-        // Se o timer está sendo iniciado e é um pomodoro
-        if (newIsActive && mode === 'pomodoro' && selectedTask) {
-            sendFocusStartWebhook(selectedTask.title, POMODORO_DURATION / 60);
-        }
-    }, [isActive, mode, selectedTask]);
+        setIsActive(prev => !prev);
+    }, []);
 
 
     useEffect(() => {
@@ -128,7 +103,7 @@ export default function FocoPage() {
                     <CardContent className="flex flex-col items-center gap-8">
                         {/* Task Selector */}
                         <div className="w-full max-w-sm">
-                             <Select onValueChange={setSelectedTaskId} value={selectedTaskId || undefined}>
+                             <Select onValueChange={setSelectedTaskId} value={selectedTaskId || ""}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Selecione uma tarefa para focar" />
                                 </SelectTrigger>
