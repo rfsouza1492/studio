@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useGoals } from "@/context/GoalContext";
@@ -49,7 +50,7 @@ export function TaskList({ goalId }: { goalId: string }) {
   if (goalTasks.length === 0) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-primary/10 p-4 text-center">
-        <p className="text-sm text-muted-foreground">Add a task to get started.</p>
+        <p className="text-sm text-muted-foreground">Adicione uma tarefa para começar.</p>
       </div>
     );
   }

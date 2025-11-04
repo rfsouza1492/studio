@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo } from 'react';
@@ -43,11 +44,11 @@ export function GoalCard({ goal }: GoalCardProps) {
     if (totalTasks > 0) {
       return {
         progress: (completedTasks / totalTasks) * 100,
-        progressText: `${completedTasks} of ${totalTasks} tasks completed`
+        progressText: `${completedTasks} de ${totalTasks} tarefas completas`
       };
     }
 
-    return { progress: 0, progressText: 'No tasks yet' };
+    return { progress: 0, progressText: 'Nenhuma tarefa ainda' };
   }, [goal, goalTasks]);
 
 
@@ -70,12 +71,12 @@ export function GoalCard({ goal }: GoalCardProps) {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setEditGoalOpen(true)}>
                 <Pencil className="mr-2 h-4 w-4" />
-                <span>Edit</span>
+                <span>Editar</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setDeleteGoalOpen(true)} className="text-destructive focus:text-destructive">
                 <Trash2 className="mr-2 h-4 w-4" />
-                <span>Delete</span>
+                <span>Deletar</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -91,7 +92,7 @@ export function GoalCard({ goal }: GoalCardProps) {
         <CardFooter>
           <Button variant="outline" className="w-full" onClick={() => setAddTaskOpen(true)}>
             <PlusCircle className="mr-2 h-4 w-4" />
-            Add Task
+            Adicionar Tarefa
           </Button>
         </CardFooter>
       </Card>
@@ -101,8 +102,8 @@ export function GoalCard({ goal }: GoalCardProps) {
         open={deleteGoalOpen}
         onOpenChange={setDeleteGoalOpen}
         onConfirm={() => deleteGoal(goal.id)}
-        title="Delete Goal"
-        description={`Are you sure you want to delete the goal "${goal.name}"? All associated tasks will also be deleted. This action cannot be undone.`}
+        title="Deletar Meta"
+        description={`Você tem certeza que quer deletar a meta "${goal.name}"? Todas as tarefas associadas também serão deletadas. Esta ação não pode ser desfeita.`}
       />
       <AddOrEditTaskDialog open={addTaskOpen} onOpenChange={setAddTaskOpen} goalId={goal.id} />
     </>
