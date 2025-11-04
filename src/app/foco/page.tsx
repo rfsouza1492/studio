@@ -14,7 +14,7 @@ const POMODORO_DURATION = 25 * 60;
 const SHORT_BREAK_DURATION = 5 * 60;
 
 // TODO: Substitua este URL pelo URL do seu webhook da Alexa.
-const ALEXA_WEBHOOK_URL = 'https://example.com/seu-webhook-da-alexa';
+const ALEXA_WEBHOOK_URL = 'https://maker.ifttt.com/trigger/AGENDA/with/key/cipAdC-9yKzt9BXa8nRG0o';
 
 async function sendFocusStartWebhook(taskName: string, durationMinutes: number) {
     if (!ALEXA_WEBHOOK_URL || ALEXA_WEBHOOK_URL.includes('example.com')) {
