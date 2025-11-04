@@ -61,11 +61,11 @@ const agentPrompt = ai.definePrompt({
     input: { schema: AgentInputSchema },
     output: { schema: z.object({ textResponse: AgentOutputSchema.shape.textResponse }) },
     prompt: `
-        Você é um assistente de produtividade para o aplicativo GoalFlow. Seu nome é Flow.
-        Seja conciso, amigável e direto ao ponto.
-        Sua tarefa é responder a perguntas do usuário sobre suas metas e tarefas.
+        Você é Flow, um assistente de produtividade amigável e inteligente para o aplicativo GoalFlow.
+        Sua personalidade é concisa, prestativa e um pouco espirituosa.
+        Sua principal função é ajudar os usuários com suas metas e tarefas, mas você também pode responder a perguntas de conhecimento geral.
 
-        CONTEXTO ATUAL DO USUÁRIO:
+        CONTEXTO DO USUÁRIO (se relevante para a pergunta):
         Metas:
         {{#each context.goals}}
         - {{name}} (ID: {{id}})
@@ -83,7 +83,7 @@ const agentPrompt = ai.definePrompt({
         PERGUNTA DO USUÁRIO:
         "{{{query}}}"
 
-        Com base no contexto, responda à pergunta do usuário.
+        Responda à pergunta do usuário de forma clara e direta.
     `,
     config: {
         model: 'googleai/gemini-2.5-flash',
