@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useGoals } from '@/context/GoalContext';
 import { Task } from '@/app/types';
 import { Header } from '@/components/layout/Header';
@@ -13,6 +13,33 @@ type TimerMode = 'pomodoro' | 'shortBreak';
 const POMODORO_DURATION = 25 * 60;
 const SHORT_BREAK_DURATION = 5 * 60;
 
+// TODO: Substitua este URL pelo URL do seu webhook da Alexa.
+const ALEXA_WEBHOOK_URL = 'https://example.com/seu-webhook-da-alexa';
+
+async function sendFocusStartWebhook(taskName: string, durationMinutes: number) {
+    if (!ALEXA_WEBHOOK_URL || ALEXA_WEBHOOK_URL.includes('example.com')) {
+        console.warn('URL do webhook da Alexa não configurado. O webhook não será enviado.');
+        return;
+    }
+
+    try {
+        await fetch(ALEXA_WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                value1: taskName, // Nome da tarefa
+                value2: durationMinutes, // Duração em minutos
+            }),
+        });
+        console.log('Webhook de início de foco enviado para a Alexa.');
+    } catch (error) {
+        console.error('Falha ao enviar o webhook para a Alexa:', error);
+    }
+}
+
+
 export default function FocoPage() {
     const { tasks, toggleTask } = useGoals();
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -23,6 +50,17 @@ export default function FocoPage() {
 
     const incompleteTasks = useMemo(() => tasks.filter(task => !task.completed), [tasks]);
     const selectedTask = useMemo(() => tasks.find(task => task.id === selectedTaskId), [tasks, selectedTaskId]);
+
+     const handleTimerToggle = useCallback(() => {
+        const newIsActive = !isActive;
+        setIsActive(newIsActive);
+
+        // Se o timer está sendo iniciado e é um pomodoro
+        if (newIsActive && mode === 'pomodoro' && selectedTask) {
+            sendFocusStartWebhook(selectedTask.title, POMODORO_DURATION / 60);
+        }
+    }, [isActive, mode, selectedTask]);
+
 
     useEffect(() => {
         let interval: NodeJS.Timeout | null = null;
@@ -148,7 +186,7 @@ export default function FocoPage() {
                         </div>
 
                         <div className="flex items-center gap-4">
-                            <Button size="lg" onClick={() => setIsActive(!isActive)} disabled={!selectedTaskId}>
+                             <Button size="lg" onClick={handleTimerToggle} disabled={!selectedTaskId}>
                                 {isActive ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
                                 <span className="ml-2">{isActive ? 'Pausar' : 'Iniciar'}</span>
                             </Button>
