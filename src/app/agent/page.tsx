@@ -55,7 +55,6 @@ export default function AgentPage() {
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        // Add the user's transcribed message to the UI immediately
         setMessages((prev) => [...prev, { sender: 'user', text: transcript }]);
         handleSendToAgent(transcript);
       };
@@ -71,9 +70,8 @@ export default function AgentPage() {
 
       recognition.onend = () => {
         setIsRecording(false);
-        // It's possible for onend to be called without a result, so stop processing.
-        if (isRecording) { // check if it was actually recording
-           setIsProcessing(true); // Now we start processing
+        if (isRecording) { 
+           setIsProcessing(true);
         }
       };
 
@@ -89,7 +87,7 @@ export default function AgentPage() {
             audioRef.current = null;
         }
     };
-  }, [showPermissionErrorToast, isRecording]); // Added isRecording to dependencies
+  }, [showPermissionErrorToast, isRecording]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -162,7 +160,6 @@ export default function AgentPage() {
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-
     setMessages((prev) => [...prev, { sender: 'user', text: inputText }]);
     handleSendToAgent(inputText);
     setInputText('');
@@ -197,7 +194,7 @@ export default function AgentPage() {
              {messages.length === 0 && !isRecording && !isProcessing ? (
                     <div className="flex flex-col items-center justify-center p-8 text-center">
                          <div className="relative flex h-40 w-40 items-center justify-center rounded-full bg-primary/10">
-                            <Wand2 className="h-16 w-16 text-primary" />
+                            <Bot className="h-16 w-16 text-primary" />
                         </div>
                         <p className="mt-6 text-lg text-muted-foreground">
                             Pressione o microfone para começar ou digite abaixo.
@@ -292,3 +289,5 @@ export default function AgentPage() {
     </div>
   );
 }
+
+    
