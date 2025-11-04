@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ListTodo, Target, Home, User, LogIn } from 'lucide-react';
+import { Plus, ListTodo, Target, Home, User, LogIn, CalendarDays } from 'lucide-react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
 import Link from 'next/link';
 import {
@@ -24,6 +24,7 @@ export function Header() {
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
     { href: '/today', label: "Today's Tasks", icon: ListTodo },
+    { href: '/calendar', label: 'Agenda', icon: CalendarDays },
   ];
 
   return (

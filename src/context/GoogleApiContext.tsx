@@ -1,12 +1,19 @@
 'use client';
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { addMinutes, formatISO } from 'date-fns';
+import { addMinutes, formatISO, startOfToday, endOfToday } from 'date-fns';
 
+export interface CalendarEvent {
+  id: string;
+  summary: string;
+  start: { dateTime: string, date?: null } | { dateTime?: null, date: string };
+  end: { dateTime: string, date?: null } | { dateTime?: null, date: string };
+}
 interface GoogleApiContextType {
   isSignedIn: boolean;
   signIn: () => void;
   signOut: () => void;
   createEvent: (summary: string, startTime: Date, duration: number) => void;
+  listTodayEvents: () => Promise<CalendarEvent[]>;
   user: { name: string; email: string; } | null;
 }
 
@@ -45,20 +52,26 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     import('gapi-script').then((gapiModule) => {
       const gapi = gapiModule.gapi;
       gapi.load('client:auth2', () => {
-        gapi.client.init({
-          apiKey: API_KEY,
-          clientId: CLIENT_ID,
-          scope: SCOPES,
-        }).then(() => {
-          const instance = gapi.auth2.getAuthInstance();
-          setAuthInstance(instance);
-          if (instance) {
+        if (!gapi.auth2.getAuthInstance()) {
+            gapi.client.init({
+              apiKey: API_KEY,
+              clientId: CLIENT_ID,
+              scope: SCOPES,
+            }).then(() => {
+              const instance = gapi.auth2.getAuthInstance();
+              setAuthInstance(instance);
               instance.isSignedIn.listen((signedIn: boolean) => updateSigninStatus(signedIn, instance));
               updateSigninStatus(instance.isSignedIn.get(), instance);
-          }
-        }).catch((error: any) => {
-          console.error('Error initializing GAPI client', error);
-        });
+            }).catch((error: any) => {
+              console.error('Error initializing GAPI client', error);
+            });
+        } else {
+            const instance = gapi.auth2.getAuthInstance();
+            setAuthInstance(instance);
+            if(instance.isSignedIn.get()) {
+                updateSigninStatus(true, instance);
+            }
+        }
       });
     });
   }, []);
@@ -75,18 +88,24 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
-  const createEvent = (summary: string, startTime: Date, duration: number) => {
-    if (!isSignedIn || typeof window === 'undefined' || !(window as any).gapi || !(window as any).gapi.client) {
-      console.log('User not signed in or GAPI not loaded. Cannot create event.');
-      return;
-    }
-  
+  const ensureGapiClient = async (api: 'calendar', version: 'v3'): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        if (typeof window === 'undefined' || !(window as any).gapi) {
+            return reject(new Error('GAPI not loaded'));
+        }
+        const gapi = (window as any).gapi;
+        if (gapi.client[api]) {
+            return resolve();
+        }
+        gapi.client.load(api, version, () => resolve());
+    });
+  }
+
+  const createEvent = async (summary: string, startTime: Date, duration: number) => {
+    if (!isSignedIn) return;
+
+    await ensureGapiClient('calendar', 'v3');
     const gapi = (window as any).gapi;
-    if (!gapi.client.calendar) {
-        // Load calendar API if not loaded
-        gapi.client.load('calendar', 'v3', () => createEvent(summary, startTime, duration));
-        return;
-    }
 
     const endTime = addMinutes(startTime, duration);
 
@@ -112,8 +131,34 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
   };
 
+    const listTodayEvents = async (): Promise<CalendarEvent[]> => {
+        if (!isSignedIn) return [];
+
+        await ensureGapiClient('calendar', 'v3');
+        const gapi = (window as any).gapi;
+
+        const todayStart = startOfToday();
+        const todayEnd = endOfToday();
+
+        try {
+            const response = await gapi.client.calendar.events.list({
+                'calendarId': 'primary',
+                'timeMin': todayStart.toISOString(),
+                'timeMax': todayEnd.toISOString(),
+                'showDeleted': false,
+                'singleEvents': true,
+                'orderBy': 'startTime'
+            });
+            return response.result.items as CalendarEvent[];
+        } catch (error) {
+            console.error('Error fetching calendar events:', error);
+            return [];
+        }
+    };
+
+
   return (
-    <GoogleApiContext.Provider value={{ isSignedIn, signIn, signOut, createEvent, user }}>
+    <GoogleApiContext.Provider value={{ isSignedIn, signIn, signOut, createEvent, listTodayEvents, user }}>
       {children}
     </GoogleApiContext.Provider>
   );
