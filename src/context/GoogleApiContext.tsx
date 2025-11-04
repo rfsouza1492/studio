@@ -1,3 +1,4 @@
+
 'use client';
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { addMinutes, formatISO, startOfToday, endOfToday } from 'date-fns';
@@ -9,6 +10,12 @@ export interface CalendarEvent {
   end: { dateTime: string, date?: null } | { dateTime?: null, date: string };
 }
 
+interface GoogleUser {
+    name: string;
+    email: string;
+    picture?: string;
+}
+
 interface GoogleApiContextType {
   isSignedIn: boolean;
   isGapiReady: boolean;
@@ -16,7 +23,7 @@ interface GoogleApiContextType {
   signOut: () => void;
   createEvent: (summary: string, startTime: Date, duration: number) => void;
   listTodayEvents: () => Promise<CalendarEvent[]>;
-  user: { name: string; email: string; } | null;
+  user: GoogleUser | null;
 }
 
 const GoogleApiContext = createContext<GoogleApiContextType | undefined>(undefined);
@@ -27,7 +34,7 @@ const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v
 
 export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isSignedIn, setIsSignedIn] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string; } | null>(null);
+  const [user, setUser] = useState<GoogleUser | null>(null);
   const [isGapiReady, setIsGapiReady] = useState(false);
   const [gapiInstance, setGapiInstance] = useState<any>(null);
 
@@ -35,8 +42,8 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     const initClient = async () => {
       try {
         // Dynamically import gapi-script only on the client-side
-        const gapiScript = await import('gapi-script');
-        const gapi = await gapiScript.loadGapiInsideDOM();
+        const { loadGapiInsideDOM } = await import('gapi-script');
+        const gapi = await loadGapiInsideDOM();
         setGapiInstance(gapi);
         
         gapi.load('client:auth2', () => {
@@ -60,6 +67,7 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
                             setUser({
                                 name: profile.getName(),
                                 email: profile.getEmail(),
+                                picture: profile.getImageUrl(),
                             });
                         }
                     } else {

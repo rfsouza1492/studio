@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -35,7 +36,7 @@ export function DeleteConfirmationDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             asChild
             onClick={(e) => {
@@ -44,7 +45,7 @@ export function DeleteConfirmationDialog({
               onOpenChange(false);
             }}
           >
-            <Button variant="destructive">Delete</Button>
+            <Button variant="destructive">Deletar</Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

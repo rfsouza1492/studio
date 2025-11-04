@@ -1,3 +1,4 @@
+
 "use client";
 import React from 'react';
 import { Task } from '@/app/types';
@@ -42,7 +43,22 @@ export function TaskItem({ task }: { task: Task }) {
   const DeadlineIcon = deadlineIcons[deadlineStatus.icon];
 
   const handleCreateEvent = () => {
-    if (!isSignedIn || !task.deadline || !task.duration) return;
+    if (!isSignedIn) {
+        toast({
+            variant: "destructive",
+            title: 'Não conectado',
+            description: `Você precisa conectar sua conta do Google para criar um evento.`,
+        });
+        return;
+    }
+    if(!task.deadline || !task.duration) {
+         toast({
+            variant: "destructive",
+            title: 'Dados Incompletos',
+            description: `A tarefa precisa de uma data de entrega e duração para ser adicionada à agenda.`,
+        });
+        return;
+    }
 
     createEvent(task.title, new Date(task.deadline), task.duration);
     toast({
@@ -59,7 +75,7 @@ export function TaskItem({ task }: { task: Task }) {
             id={`task-${task.id}`}
             checked={task.completed}
             onCheckedChange={() => toggleTask(task.id)}
-            aria-label={`Mark task ${task.title} as ${task.completed ? 'incomplete' : 'complete'}`}
+            aria-label={`Marcar tarefa ${task.title} como ${task.completed ? 'incompleta' : 'completa'}`}
           />
            <div className="flex items-center gap-2">
             <TooltipProvider>
@@ -70,7 +86,7 @@ export function TaskItem({ task }: { task: Task }) {
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{task.priority} Priority</p>
+                  <p>Prioridade {task.priority}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -85,7 +101,7 @@ export function TaskItem({ task }: { task: Task }) {
         </div>
 
         <div className='flex items-center gap-2'>
-        {isSignedIn && task.deadline && task.duration && (
+        {task.deadline && task.duration && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -121,7 +137,7 @@ export function TaskItem({ task }: { task: Task }) {
                 <Repeat className="h-4 w-4 text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Recurs {task.recurrence.toLowerCase()}</p>
+                <p>Recorre {task.recurrence.toLowerCase()}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -132,7 +148,7 @@ export function TaskItem({ task }: { task: Task }) {
                 <TooltipTrigger>
                   <div className={cn("flex items-center gap-1 text-xs", deadlineStatus.color)}>
                     <DeadlineIcon className="h-4 w-4 flex-shrink-0" />
-                    <span className="hidden sm:inline">{format(new Date(task.deadline), "MMM d, p")}</span>
+                    <span className="hidden sm:inline">{format(new Date(task.deadline), "dd MMM, p")}</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -150,12 +166,12 @@ export function TaskItem({ task }: { task: Task }) {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setEditTaskOpen(true)}>
                 <Pencil className="mr-2 h-4 w-4" />
-                <span>Edit</span>
+                <span>Editar</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setDeleteTaskOpen(true)} className="text-destructive focus:text-destructive">
                 <Trash2 className="mr-2 h-4 w-4" />
-                <span>Delete</span>
+                <span>Deletar</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -166,8 +182,8 @@ export function TaskItem({ task }: { task: Task }) {
         open={deleteTaskOpen}
         onOpenChange={setDeleteTaskOpen}
         onConfirm={() => deleteTask(task.id)}
-        title="Delete Task"
-        description={`Are you sure you want to delete the task "${task.title}"? This action cannot be undone.`}
+        title="Deletar Tarefa"
+        description={`Você tem certeza que quer deletar a tarefa "${task.title}"? Esta ação não pode ser desfeita.`}
       />
     </>
   );

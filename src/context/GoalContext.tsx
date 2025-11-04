@@ -4,7 +4,6 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { addDays, addMonths, addWeeks } from 'date-fns';
-import { useGoogleApi } from './GoogleApiContext';
 
 interface State {
   goals: Goal[];
@@ -13,7 +12,7 @@ interface State {
 
 type Action =
   | { type: 'SET_STATE'; payload: State }
-  | { type: 'ADD_GOAL'; payload: { name: string, kpiName?: string, kpiCurrent?: number, kpiTarget?: number } }
+  | { type: 'ADD_GOAL'; payload: Pick<Goal, 'id' | 'name'> & Partial<Omit<Goal, 'id' | 'name'>> }
   | { type: 'EDIT_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: { id: string } }
   | { type: 'ADD_TASK'; payload: Task }
@@ -31,8 +30,8 @@ const goalReducer = (state: State, action: Action): State => {
     case 'SET_STATE':
       return action.payload;
     case 'ADD_GOAL':
-      const newGoal: Goal = { 
-        id: crypto.randomUUID(), 
+      const newGoal: Goal = {
+        id: action.payload.id || crypto.randomUUID(), 
         name: action.payload.name,
         kpiName: action.payload.kpiName,
         kpiCurrent: action.payload.kpiCurrent,
@@ -51,6 +50,10 @@ const goalReducer = (state: State, action: Action): State => {
         tasks: state.tasks.filter(t => t.goalId !== action.payload.id),
       };
     case 'ADD_TASK':
+      // Avoid adding duplicate tasks if they are already there from a previous session
+      if (state.tasks.some(task => task.id === action.payload.id)) {
+        return state;
+      }
       return { ...state, tasks: [...state.tasks, action.payload] };
     case 'EDIT_TASK':
       return {
@@ -64,7 +67,10 @@ const goalReducer = (state: State, action: Action): State => {
       };
     case 'TOGGLE_TASK': {
       const task = state.tasks.find(t => t.id === action.payload.id);
-      if (task?.completed === false && task?.recurrence && task.recurrence !== 'None' && task.deadline) {
+      if (!task) return state;
+
+      // Handle recurring tasks: create a new one for the next period
+      if (task.completed === false && task.recurrence && task.recurrence !== 'None' && task.deadline) {
         const currentDeadline = new Date(task.deadline);
         let nextDeadline: Date;
 
@@ -83,14 +89,15 @@ const goalReducer = (state: State, action: Action): State => {
             break;
         }
 
-        const updatedTask: Task = { ...task, deadline: nextDeadline.toISOString(), completed: false };
+        const recurringTask: Task = { ...task, id: crypto.randomUUID(), deadline: nextDeadline.toISOString(), completed: false };
         const oldTask: Task = { ...task, completed: true, recurrence: 'None' }; // Mark old as complete and non-recurring
 
         return {
           ...state,
-          tasks: [...state.tasks.filter(t => t.id !== action.payload.id), oldTask, updatedTask]
+          tasks: [...state.tasks.filter(t => t.id !== action.payload.id), oldTask, recurringTask]
         };
       }
+      // Handle non-recurring tasks
       return {
         ...state,
         tasks: state.tasks.map(t =>
@@ -113,6 +120,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       const storedState = localStorage.getItem('goalFlowState');
       if (storedState) {
         const parsedState = JSON.parse(storedState);
+        // Add default values for backward compatibility
         if (parsedState.goals) {
           parsedState.goals = parsedState.goals.map((g: any) => ({
             ...g,
@@ -121,7 +129,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
             kpiTarget: g.kpiTarget || 0,
           }));
         }
-        // Add default values for backward compatibility
         if (parsedState.tasks) {
           parsedState.tasks = parsedState.tasks.map((t: any) => ({
             ...t,
@@ -133,12 +140,17 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Could not load state from localStorage", error);
+      // If state is corrupted, clear it to start fresh
+      localStorage.removeItem('goalFlowState');
     }
   }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem('goalFlowState', JSON.stringify(state));
+        // Avoid writing to localStorage on the initial empty state if data is loading
+        if(state.goals.length > 0 || state.tasks.length > 0) {
+            localStorage.setItem('goalFlowState', JSON.stringify(state));
+        }
     } catch (error) {
       console.error("Could not save state to localStorage", error);
     }
@@ -157,9 +169,8 @@ export const useGoals = () => {
     throw new Error('useGoals must be used within a GoalProvider');
   }
   const { state, dispatch } = context;
-  const { createEvent } = useGoogleApi();
 
-  const addGoal = (payload: { name: string, kpiName?: string, kpiCurrent?: number, kpiTarget?: number }) => dispatch({ type: 'ADD_GOAL', payload });
+  const addGoal = (payload: Pick<Goal, 'id' | 'name'> & Partial<Omit<Goal, 'id' | 'name'>>) => dispatch({ type: 'ADD_GOAL', payload });
   const editGoal = (goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal });
   const deleteGoal = (id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } });
 

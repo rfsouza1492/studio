@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -8,45 +9,50 @@ import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { priorities } from '@/app/types';
 import { LayoutDashboard } from 'lucide-react';
+import { ChartContainer, ChartTooltipContent, ChartTooltip, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 
-const COLORS = {
-    High: 'hsl(var(--destructive))',
-    Medium: 'hsl(var(--accent))',
-    Low: 'hsl(var(--sucesso))',
-    completed: 'hsl(var(--primary))',
-    pending: 'hsl(var(--muted))',
-};
-
-const priorityColors = {
-    High: 'hsl(var(--chart-1))',
-    Medium: 'hsl(var(--chart-2))',
-    Low: 'hsl(var(--chart-3))',
+const chartConfig = {
+    completed: {
+        label: "Concluídas",
+        color: "hsl(var(--chart-2))",
+    },
+    pending: {
+        label: "Pendentes",
+        color: "hsl(var(--muted))",
+    },
+    High: {
+        label: "Alta",
+        color: "hsl(var(--chart-1))",
+    },
+    Medium: {
+        label: "Média",
+        color: "hsl(var(--chart-3))",
+    },
+    Low: {
+        label: "Baixa",
+        color: "hsl(var(--chart-5))",
+    },
 }
 
 export default function DashboardPage() {
     const { goals, tasks } = useGoals();
 
     const overallProgress = React.useMemo(() => {
-        if (tasks.length === 0) {
-            return {
-                completed: 0,
-                pending: 0,
-                total: 0,
-                percentage: 0,
-                data: []
-            };
-        }
+        if (tasks.length === 0) return null;
+
         const completedTasks = tasks.filter(task => task.completed).length;
+        const pendingTasks = tasks.length - completedTasks;
         const totalTasks = tasks.length;
         const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
         return {
             completed: completedTasks,
-            pending: totalTasks - completedTasks,
+            pending: pendingTasks,
             total: totalTasks,
             percentage,
-            data: [
-                { name: 'Concluídas', value: completedTasks, color: COLORS.completed },
-                { name: 'Pendentes', value: totalTasks - completedTasks, color: COLORS.pending },
+            chartData: [
+                { name: 'completed', value: completedTasks, fill: "var(--color-completed)" },
+                { name: 'pending', value: pendingTasks, fill: "var(--color-pending)" },
             ]
         };
     }, [tasks]);
@@ -60,7 +66,7 @@ export default function DashboardPage() {
         return priorities.map(p => ({
             name: p,
             count: counts[p],
-            fill: priorityColors[p],
+            fill: `var(--color-${p})`,
         }));
 
     }, [tasks]);
@@ -70,15 +76,14 @@ export default function DashboardPage() {
             let progress = 0;
             let progressText = 'Sem tarefas';
 
-            // KPI-based progress
             if (goal.kpiTarget && goal.kpiTarget > 0) {
                 const current = goal.kpiCurrent || 0;
                 progress = (current / goal.kpiTarget) * 100;
-                progressText = `${current}/${goal.kpiTarget} ${goal.kpiName || ''}`;
-            } else { // Task-based progress
+                progressText = `${current} de ${goal.kpiTarget} ${goal.kpiName || ''}`;
+            } else {
                 const goalTasks = tasks.filter(t => t.goalId === goal.id);
-                const completedTasks = goalTasks.filter(t => t.completed).length;
                 if (goalTasks.length > 0) {
+                    const completedTasks = goalTasks.filter(t => t.completed).length;
                     progress = (completedTasks / goalTasks.length) * 100;
                     progressText = `${completedTasks} de ${goalTasks.length} tarefas`;
                 }
@@ -93,86 +98,80 @@ export default function DashboardPage() {
     }, [goals, tasks]);
 
     return (
-        <div className="container mx-auto max-w-6xl p-4 sm:p-6 md:p-8">
+        <div className="container mx-auto max-w-7xl p-4 sm:p-6 md:p-8">
             <Header />
             <main className="mt-8">
-                <div className='flex items-center gap-2 mb-8'>
+                <div className='mb-8 flex items-center gap-2'>
                     <LayoutDashboard className='h-8 w-8 text-primary' />
-                    <h1 className="text-3xl font-bold">Dashboard</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Dashboard de Produtividade</h1>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    {/* Overall Progress */}
-                    <Card className="lg:col-span-1">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
+                    
+                    <Card className="md:col-span-2 lg:col-span-3">
                         <CardHeader>
-                            <CardTitle>Progresso Geral de Tarefas</CardTitle>
-                            <CardDescription>
+                            <CardTitle>Progresso das Metas</CardTitle>
+                            <CardDescription>Acompanhe o avanço de cada uma das suas metas.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-6">
+                             {goalsProgress.length > 0 ? goalsProgress.map(goal => (
+                                <div key={goal.id} className="grid gap-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="font-medium text-card-foreground">{goal.name}</span>
+                                        <span className="text-muted-foreground">{goal.progressText}</span>
+                                    </div>
+                                    <Progress value={goal.progress} indicatorClassName={goal.progress === 100 ? 'bg-green-500' : ''} />
+                                </div>
+                            )) : (
+                                <p className="py-8 text-center text-muted-foreground">Nenhuma meta criada ainda.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card className="md:col-span-1 lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle>Progresso Geral</CardTitle>
+                             {overallProgress && <CardDescription>
                                 {overallProgress.completed} de {overallProgress.total} tarefas concluídas.
-                            </CardDescription>
+                            </CardDescription>}
                         </CardHeader>
                         <CardContent>
-                            {overallProgress.total > 0 ? (
-                                <div className="h-60 w-full">
-                                    <ResponsiveContainer>
-                                        <PieChart>
-                                            <Pie data={overallProgress.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                                                {overallProgress.data.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip formatter={(value) => `${value} tarefas`} />
-                                            <Legend />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
+                            {overallProgress ? (
+                                <ChartContainer config={chartConfig} className="h-48 w-full">
+                                    <PieChart accessibilityLayer>
+                                        <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                                        <Pie data={overallProgress.chartData} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
+                                            <Cell key="completed" fill="var(--color-completed)" />
+                                            <Cell key="pending" fill="var(--color-pending)" />
+                                        </Pie>
+                                         <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+                                    </PieChart>
+                                </ChartContainer>
                             ) : (
-                                <div className="flex h-60 w-full items-center justify-center text-center">
+                                <div className="flex h-48 w-full items-center justify-center text-center">
                                     <p className="text-muted-foreground">Nenhuma tarefa para exibir.</p>
                                 </div>
                             )}
                         </CardContent>
                     </Card>
 
-                    {/* Tasks by Priority */}
-                    <Card className="lg:col-span-2">
+                    <Card className="md:col-span-full lg:col-span-5">
                         <CardHeader>
                             <CardTitle>Tarefas Pendentes por Prioridade</CardTitle>
                             <CardDescription>Distribuição das tarefas que ainda não foram concluídas.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="h-60 w-full">
-                                <ResponsiveContainer>
-                                    <BarChart data={tasksByPriority} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                        <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                                        <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} formatter={(value) => [`${value} tarefas`, 'Total']} />
-                                        <Bar dataKey="count" radius={[4, 4, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
+                            <ChartContainer config={chartConfig} className="h-60 w-full">
+                                <BarChart accessibilityLayer data={tasksByPriority} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                    <Bar dataKey="count" radius={8} />
+                                </BarChart>
+                            </ChartContainer>
                         </CardContent>
                     </Card>
 
-                    {/* Goals Progress */}
-                    <Card className="lg:col-span-3">
-                        <CardHeader>
-                            <CardTitle>Progresso das Metas</CardTitle>
-                            <CardDescription>Acompanhe o avanço de cada uma das suas metas.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {goalsProgress.length > 0 ? goalsProgress.map(goal => (
-                                <div key={goal.id}>
-                                    <div className="flex justify-between text-sm mb-1">
-                                        <span className="font-medium text-card-foreground">{goal.name}</span>
-                                        <span className="text-muted-foreground">{goal.progressText}</span>
-                                    </div>
-                                    <Progress value={goal.progress} className="h-2" />
-                                </div>
-                            )) : (
-                                <p className="text-center text-muted-foreground">Nenhuma meta criada ainda.</p>
-                            )}
-                        </CardContent>
-                    </Card>
                 </div>
             </main>
         </div>

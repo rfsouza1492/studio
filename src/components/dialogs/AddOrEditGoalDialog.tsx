@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -56,18 +57,19 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
 
   const onSubmit = (values: z.infer<typeof goalSchema>) => {
     const goalData = {
-        ...values,
+        name: values.name,
+        id: goal?.id || crypto.randomUUID(),
         kpiName: values.kpiName || undefined,
         kpiCurrent: values.kpiCurrent,
         kpiTarget: values.kpiTarget,
     };
 
     if (isEditMode) {
-      editGoal({ ...goal, ...goalData });
-      toast({ title: "Goal Updated", description: `The goal "${values.name}" has been updated.` });
+      editGoal(goalData);
+      toast({ title: "Meta Atualizada", description: `A meta "${values.name}" foi atualizada.` });
     } else {
       addGoal(goalData);
-      toast({ title: "Goal Created", description: `The goal "${values.name}" has been created.` });
+      toast({ title: "Meta Criada", description: `A meta "${values.name}" foi criada.` });
     }
     onOpenChange(false);
   };
@@ -76,9 +78,9 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Edit Goal' : 'Create New Goal'}</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Editar Meta' : 'Criar Nova Meta'}</DialogTitle>
           <DialogDescription>
-            {isEditMode ? "Update your goal and its KPI." : "Define your goal and set a KPI to track progress."}
+            {isEditMode ? "Atualize sua meta e seu KPI." : "Defina sua meta e um KPI para acompanhar o progresso."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -88,9 +90,9 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Goal Name</FormLabel>
+                  <FormLabel>Nome da Meta</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Learn Next.js" {...field} />
+                    <Input placeholder="ex: Aprender Next.js" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -99,15 +101,15 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
             
             <Separator />
             
-            <h4 className="text-sm font-medium">Key Performance Indicator (KPI)</h4>
+            <h4 className="text-sm font-medium">Indicador-Chave de Performance (KPI)</h4>
              <FormField
               control={form.control}
               name="kpiName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>KPI Name</FormLabel>
+                  <FormLabel>Nome do KPI (Opcional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Pages Read, Km Ran" {...field} />
+                    <Input placeholder="ex: Páginas Lidas, Km Corridos" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -119,7 +121,7 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
                 name="kpiCurrent"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Current Value</FormLabel>
+                    <FormLabel>Valor Atual</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="0" {...field} />
                     </FormControl>
@@ -132,7 +134,7 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
                 name="kpiTarget"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Target Value</FormLabel>
+                    <FormLabel>Valor Alvo</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="100" {...field} />
                     </FormControl>
@@ -143,7 +145,7 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
             </div>
 
             <DialogFooter>
-              <Button type="submit">{isEditMode ? 'Save Changes' : 'Create Goal'}</Button>
+              <Button type="submit">{isEditMode ? 'Salvar Alterações' : 'Criar Meta'}</Button>
             </DialogFooter>
           </form>
         </Form>

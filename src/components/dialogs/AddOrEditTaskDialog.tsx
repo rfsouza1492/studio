@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -10,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormMessage } from '../ui/form';
+import { Form, FormControl, FormField, FormItem, FormMessage, FormLabel } from '../ui/form';
 import { taskSchema } from '@/lib/schemas';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -66,11 +67,11 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
     }
     
     if (isEditMode) {
-      editTask({ ...task, ...values, deadline: combinedDeadline?.toISOString(), duration: values.duration });
-      toast({ title: "Task Updated", description: "Your task has been updated." });
+      editTask({ ...task!, ...values, deadline: combinedDeadline?.toISOString(), duration: values.duration });
+      toast({ title: "Tarefa Atualizada", description: "Sua tarefa foi atualizada." });
     } else {
       addTask(goalId, values.title, values.priority, values.recurrence, combinedDeadline, values.duration);
-      toast({ title: "Task Added", description: "A new task has been added to your goal." });
+      toast({ title: "Tarefa Adicionada", description: "Uma nova tarefa foi adicionada à sua meta." });
     }
     onOpenChange(false);
   };
@@ -79,9 +80,9 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Edit Task' : 'Add New Task'}</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Editar Tarefa' : 'Adicionar Nova Tarefa'}</DialogTitle>
           <DialogDescription>
-            {isEditMode ? "Update the details of your task." : "What's the next step to reach your goal?"}
+            {isEditMode ? "Atualize os detalhes da sua tarefa." : "Qual é o próximo passo para alcançar sua meta?"}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -91,9 +92,9 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <Label>Task Title</Label>
+                  <FormLabel>Título da Tarefa</FormLabel>
                   <FormControl>
-                    <Input id="title" placeholder="e.g., Complete tutorial" {...field} />
+                    <Input id="title" placeholder="ex: Completar o tutorial" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -105,11 +106,11 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                 name="priority"
                 render={({ field }) => (
                   <FormItem>
-                    <Label>Priority</Label>
+                    <FormLabel>Prioridade</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a priority" />
+                          <SelectValue placeholder="Selecione a prioridade" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -127,11 +128,11 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                 name="recurrence"
                 render={({ field }) => (
                   <FormItem>
-                    <Label>Recurrence</Label>
+                    <FormLabel>Recorrência</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select frequency" />
+                          <SelectValue placeholder="Selecione a frequência" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -151,7 +152,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                   name="deadline"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <Label>Deadline Date</Label>
+                      <FormLabel>Data de Entrega</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -165,7 +166,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                               {field.value ? (
                                 format(field.value, "PPP")
                               ) : (
-                                <span>Pick a date</span>
+                                <span>Escolha uma data</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -194,7 +195,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                     name="time"
                     render={({ field }) => (
                         <FormItem>
-                            <Label>Deadline Time</Label>
+                            <FormLabel>Hora da Entrega</FormLabel>
                             <FormControl>
                                 <Input type="time" {...field} />
                             </FormControl>
@@ -208,16 +209,16 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                 name="duration"
                 render={({ field }) => (
                     <FormItem>
-                        <Label>Duração (minutos)</Label>
+                        <FormLabel>Duração (minutos)</FormLabel>
                         <FormControl>
-                            <Input type="number" placeholder="e.g., 30" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
+                            <Input type="number" placeholder="ex: 30" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
                 />
             <DialogFooter>
-              <Button type="submit">{isEditMode ? 'Save Changes' : 'Add Task'}</Button>
+              <Button type="submit">{isEditMode ? 'Salvar Alterações' : 'Adicionar Tarefa'}</Button>
             </DialogFooter>
           </form>
         </Form>
