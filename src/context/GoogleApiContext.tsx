@@ -27,12 +27,13 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; } | null>(null);
   const [gapi, setGapi] = useState<any>(null);
-
-  const updateSigninStatus = (signedIn: boolean, gapiInstance: any) => {
+  
+  const updateSigninStatus = (signedIn: boolean) => {
     setIsSignedIn(signedIn);
     if (signedIn) {
         try {
-            const profile = gapiInstance.auth2.getAuthInstance().currentUser.get().getBasicProfile();
+            const authInstance = gapi.auth2.getAuthInstance();
+            const profile = authInstance.currentUser.get().getBasicProfile();
             if (profile) {
                 setUser({
                   name: profile.getName(),
@@ -53,28 +54,24 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
       try {
         const gapiModule = await import('gapi-script');
         const gapiInstance = gapiModule.gapi;
-        setGapi(gapiInstance);
 
-        await new Promise<void>((resolve) => gapiInstance.load('client:auth2', () => resolve()));
-        
-        const authInstance = gapiInstance.auth2.getAuthInstance();
-        if (!authInstance) {
-          await gapiInstance.client.init({
-            apiKey: API_KEY,
-            clientId: CLIENT_ID,
-            scope: SCOPES,
-            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
-          });
-        }
-        
-        const instance = gapiInstance.auth2.getAuthInstance();
-        if(instance){
-            instance.isSignedIn.listen((signedIn: boolean) => updateSigninStatus(signedIn, gapiInstance));
-            updateSigninStatus(instance.isSignedIn.get(), gapiInstance);
-        } else {
-             console.error("Auth instance still not available after init.");
-        }
-
+        gapiInstance.load('client:auth2', async () => {
+           await gapiInstance.client.init({
+                apiKey: API_KEY,
+                clientId: CLIENT_ID,
+                scope: SCOPES,
+                discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
+            });
+            
+            const authInstance = gapiInstance.auth2.getAuthInstance();
+            if(authInstance) {
+                setGapi(gapiInstance);
+                authInstance.isSignedIn.listen(updateSigninStatus);
+                updateSigninStatus(authInstance.isSignedIn.get());
+            } else {
+                 console.error("Auth instance could not be retrieved after init.");
+            }
+        });
       } catch (error) {
         console.error('Error initializing GAPI client', error);
       }
@@ -90,6 +87,8 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
         } else {
           console.error("Cannot sign in, auth instance is not ready.");
         }
+    } else {
+        console.error("Cannot sign in, gapi is not loaded yet.");
     }
   };
 
