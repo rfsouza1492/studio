@@ -6,7 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Play, Pause, RefreshCw, Coffee, BrainCircuit } from 'lucide-react';
+import { Play, Pause, RefreshCw, Coffee, BrainCircuit, CheckCircle2 } from 'lucide-react';
 
 type TimerMode = 'pomodoro' | 'shortBreak';
 
@@ -19,6 +19,7 @@ export default function FocoPage() {
     const [mode, setMode] = useState<TimerMode>('pomodoro');
     const [time, setTime] = useState(POMODORO_DURATION);
     const [isActive, setIsActive] = useState(false);
+    const [pomodoroCount, setPomodoroCount] = useState(0);
 
     const incompleteTasks = useMemo(() => tasks.filter(task => !task.completed), [tasks]);
     const selectedTask = useMemo(() => tasks.find(task => task.id === selectedTaskId), [tasks, selectedTaskId]);
@@ -30,12 +31,20 @@ export default function FocoPage() {
                 setTime(t => t - 1);
             }, 1000);
         } else if (isActive && time === 0) {
-            if (mode === 'pomodoro' && selectedTaskId) {
-                toggleTask(selectedTaskId);
+             const audio = new Audio('/alarm.mp3');
+             audio.play().catch(e => console.log("Failed to play audio:", e));
+            
+            if (mode === 'pomodoro') {
+                if(selectedTaskId) {
+                    toggleTask(selectedTaskId);
+                }
+                setPomodoroCount(prev => prev + 1);
+                // Switch to a break after a pomodoro
+                switchMode('shortBreak');
+            } else {
+                 // Switch back to pomodoro after a break
+                switchMode('pomodoro');
             }
-            // Switch mode automatically
-            switchMode(mode === 'pomodoro' ? 'shortBreak' : 'pomodoro');
-            new Audio('/alarm.mp3').play().catch(e => console.log("Failed to play audio:", e));
         }
 
         return () => {
@@ -72,9 +81,15 @@ export default function FocoPage() {
             <main className="mt-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                           <BrainCircuit className="h-6 w-6 text-primary" />
-                           Sessão de Foco
+                        <CardTitle className="flex items-center justify-between">
+                           <div className="flex items-center gap-2">
+                             <BrainCircuit className="h-6 w-6 text-primary" />
+                             Sessão de Foco
+                           </div>
+                           <div className="flex items-center gap-2 text-base font-medium text-muted-foreground">
+                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                <span>Ciclos: {pomodoroCount}</span>
+                           </div>
                         </CardTitle>
                         <CardDescription>
                             Escolha uma tarefa, inicie o timer e concentre-se.
