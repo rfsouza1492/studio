@@ -12,14 +12,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Message {
   sender: 'user' | 'agent';
   text: string;
 }
 
-// Read the environment variable at build time
-const isApiKeyConfigured = !!process.env.GEMINI_API_KEY;
+// NOTE: We check for the API key on the client-side inside useEffect to avoid hydration errors.
+const apiKey = process.env.GEMINI_API_KEY;
 
 export default function AgentPage() {
   const [isRecording, setIsRecording] = useState(false);
@@ -32,8 +33,13 @@ export default function AgentPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [isSpeechRecognitionSupported, setIsSpeechRecognitionSupported] = useState(false);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
+    setIsApiKeyConfigured(!!apiKey);
+
     // Dynamically import for client-side only
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -153,32 +159,32 @@ export default function AgentPage() {
 
   const agentIsSpeaking = isProcessing;
 
-  return (
-    <div className="container mx-auto max-w-2xl p-4 sm:p-6 md:p-8">
-      <Header />
-      <main className="mt-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bot className="h-6 w-6 text-primary" />
-              <span>Agente GoalFlow</span>
-            </CardTitle>
-            <CardDescription>
-              Converse com o agente para obter informações sobre suas metas e tarefas.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-6">
+  const renderContent = () => {
+    if (!isClient) {
+      return (
+          <div className="flex flex-col items-center gap-6 w-full">
+            <Skeleton className="h-40 w-40 rounded-full" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+      )
+    }
 
-          {!isApiKeyConfigured ? (
-               <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Configuração Necessária</AlertTitle>
-                  <AlertDescription>
-                    A chave da API do Gemini não foi configurada. Por favor, adicione sua chave ao arquivo <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">.env</code> como <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">GEMINI_API_KEY=SUA_CHAVE_AQUI</code> e reinicie o servidor.
-                  </AlertDescription>
-                </Alert>
-          ) : (
-            <>
+    if (!isApiKeyConfigured) {
+        return (
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Configuração Necessária</AlertTitle>
+                <AlertDescription>
+                A chave da API do Gemini não foi configurada. Por favor, adicione sua chave ao arquivo <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">.env</code> como <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">GEMINI_API_KEY=SUA_CHAVE_AQUI</code> e reinicie o servidor.
+                </AlertDescription>
+            </Alert>
+        );
+    }
+
+    return (
+        <>
             <div className="relative flex h-40 w-40 items-center justify-center">
                 <div className={cn(
                     "absolute h-full w-full rounded-full bg-primary/10 transition-transform duration-1000",
@@ -193,7 +199,7 @@ export default function AgentPage() {
                     size="icon"
                     className="h-24 w-24 rounded-full shadow-lg"
                     onClick={handleToggleRecording}
-                    disabled={isProcessing || !isApiKeyConfigured}
+                    disabled={isProcessing}
                     >
                     {isProcessing && !isRecording ? (
                         <Loader2 className="h-10 w-10 animate-spin" />
@@ -256,18 +262,37 @@ export default function AgentPage() {
                     placeholder="Digite sua pergunta..."
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    disabled={isProcessing || isRecording || !isApiKeyConfigured}
+                    disabled={isProcessing || isRecording}
                 />
-                <Button type="submit" disabled={isProcessing || isRecording || !inputText.trim() || !isApiKeyConfigured}>
+                <Button type="submit" disabled={isProcessing || isRecording || !inputText.trim()}>
                     <Send className="h-4 w-4" />
                 </Button>
             </form>
-            </>
-          )}
+        </>
+    );
+  }
 
+  return (
+    <div className="container mx-auto max-w-2xl p-4 sm:p-6 md:p-8">
+      <Header />
+      <main className="mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bot className="h-6 w-6 text-primary" />
+              <span>Agente GoalFlow</span>
+            </CardTitle>
+            <CardDescription>
+              Converse com o agente para obter informações sobre suas metas e tarefas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-6">
+            {renderContent()}
           </CardContent>
         </Card>
       </main>
     </div>
   );
 }
+
+    
