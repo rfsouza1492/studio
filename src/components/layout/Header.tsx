@@ -38,17 +38,15 @@ export function Header() {
             <NavigationMenuList>
               {navLinks.map((link) => (
                 <NavigationMenuItem key={link.href}>
-                  <Link href={link.href} passHref>
-                    <NavigationMenuLink
-                      className={cn(
+                  <NavigationMenuLink asChild className={cn(
                         navigationMenuTriggerStyle(),
                         pathname === link.href ? 'bg-accent' : ''
-                      )}
-                    >
+                      )}>
+                    <Link href={link.href}>
                       <link.icon className="mr-2 h-4 w-4" />
                       {link.label}
-                    </NavigationMenuLink>
-                  </Link>
+                    </Link>
+                  </NavigationMenuLink>
                 </NavigationMenuItem>
               ))}
             </NavigationMenuList>
