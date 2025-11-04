@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetHeader, SheetTitle,
 export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const pathname = usePathname();
-  const { isSignedIn, signIn, signOut, user } = useGoogleApi();
+  const { isSignedIn, signIn, signOut, user, isGapiReady } = useGoogleApi();
 
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
@@ -70,12 +70,12 @@ export function Header() {
         </div>
         <div className="flex items-center gap-2">
           {isSignedIn ? (
-            <Button onClick={signOut} variant="outline">
+            <Button onClick={signOut} variant="outline" disabled={!isGapiReady}>
               <User className="-ml-1 h-5 w-5" />
               <span>{user?.name}</span>
             </Button>
           ) : (
-            <Button onClick={signIn}>
+            <Button onClick={signIn} disabled={!isGapiReady}>
               <LogIn className="-ml-1 h-5 w-5" />
               <span>Connect Calendar</span>
             </Button>
