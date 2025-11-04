@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch } from 'react';
@@ -14,7 +15,7 @@ type Action =
   | { type: 'ADD_GOAL'; payload: { name: string, kpiName?: string, kpiCurrent?: number, kpiTarget?: number } }
   | { type: 'EDIT_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: { id: string } }
-  | { type: 'ADD_TASK'; payload: { goalId: string; title: string; priority: Priority; recurrence: Recurrence; deadline?: string; duration?: number; } }
+  | { type: 'ADD_TASK'; payload: { goalId: string; title: string; priority: Priority; recurrence: Recurrence; deadline?: string; duration?: number; completed?: boolean; } }
   | { type: 'EDIT_TASK'; payload: Task }
   | { type: 'DELETE_TASK'; payload: { id: string } }
   | { type: 'TOGGLE_TASK'; payload: { id: string } };
@@ -53,7 +54,7 @@ const goalReducer = (state: State, action: Action): State => {
         id: crypto.randomUUID(),
         goalId: action.payload.goalId,
         title: action.payload.title,
-        completed: false,
+        completed: action.payload.completed || false,
         priority: action.payload.priority,
         deadline: action.payload.deadline,
         recurrence: action.payload.recurrence,
@@ -72,7 +73,7 @@ const goalReducer = (state: State, action: Action): State => {
       };
     case 'TOGGLE_TASK': {
       const task = state.tasks.find(t => t.id === action.payload.id);
-      if (task?.recurrence && task.recurrence !== 'None' && task.deadline) {
+      if (task?.completed === false && task?.recurrence && task.recurrence !== 'None' && task.deadline) {
         const currentDeadline = new Date(task.deadline);
         let nextDeadline: Date;
 
@@ -91,10 +92,12 @@ const goalReducer = (state: State, action: Action): State => {
             break;
         }
 
-        const updatedTask: Task = { ...task, deadline: nextDeadline.toISOString() };
+        const updatedTask: Task = { ...task, deadline: nextDeadline.toISOString(), completed: false };
+        const oldTask: Task = { ...task, completed: true, recurrence: 'None' }; // Mark old as complete and non-recurring
+
         return {
           ...state,
-          tasks: state.tasks.map(t => t.id === action.payload.id ? updatedTask : t)
+          tasks: [...state.tasks.filter(t => t.id !== action.payload.id), oldTask, updatedTask]
         };
       }
       return {
@@ -168,10 +171,12 @@ export const useGoals = () => {
   const editGoal = (goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal });
   const deleteGoal = (id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } });
 
-  const addTask = (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number) => dispatch({ type: 'ADD_TASK', payload: { goalId, title, priority, recurrence, deadline: deadline?.toISOString(), duration } });
+  const addTask = (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number, completed?: boolean) => dispatch({ type: 'ADD_TASK', payload: { goalId, title, priority, recurrence, deadline: deadline?.toISOString(), completed, duration } });
   const editTask = (task: Task) => dispatch({ type: 'EDIT_TASK', payload: task });
   const deleteTask = (id: string) => dispatch({ type: 'DELETE_TASK', payload: { id } });
   const toggleTask = (id: string) => dispatch({ type: 'TOGGLE_TASK', payload: { id } });
 
   return { ...state, addGoal, editGoal, deleteGoal, addTask, editTask, deleteTask, toggleTask };
 };
+
+    
