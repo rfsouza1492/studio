@@ -2,19 +2,13 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ListTodo, Target, Home, User, LogIn, CalendarDays, BrainCircuit, LayoutDashboard } from 'lucide-react';
+import { Plus, ListTodo, Target, Home, User, LogIn, CalendarDays, BrainCircuit, LayoutDashboard, Menu } from 'lucide-react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
 import Link from 'next/link';
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from '@/components/ui/navigation-menu';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useGoogleApi } from '@/context/GoogleApiContext';
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 
 export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -32,31 +26,44 @@ export function Header() {
   return (
     <>
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+           <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left">
+              <div className="flex flex-col gap-4 py-8">
+                 <Link href="/" className="flex items-center gap-3 px-4">
+                    <Target className="h-8 w-8 text-primary" />
+                    <h1 className="text-2xl font-bold text-foreground">GoalFlow</h1>
+                </Link>
+                <nav className="flex flex-col gap-2 mt-8">
+                  {navLinks.map((link) => (
+                    <SheetClose asChild key={link.href}>
+                      <Link
+                        href={link.href}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-4 py-3 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground",
+                          pathname === link.href && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        <link.icon className="h-5 w-5" />
+                        {link.label}
+                      </Link>
+                    </SheetClose>
+                  ))}
+                </nav>
+              </div>
+            </SheetContent>
+          </Sheet>
+          <Link href="/" className="hidden sm:flex items-center gap-3">
             <Target className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold text-foreground">GoalFlow</h1>
           </Link>
         </div>
         <div className="flex items-center gap-2">
-          <NavigationMenu>
-            <NavigationMenuList>
-              {navLinks.map((link) => (
-                <NavigationMenuItem key={link.href}>
-                  <NavigationMenuLink asChild className={cn(
-                        navigationMenuTriggerStyle(),
-                        pathname === link.href ? 'bg-accent' : ''
-                      )}>
-                    <Link href={link.href}>
-                      <link.icon className="mr-2 h-4 w-4" />
-                      {link.label}
-                    </Link>
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-              ))}
-            </NavigationMenuList>
-          </NavigationMenu>
-
           {isSignedIn ? (
             <Button onClick={signOut} variant="outline">
               <User className="-ml-1 h-5 w-5" />
