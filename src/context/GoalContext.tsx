@@ -192,5 +192,5 @@ export const useGoals = () => {
   const deleteTask = (id: string) => dispatch({ type: 'DELETE_TASK', payload: { id } });
   const toggleTask = (id: string) => dispatch({ type: 'TOGGLE_TASK', payload: { id } });
 
-  return { ...state, addGoal, editGoal, deleteGoal, addTask, editTask, deleteTask, toggleTask };
+  return { ...state, dispatch, addGoal, editGoal, deleteGoal, addTask, editTask, deleteTask, toggleTask };
 };
