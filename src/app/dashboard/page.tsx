@@ -27,7 +27,15 @@ export default function DashboardPage() {
     const { goals, tasks } = useGoals();
 
     const overallProgress = React.useMemo(() => {
-        if (tasks.length === 0) return { completed: 0, pending: 0, total: 0, percentage: 0 };
+        if (tasks.length === 0) {
+            return {
+                completed: 0,
+                pending: 0,
+                total: 0,
+                percentage: 0,
+                data: []
+            };
+        }
         const completedTasks = tasks.filter(task => task.completed).length;
         const totalTasks = tasks.length;
         const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
@@ -103,19 +111,25 @@ export default function DashboardPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="h-60 w-full">
-                                <ResponsiveContainer>
-                                    <PieChart>
-                                        <Pie data={overallProgress.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                                            {overallProgress.data.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip formatter={(value) => `${value} tarefas`} />
-                                        <Legend />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </div>
+                            {overallProgress.total > 0 ? (
+                                <div className="h-60 w-full">
+                                    <ResponsiveContainer>
+                                        <PieChart>
+                                            <Pie data={overallProgress.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                                {overallProgress.data.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value) => `${value} tarefas`} />
+                                            <Legend />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div className="flex h-60 w-full items-center justify-center text-center">
+                                    <p className="text-muted-foreground">Nenhuma tarefa para exibir.</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
