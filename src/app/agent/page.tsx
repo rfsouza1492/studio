@@ -45,6 +45,8 @@ export default function AgentPage() {
       recognition.lang = 'pt-BR';
       recognition.interimResults = false;
       recognitionRef.current = recognition;
+    } else {
+        console.warn("Speech Recognition não é suportado neste navegador.");
     }
   }, []);
 
@@ -73,6 +75,7 @@ export default function AgentPage() {
         audioRef.current = audio;
         audio.play().catch(console.error);
         audio.onended = () => setIsProcessing(false);
+        audio.onerror = () => setIsProcessing(false);
       } else {
         setIsProcessing(false);
       }
@@ -99,19 +102,21 @@ export default function AgentPage() {
 
   const handleToggleRecording = () => {
     if (!recognitionRef.current) return;
+    const recognition = recognitionRef.current;
 
     if (isRecording) {
-      recognitionRef.current.stop();
+      recognition.stop();
       setIsRecording(false);
     } else {
       setMessages([]);
       
-      recognitionRef.current.onresult = (event) => {
+      recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         handleSendToAgent(transcript);
+        setIsRecording(false); 
       };
 
-      recognitionRef.current.onerror = (event) => {
+      recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           toast({
@@ -124,12 +129,17 @@ export default function AgentPage() {
         setIsProcessing(false);
       };
 
-       recognitionRef.current.onend = () => {
+       recognition.onend = () => {
         setIsRecording(false);
       };
       
-      recognitionRef.current.start();
-      setIsRecording(true);
+      try {
+        recognition.start();
+        setIsRecording(true);
+      } catch (error) {
+        console.error("Could not start recognition:", error)
+        setIsRecording(false);
+      }
     }
   };
 
@@ -141,13 +151,11 @@ export default function AgentPage() {
     setInputText('');
   }
 
-  const agentIsSpeaking = isProcessing && audioRef.current && !audioRef.current.paused;
-
   const renderContent = () => {
     if (!isClient) {
       return (
-          <div className="flex flex-col items-center justify-center p-8 text-center">
-            <div className="relative flex h-40 w-40 items-center justify-center rounded-full bg-primary/10">
+          <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+            <div className="relative flex h-32 w-32 sm:h-40 sm:w-40 items-center justify-center rounded-full bg-primary/10">
                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <Bot className="h-10 w-10" />
                 </div>
@@ -159,24 +167,26 @@ export default function AgentPage() {
 
     if (!isApiKeyConfigured) {
         return (
-            <Alert variant="destructive">
-                <TriangleAlert className="h-4 w-4" />
-                <AlertTitle>Configuração Necessária</AlertTitle>
-                <AlertDescription>
-                A chave da API do Gemini não foi configurada. Por favor, adicione sua chave ao arquivo <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">.env</code> como <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">NEXT_PUBLIC_GEMINI_API_KEY=SUA_CHAVE_AQUI</code> e reinicie o servidor.
-                </AlertDescription>
-            </Alert>
+             <div className='p-4'>
+                <Alert variant="destructive">
+                    <TriangleAlert className="h-4 w-4" />
+                    <AlertTitle>Configuração Necessária</AlertTitle>
+                    <AlertDescription>
+                    A chave da API do Gemini não foi configurada. Por favor, adicione sua chave ao arquivo <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">.env</code> como <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">NEXT_PUBLIC_GEMINI_API_KEY=SUA_CHAVE_AQUI</code> e reinicie o servidor.
+                    </AlertDescription>
+                </Alert>
+             </div>
         );
     }
 
     return (
         <>
              {messages.length === 0 && !isRecording && !isProcessing ? (
-                    <div className="flex flex-col items-center justify-center p-8 text-center">
-                         <div className="relative flex h-40 w-40 items-center justify-center rounded-full bg-primary/10">
-                            <Bot className="h-16 w-16 text-primary" />
+                    <div className="flex h-full flex-col items-center justify-center p-4 sm:p-8 text-center">
+                         <div className="relative flex h-32 w-32 sm:h-40 sm:w-40 items-center justify-center rounded-full bg-primary/10">
+                            <Bot className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
                         </div>
-                        <p className="mt-6 text-lg text-muted-foreground">
+                        <p className="mt-6 text-base sm:text-lg text-muted-foreground">
                             Pressione o microfone para começar ou digite abaixo.
                         </p>
                     </div>
@@ -186,7 +196,7 @@ export default function AgentPage() {
                             {messages.map((msg, index) => (
                                 <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : '')}>
                                     {msg.sender === 'agent' && (
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
                                            <Bot className="h-5 w-5" />
                                         </div>
                                     )}
@@ -197,7 +207,7 @@ export default function AgentPage() {
                                         <p>{msg.text}</p>
                                     </div>
                                     {msg.sender === 'user' && (
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground flex-shrink-0">
                                            <User className="h-5 w-5" />
                                         </div>
                                     )}
@@ -205,7 +215,7 @@ export default function AgentPage() {
                             ))}
                             {isProcessing && messages[messages.length-1]?.sender === 'user' && (
                                 <div className="flex items-start gap-3">
-                                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
                                         <Bot className="h-5 w-5" />
                                     </div>
                                     <div className="max-w-md rounded-xl bg-muted px-4 py-3 text-sm">
@@ -250,10 +260,10 @@ export default function AgentPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-2xl p-4 sm:p-6 md:p-8">
+    <div className="container mx-auto max-w-3xl p-0 sm:p-4 md:p-6 lg:p-8">
       <Header />
-      <main className="mt-8">
-        <Card className="flex h-[70vh] flex-col">
+      <main className="mt-4 sm:mt-8">
+        <Card className="flex h-[calc(100vh-180px)] sm:h-[75vh] flex-col">
            <CardHeader>
                 <CardTitle className='flex items-center gap-2'>
                     <Bot className='h-6 w-6 text-primary' />
@@ -269,7 +279,3 @@ export default function AgentPage() {
     </div>
   );
 }
-
-    
-
-    
