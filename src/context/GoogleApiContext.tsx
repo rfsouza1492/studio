@@ -21,19 +21,19 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; } | null>(null);
   const [gapi, setGapi] = useState<any>(null);
+  const [authInstance, setAuthInstance] = useState<any>(null);
 
   useEffect(() => {
     import('gapi-script').then((gapiModule) => {
-      const gapiInstance = gapiModule.gapi;
-      setGapi(gapiInstance);
+      setGapi(gapiModule.gapi);
     });
   }, []);
 
   const updateSigninStatus = (signedIn: boolean) => {
     setIsSignedIn(signedIn);
-    if (signedIn && gapi) {
+    if (signedIn && authInstance) {
         try {
-            const profile = gapi.auth2.getAuthInstance().currentUser.get().getBasicProfile();
+            const profile = authInstance.currentUser.get().getBasicProfile();
             if (profile) {
                 setUser({
                   name: profile.getName(),
@@ -58,10 +58,11 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
         clientId: CLIENT_ID,
         scope: SCOPES,
       }).then(() => {
-        const authInstance = gapi.auth2.getAuthInstance();
-        if (authInstance) {
-            authInstance.isSignedIn.listen(updateSigninStatus);
-            updateSigninStatus(authInstance.isSignedIn.get());
+        const instance = gapi.auth2.getAuthInstance();
+        setAuthInstance(instance);
+        if (instance) {
+            instance.isSignedIn.listen(updateSigninStatus);
+            updateSigninStatus(instance.isSignedIn.get());
         }
       }).catch((error: any) => {
         console.error('Error initializing GAPI client', error);
@@ -72,20 +73,14 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [gapi]);
 
   const signIn = () => {
-    if (gapi && gapi.auth2) {
-        const authInstance = gapi.auth2.getAuthInstance();
-        if (authInstance) {
-            authInstance.signIn();
-        }
+    if (authInstance) {
+        authInstance.signIn();
     }
   };
 
   const signOut = () => {
-    if (gapi && gapi.auth2) {
-        const authInstance = gapi.auth2.getAuthInstance();
-        if (authInstance) {
-            authInstance.signOut();
-        }
+    if (authInstance) {
+        authInstance.signOut();
     }
   };
 
