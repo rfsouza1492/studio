@@ -27,8 +27,6 @@ const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.goog
 declare global {
   interface Window {
     gapi: any;
-    google: any;
-    initClient: () => void;
   }
 }
 
@@ -60,21 +58,30 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     script.defer = true;
     script.onload = () => {
       window.gapi.load('client:auth2', () => {
-        window.gapi.client.init({
-          apiKey: API_KEY,
-          clientId: CLIENT_ID,
-          scope: SCOPES,
-          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+        
+        // Etapa 1: Inicializar o cliente de autenticação primeiro
+        window.gapi.auth2.init({
+            clientId: CLIENT_ID,
+            scope: SCOPES,
         }).then(() => {
-          setIsGapiReady(true);
-          const authInstance = window.gapi.auth2.getAuthInstance();
-          if (authInstance) {
-            authInstance.isSignedIn.listen(updateSigninStatus);
-            updateSigninStatus(authInstance.isSignedIn.get());
-          }
+            // Etapa 2: Inicializar o cliente de API (para o Calendar)
+            window.gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+            }).then(() => {
+                setIsGapiReady(true);
+                const authInstance = window.gapi.auth2.getAuthInstance();
+                if (authInstance) {
+                    authInstance.isSignedIn.listen(updateSigninStatus);
+                    updateSigninStatus(authInstance.isSignedIn.get());
+                }
+            }).catch((err: any) => {
+                console.error("Error initializing gapi client", err);
+            });
         }).catch((err: any) => {
-          console.error("Error initializing gapi client", err);
+            console.error("Error initializing gapi auth2", err);
         });
+
       });
     };
     document.body.appendChild(script);
@@ -115,14 +122,18 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
       },
     };
 
-    const request = window.gapi.client.calendar.events.insert({
-      calendarId: 'primary',
-      resource: event,
-    });
+    try {
+      const request = window.gapi.client.calendar.events.insert({
+        calendarId: 'primary',
+        resource: event,
+      });
 
-    request.execute((event: any) => {
-      console.log('Event created: ' + event.htmlLink);
-    });
+      request.execute((event: any) => {
+        console.log('Event created: ' + event.htmlLink);
+      });
+    } catch (error) {
+        console.error("Error creating event:", error);
+    }
   };
 
   const listTodayEvents = async (): Promise<CalendarEvent[]> => {
