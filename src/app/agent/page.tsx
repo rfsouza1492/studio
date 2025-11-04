@@ -33,75 +33,14 @@ export default function AgentPage() {
   const [isClient, setIsClient] = useState(false);
   const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
 
-  const showPermissionErrorToast = useCallback(() => {
-    toast({
-        variant: 'destructive',
-        title: 'Permissão de Microfone Negada',
-        description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
-    });
-  }, [toast]);
-
   useEffect(() => {
     setIsClient(true);
-    // This check now happens only on the client-side
     setIsApiKeyConfigured(!!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
+    
+    if (window.SpeechRecognition || window.webkitSpeechRecognition) {
       setIsSpeechRecognitionSupported(true);
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.lang = 'pt-BR';
-      recognition.interimResults = false;
-
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        // Add user message first, then send to agent
-        setMessages((prev) => [...prev, { sender: 'user', text: transcript }]);
-        handleSendToAgent(transcript);
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            showPermissionErrorToast();
-        }
-        setIsRecording(false);
-        setIsProcessing(false);
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-        // Set processing only if it was in a recording state,
-        // otherwise it would trigger on any stop (e.g. error)
-        if (isRecording) { 
-           setIsProcessing(true);
-        }
-      };
-
-      recognitionRef.current = recognition;
     }
-
-    return () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once
-
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-        if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
-        }
-    }
-  }, [messages, isProcessing]);
+  }, []);
 
   const handleSendToAgent = async (text: string) => {
     if (!text.trim() || !isApiKeyConfigured) {
@@ -110,6 +49,7 @@ export default function AgentPage() {
     }
 
     setIsProcessing(true);
+    setMessages((prev) => [...prev, { sender: 'user', text: text }]);
 
     try {
       const response = await talkToAgent({
@@ -126,10 +66,8 @@ export default function AgentPage() {
         const audio = new Audio(response.audioResponse);
         audioRef.current = audio;
         audio.play().catch(console.error);
-        // The processing state should end when audio finishes
         audio.onended = () => setIsProcessing(false);
       } else {
-        // Or immediately if there's no audio
         setIsProcessing(false);
       }
 
@@ -143,31 +81,80 @@ export default function AgentPage() {
       setIsProcessing(false);
     }
   };
+  
+  const setupSpeechRecognition = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast({
+        variant: "destructive",
+        title: "Não suportado",
+        description: "Seu navegador não suporta a API de reconhecimento de voz."
+      });
+      return;
+    }
+    
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'pt-BR';
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      handleSendToAgent(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        toast({
+            variant: 'destructive',
+            title: 'Permissão de Microfone Negada',
+            description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
+        });
+      }
+      setIsRecording(false);
+      setIsProcessing(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+    
+    recognitionRef.current = recognition;
+    return recognition;
+
+  }, [toast]);
+
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+        if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
+        }
+    }
+  }, [messages, isProcessing]);
 
   const handleToggleRecording = () => {
-    if (!recognitionRef.current) {
-        toast({
-            variant: "destructive",
-            title: "Não suportado",
-            description: "Seu navegador não suporta a API de reconhecimento de voz."
-        });
-        return;
-    }
+    if (!isSpeechRecognitionSupported) return;
 
-    if (isRecording) {
+    if (isRecording && recognitionRef.current) {
       recognitionRef.current.stop();
       setIsRecording(false);
     } else {
-      setMessages([]); // Clear previous conversation on new voice input
-      recognitionRef.current.start();
-      setIsRecording(true);
+      const recognition = setupSpeechRecognition();
+      if(recognition) {
+        setMessages([]); // Clear previous conversation on new voice input
+        recognition.start();
+        setIsRecording(true);
+      }
     }
   };
 
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
-    setMessages((prev) => [...prev, { sender: 'user', text: inputText }]);
+    setMessages([]);
     handleSendToAgent(inputText);
     setInputText('');
   }
