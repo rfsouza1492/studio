@@ -12,11 +12,12 @@ export default function Home() {
   const { goals } = useGoals();
   
   useEffect(() => {
-    // Clear the flag for initial data loading to allow users to reset if they want.
-    const hasBeenLoaded = localStorage.getItem('goalFlowInitialDataLoaded');
-    if(hasBeenLoaded) {
-      // If the user wants to clear data, they can do so by clearing localStorage
-      // and reloading. This logic just prevents re-seeding.
+    // One-time cleanup of old data structures to ensure a fresh start.
+    const hasBeenCleaned = localStorage.getItem('goalFlowCleanupDone');
+    if (!hasBeenCleaned) {
+      localStorage.removeItem('goalFlowState'); // Clear old data
+      localStorage.setItem('goalFlowCleanupDone', 'true'); // Set flag
+      window.location.reload(); // Reload to apply the fresh state
     }
   }, []);
 
