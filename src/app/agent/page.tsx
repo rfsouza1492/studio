@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Bot, User, Loader2, Wand2, Send, AlertTriangle, TriangleAlert } from 'lucide-react';
+import { Mic, MicOff, Bot, User, Loader2, Wand2, Send, TriangleAlert } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,10 +43,8 @@ export default function AgentPage() {
 
   useEffect(() => {
     setIsClient(true);
-    // This variable is exposed by Next.js at build time.
     setIsApiKeyConfigured(!!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
 
-    // Check for SpeechRecognition API
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       setIsSpeechRecognitionSupported(true);
@@ -57,6 +55,8 @@ export default function AgentPage() {
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
+        // Add the user's transcribed message to the UI immediately
+        setMessages((prev) => [...prev, { sender: 'user', text: transcript }]);
         handleSendToAgent(transcript);
       };
 
@@ -66,10 +66,15 @@ export default function AgentPage() {
             showPermissionErrorToast();
         }
         setIsRecording(false);
+        setIsProcessing(false);
       };
 
       recognition.onend = () => {
         setIsRecording(false);
+        // It's possible for onend to be called without a result, so stop processing.
+        if (isRecording) { // check if it was actually recording
+           setIsProcessing(true); // Now we start processing
+        }
       };
 
       recognitionRef.current = recognition;
@@ -84,23 +89,24 @@ export default function AgentPage() {
             audioRef.current = null;
         }
     };
-  }, [showPermissionErrorToast]);
+  }, [showPermissionErrorToast, isRecording]); // Added isRecording to dependencies
 
   useEffect(() => {
-    // Scroll to bottom when new messages are added
     if (scrollAreaRef.current) {
         const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
         if (viewport) {
             viewport.scrollTop = viewport.scrollHeight;
         }
     }
-  }, [messages]);
+  }, [messages, isProcessing]);
 
   const handleSendToAgent = async (text: string) => {
-    if (!text.trim() || !isApiKeyConfigured) return;
+    if (!text.trim() || !isApiKeyConfigured) {
+        setIsProcessing(false);
+        return;
+    }
 
     setIsProcessing(true);
-    setMessages((prev) => [...prev, { sender: 'user', text }]);
 
     try {
       const response = await talkToAgent({
@@ -145,8 +151,9 @@ export default function AgentPage() {
 
     if (isRecording) {
       recognitionRef.current.stop();
+      setIsRecording(false);
     } else {
-      if(messages.length > 0) setMessages([]); // Clear previous conversation on new voice input
+      setMessages([]); // Clear previous conversation on new voice input
       recognitionRef.current.start();
       setIsRecording(true);
     }
@@ -154,24 +161,21 @@ export default function AgentPage() {
 
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if(messages.length > 0 && !isRecording && !isProcessing) setMessages([]);
+    if (!inputText.trim()) return;
+
+    setMessages((prev) => [...prev, { sender: 'user', text: inputText }]);
     handleSendToAgent(inputText);
     setInputText('');
   }
 
-  const agentIsSpeaking = isProcessing;
+  const agentIsSpeaking = isProcessing && audioRef.current && !audioRef.current.paused;
 
   const renderContent = () => {
     if (!isClient) {
       return (
-          <div className="flex flex-col items-center gap-6 w-full">
+          <div className="flex flex-col items-center justify-center p-8 text-center">
             <Skeleton className="h-40 w-40 rounded-full" />
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-64 w-full" />
-            <div className="flex w-full gap-2">
-                <Skeleton className="h-10 flex-grow" />
-                <Skeleton className="h-10 w-10" />
-            </div>
+            <Skeleton className="mt-6 h-4 w-1/2" />
           </div>
       )
     }
@@ -190,20 +194,13 @@ export default function AgentPage() {
 
     return (
         <>
-             {messages.length === 0 ? (
+             {messages.length === 0 && !isRecording && !isProcessing ? (
                     <div className="flex flex-col items-center justify-center p-8 text-center">
-                         <div className={cn(
-                            "relative flex h-40 w-40 items-center justify-center rounded-full bg-primary/10 transition-transform duration-300",
-                            isRecording && "scale-110"
-                        )}>
-                            <div className={cn(
-                                "absolute h-full w-full rounded-full bg-primary/10 transition-transform duration-500",
-                                isRecording && "scale-150 opacity-0"
-                            )}></div>
+                         <div className="relative flex h-40 w-40 items-center justify-center rounded-full bg-primary/10">
                             <Wand2 className="h-16 w-16 text-primary" />
                         </div>
                         <p className="mt-6 text-lg text-muted-foreground">
-                            {isRecording ? "Ouvindo..." : "Pressione o microfone para começar"}
+                            Pressione o microfone para começar ou digite abaixo.
                         </p>
                     </div>
                 ) : (
@@ -239,13 +236,18 @@ export default function AgentPage() {
                                     </div>
                                 </div>
                             )}
+                             {isRecording && (
+                                <div className="flex items-center justify-center p-4">
+                                    <p className="text-muted-foreground animate-pulse">Ouvindo...</p>
+                                </div>
+                            )}
                         </div>
                     </ScrollArea>
              )}
-            <div className="mt-auto flex items-center gap-2 p-4">
+            <div className="mt-auto flex items-center gap-2 border-t p-4">
                 <form onSubmit={handleTextSubmit} className="flex-1 flex items-center gap-2">
                     <Input 
-                        placeholder="Digite sua pergunta..."
+                        placeholder="Ou digite sua pergunta..."
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
                         disabled={isRecording || isProcessing}
