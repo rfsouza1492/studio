@@ -22,7 +22,6 @@ const agentPrompt = ai.definePrompt({
     name: 'agentPrompt',
     input: { schema: AgentInputSchema },
     output: { schema: z.object({ textResponse: AgentOutputSchema.shape.textResponse }) },
-    model: 'googleai/gemini-2.5-flash',
     prompt: `
         Você é Flow, um assistente de produtividade amigável e inteligente para o aplicativo GoalFlow.
         Sua personalidade é concisa, prestativa e um pouco espirituosa.
@@ -48,6 +47,7 @@ const agentPrompt = ai.definePrompt({
 
         Responda à pergunta do usuário de forma clara e direta.
     `,
+    model: 'googleai/gemini-2.5-flash',
 });
 
 
@@ -90,31 +90,37 @@ const agentFlow = ai.defineFlow(
     const llmResponse = await agentPrompt(input);
     const textResponse = llmResponse.output?.textResponse ?? "Não consegui entender, pode repetir?";
 
-    // 2. Gerar a resposta em áudio (TTS) em paralelo
-    const ttsPromise = ai.generate({
-        model: 'googleai/gemini-2.5-flash-preview-tts',
-        config: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-                voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName: 'Algenib' },
+    // 2. Gerar a resposta em áudio (TTS)
+    let audioResponse: string | undefined = undefined;
+    try {
+        const { media } = await ai.generate({
+            model: 'googleai/gemini-2.5-flash-preview-tts',
+            config: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                    },
                 },
             },
-        },
-        prompt: textResponse,
-    });
+            prompt: textResponse,
+        });
 
-    const { media } = await ttsPromise;
-
-    let audioResponse: string | undefined = undefined;
-    if (media?.url) {
-      const audioBuffer = Buffer.from(
-        media.url.substring(media.url.indexOf(',') + 1),
-        'base64'
-      );
-      const wavBase64 = await toWav(audioBuffer);
-      audioResponse = `data:audio/wav;base64,${wavBase64}`;
+        if (media?.url) {
+          // A resposta da API é uma data URI: 'data:audio/pcm;base64,....'
+          // Precisamos extrair apenas os dados base64.
+          const base64PcmData = media.url.substring(media.url.indexOf(',') + 1);
+          const audioBuffer = Buffer.from(base64PcmData, 'base64');
+          
+          // Converter o áudio PCM para o formato WAV
+          const wavBase64 = await toWav(audioBuffer);
+          audioResponse = `data:audio/wav;base64,${wavBase64}`;
+        }
+    } catch (error) {
+        console.error("Erro ao gerar a resposta de áudio (TTS):", error);
+        // O fluxo continua mesmo que o áudio falhe, retornando apenas a resposta em texto.
     }
+
 
     // 3. Retornar ambas as respostas
     return {
