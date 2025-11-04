@@ -1,3 +1,4 @@
+
 'use client';
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { addMinutes, formatISO } from 'date-fns';
@@ -17,9 +18,22 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 
 export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [gapi, setGapi] = useState<any>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; } | null>(null);
+  const [gapi, setGapi] = useState<any>(null);
+
+  const updateSigninStatus = (signedIn: boolean) => {
+    setIsSignedIn(signedIn);
+    if (signedIn && gapi) {
+        const profile = gapi.auth2.getAuthInstance().currentUser.get().getBasicProfile();
+        setUser({
+          name: profile.getName(),
+          email: profile.getEmail(),
+        });
+    } else {
+        setUser(null);
+    }
+  };
 
   useEffect(() => {
     import('gapi-script').then((gapiModule) => {
@@ -52,20 +66,7 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         gapiInstance.load('client:auth2', start);
     });
-  }, []);
-
-  const updateSigninStatus = (signedIn: boolean) => {
-    setIsSignedIn(signedIn);
-    if (signedIn && gapi) {
-        const profile = gapi.auth2.getAuthInstance().currentUser.get().getBasicProfile();
-        setUser({
-          name: profile.getName(),
-          email: profile.getEmail(),
-        });
-    } else {
-        setUser(null);
-    }
-  };
+  }, [gapi]);
 
   const signIn = () => {
     if (gapi) gapi.auth2.getAuthInstance().signIn();
