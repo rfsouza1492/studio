@@ -90,7 +90,7 @@ export function TaskItem({ task }: { task: Task }) {
                 <TooltipTrigger>
                   <div className={cn("flex items-center gap-1 text-xs", deadlineStatus.color)}>
                     <DeadlineIcon className="h-4 w-4 flex-shrink-0" />
-                    <span className="hidden sm:inline">{format(new Date(task.deadline), "MMM d")}</span>
+                    <span className="hidden sm:inline">{format(new Date(task.deadline), "MMM d, p")}</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
