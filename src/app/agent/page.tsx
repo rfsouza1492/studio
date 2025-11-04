@@ -37,10 +37,38 @@ export default function AgentPage() {
     setIsClient(true);
     setIsApiKeyConfigured(!!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
     
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognitionAPI) {
       setIsSpeechRecognitionSupported(true);
+      recognitionRef.current = new SpeechRecognitionAPI();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.lang = 'pt-BR';
+      recognitionRef.current.interimResults = false;
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setIsProcessing(true);
+        handleSendToAgent(transcript);
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          toast({
+              variant: 'destructive',
+              title: 'Permissão de Microfone Negada',
+              description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
+          });
+        }
+        setIsRecording(false);
+        setIsProcessing(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsRecording(false);
+      };
     }
-  }, []);
+  }, [toast]);
 
   const handleSendToAgent = async (text: string) => {
     if (!text.trim() || !isApiKeyConfigured) {
@@ -81,50 +109,6 @@ export default function AgentPage() {
       setIsProcessing(false);
     }
   };
-  
-  const setupSpeechRecognition = useCallback(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast({
-        variant: "destructive",
-        title: "Não suportado",
-        description: "Seu navegador não suporta a API de reconhecimento de voz."
-      });
-      return;
-    }
-    
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.lang = 'pt-BR';
-    recognition.interimResults = false;
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      handleSendToAgent(transcript);
-    };
-
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        toast({
-            variant: 'destructive',
-            title: 'Permissão de Microfone Negada',
-            description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
-        });
-      }
-      setIsRecording(false);
-      setIsProcessing(false);
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-    
-    recognitionRef.current = recognition;
-    return recognition;
-
-  }, [toast]);
-
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -136,18 +120,14 @@ export default function AgentPage() {
   }, [messages, isProcessing]);
 
   const handleToggleRecording = () => {
-    if (!isSpeechRecognitionSupported) return;
+    if (!recognitionRef.current) return;
 
-    if (isRecording && recognitionRef.current) {
+    if (isRecording) {
       recognitionRef.current.stop();
-      setIsRecording(false);
     } else {
-      const recognition = setupSpeechRecognition();
-      if(recognition) {
-        setMessages([]); // Clear previous conversation on new voice input
-        recognition.start();
-        setIsRecording(true);
-      }
+      setMessages([]); // Clear previous conversation on new voice input
+      recognitionRef.current.start();
+      setIsRecording(true);
     }
   };
 
@@ -221,7 +201,7 @@ export default function AgentPage() {
                                     )}
                                 </div>
                             ))}
-                            {isProcessing && !agentIsSpeaking && (
+                            {isProcessing && messages[messages.length-1]?.sender === 'user' && (
                                 <div className="flex items-start gap-3">
                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                                         <Bot className="h-5 w-5" />
