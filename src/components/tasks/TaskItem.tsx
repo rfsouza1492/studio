@@ -5,15 +5,25 @@ import { useGoals } from '@/context/GoalContext';
 import { Checkbox } from '../ui/checkbox';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AddOrEditTaskDialog } from '../dialogs/AddOrEditTaskDialog';
 import { DeleteConfirmationDialog } from '../dialogs/DeleteConfirmationDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+
+const priorityConfig = {
+  High: { icon: ChevronsUp, color: 'text-red-500' },
+  Medium: { icon: ChevronUp, color: 'text-yellow-500' },
+  Low: { icon: ChevronDown, color: 'text-green-500' },
+};
 
 export function TaskItem({ task }: { task: Task }) {
   const { toggleTask, deleteTask } = useGoals();
   const [editTaskOpen, setEditTaskOpen] = React.useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = React.useState(false);
+
+  const PriorityIcon = priorityConfig[task.priority]?.icon || ChevronDown;
+  const priorityColor = priorityConfig[task.priority]?.color || 'text-muted-foreground';
 
   return (
     <>
@@ -25,6 +35,19 @@ export function TaskItem({ task }: { task: Task }) {
             onCheckedChange={() => toggleTask(task.id)}
             aria-label={`Mark task ${task.title} as ${task.completed ? 'incomplete' : 'complete'}`}
           />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className={cn("cursor-default", priorityColor)}>
+                  <PriorityIcon className="h-4 w-4" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{task.priority} Priority</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <label
             htmlFor={`task-${task.id}`}
             className={cn("text-sm transition-colors", task.completed && "text-muted-foreground line-through")}

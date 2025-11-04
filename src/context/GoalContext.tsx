@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch } from 'react';
-import { Goal, Task } from '@/app/types';
+import { Goal, Task, Priority } from '@/app/types';
 
 interface State {
   goals: Goal[];
@@ -13,7 +13,7 @@ type Action =
   | { type: 'ADD_GOAL'; payload: { name: string } }
   | { type: 'EDIT_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: { id: string } }
-  | { type: 'ADD_TASK'; payload: { goalId: string; title: string } }
+  | { type: 'ADD_TASK'; payload: { goalId: string; title: string; priority: Priority } }
   | { type: 'EDIT_TASK'; payload: Task }
   | { type: 'DELETE_TASK'; payload: { id: string } }
   | { type: 'TOGGLE_TASK'; payload: { id: string } };
@@ -47,6 +47,7 @@ const goalReducer = (state: State, action: Action): State => {
         goalId: action.payload.goalId,
         title: action.payload.title,
         completed: false,
+        priority: action.payload.priority,
       };
       return { ...state, tasks: [...state.tasks, newTask] };
     case 'EDIT_TASK':
@@ -80,7 +81,15 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     try {
       const storedState = localStorage.getItem('goalFlowState');
       if (storedState) {
-        dispatch({ type: 'SET_STATE', payload: JSON.parse(storedState) });
+        const parsedState = JSON.parse(storedState);
+        // Add default priority to tasks that don't have one
+        if (parsedState.tasks) {
+          parsedState.tasks = parsedState.tasks.map((t: Task) => ({
+            ...t,
+            priority: t.priority || 'Medium',
+          }));
+        }
+        dispatch({ type: 'SET_STATE', payload: parsedState });
       }
     } catch (error) {
       console.error("Could not load state from localStorage", error);
@@ -113,7 +122,7 @@ export const useGoals = () => {
   const editGoal = (goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal });
   const deleteGoal = (id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } });
 
-  const addTask = (goalId: string, title: string) => dispatch({ type: 'ADD_TASK', payload: { goalId, title } });
+  const addTask = (goalId: string, title: string, priority: Priority) => dispatch({ type: 'ADD_TASK', payload: { goalId, title, priority } });
   const editTask = (task: Task) => dispatch({ type: 'EDIT_TASK', payload: task });
   const deleteTask = (id: string) => dispatch({ type: 'DELETE_TASK', payload: { id } });
   const toggleTask = (id: string) => dispatch({ type: 'TOGGLE_TASK', payload: { id } });
