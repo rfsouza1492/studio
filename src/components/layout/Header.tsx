@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ListTodo, Target, Home, User, LogIn, CalendarDays, BrainCircuit, LayoutDashboard, Menu } from 'lucide-react';
+import { Plus, ListTodo, Target, Home, User, LogIn, CalendarDays, BrainCircuit, LayoutDashboard, Menu, Plug } from 'lucide-react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -21,6 +21,7 @@ export function Header() {
     { href: '/calendar', label: 'Agenda', icon: CalendarDays },
     { href: '/foco', label: 'Foco', icon: BrainCircuit },
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/integrations', label: 'Integrações', icon: Plug },
   ];
 
   return (
