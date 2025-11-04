@@ -49,33 +49,37 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    import('gapi-script').then((gapiModule) => {
-      const gapi = gapiModule.gapi;
-      gapi.load('client:auth2', () => {
-        if (!gapi.auth2.getAuthInstance()) {
-            gapi.client.init({
-              apiKey: API_KEY,
-              clientId: CLIENT_ID,
-              scope: SCOPES,
-              // Required for new Google Identity Services library
-              discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
-            }).then(() => {
-              const instance = gapi.auth2.getAuthInstance();
-              setAuthInstance(instance);
-              instance.isSignedIn.listen((signedIn: boolean) => updateSigninStatus(signedIn, instance));
-              updateSigninStatus(instance.isSignedIn.get(), instance);
-            }).catch((error: any) => {
-              console.error('Error initializing GAPI client', error);
-            });
-        } else {
-            const instance = gapi.auth2.getAuthInstance();
-            setAuthInstance(instance);
-            if(instance.isSignedIn.get()) {
-                updateSigninStatus(true, instance);
-            }
+    const initGapiClient = async () => {
+      try {
+        const gapiModule = await import('gapi-script');
+        const gapi = gapiModule.gapi;
+
+        await new Promise((resolve) => gapi.load('client:auth2', resolve));
+
+        let instance = gapi.auth2.getAuthInstance();
+        if (!instance) {
+          await gapi.client.init({
+            apiKey: API_KEY,
+            clientId: CLIENT_ID,
+            scope: SCOPES,
+            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
+          });
+          instance = gapi.auth2.getAuthInstance();
         }
-      });
-    });
+
+        if (instance) {
+            setAuthInstance(instance);
+            instance.isSignedIn.listen((signedIn: boolean) => updateSigninStatus(signedIn, instance));
+            updateSigninStatus(instance.isSignedIn.get(), instance);
+        } else {
+            console.error("Failed to initialize Google Auth instance.");
+        }
+
+      } catch (error) {
+        console.error('Error initializing GAPI client', error);
+      }
+    };
+    initGapiClient();
   }, []);
 
   const signIn = () => {
