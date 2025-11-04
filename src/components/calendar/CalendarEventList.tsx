@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { format } from 'date-fns';
+import { Goal } from '@/app/types';
 
 interface CalendarEventListProps {
     events: CalendarEvent[];
@@ -41,24 +42,33 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
     const selectedEvents = useMemo(() => {
         return events.filter(event => selectedEventIds.has(event.id));
     }, [events, selectedEventIds]);
-
-    const handleBulkCreateTasks = () => {
-        if (selectedEvents.length === 0) return;
-
+    
+    const getOrCreateAgendaGoal = (): Goal => {
         const goalName = "Tarefas da Agenda";
         let targetGoal = goals.find(g => g.name === goalName);
 
         if (!targetGoal) {
-            addGoal({ name: goalName });
-            // This is a simplified approach. In a real app, you'd wait for the goal
-            // to be created before adding tasks. We'll rely on the user clicking again
-            // or the goal being created from a single-task add first.
+            const newGoal: Goal = {
+                id: crypto.randomUUID(),
+                name: goalName,
+            };
+            addGoal(newGoal);
             toast({
                 title: `Meta "${goalName}" criada`,
-                description: "Agora você pode adicionar as tarefas selecionadas.",
+                description: "As tarefas de eventos da agenda serão adicionadas aqui.",
             });
-            return;
+            // Since context updates might not be immediate, we'll return the new goal object
+            // so the calling function can use it right away.
+            return newGoal;
         }
+        return targetGoal;
+    };
+
+
+    const handleBulkCreateTasks = () => {
+        if (selectedEvents.length === 0) return;
+
+        const targetGoal = getOrCreateAgendaGoal();
 
         let tasksCreatedCount = 0;
         selectedEvents.forEach(event => {
@@ -82,7 +92,7 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
         if (tasksCreatedCount > 0) {
             toast({
                 title: "Tarefas Criadas em Massa!",
-                description: `${tasksCreatedCount} novas tarefas foram adicionadas à meta "${goalName}".`,
+                description: `${tasksCreatedCount} novas tarefas foram adicionadas à meta "${targetGoal.name}".`,
             });
         }
         
@@ -116,7 +126,7 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
                         <Checkbox
                             id="select-all"
                             checked={allSelected}
-                            onCheckedChange={handleSelectAll}
+                            onCheckedChange={(checked) => handleSelectAll(checked === true)}
                             aria-label="Selecionar todos os eventos"
                         />
                         <label htmlFor="select-all" className="text-sm font-medium">

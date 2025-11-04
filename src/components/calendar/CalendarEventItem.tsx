@@ -9,6 +9,7 @@ import React from "react";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "@/lib/utils";
+import { Goal } from "@/app/types";
 
 interface CalendarEventItemProps {
     event: CalendarEvent;
@@ -36,26 +37,31 @@ export function CalendarEventItem({ event, isSelected, onSelectionChange }: Cale
         return "Horário não especificado";
     };
 
-    const handleCreateTask = () => {
+    const getOrCreateAgendaGoal = (): Goal => {
         const goalName = "Tarefas da Agenda";
         let targetGoal = goals.find(g => g.name === goalName);
 
         if (!targetGoal) {
-            addGoal({ name: goalName });
-            // This is tricky because addGoal is async regarding state updates.
-            // A better approach would be to get the new goal back from addGoal
-            // or use an effect. For now, we'll refetch it on the next click,
-            // which isn't ideal but works for a demo.
-             toast({
+            const newGoal: Goal = {
+                id: crypto.randomUUID(),
+                name: goalName,
+            };
+            addGoal(newGoal);
+            toast({
                 title: `Meta "${goalName}" criada`,
                 description: "As tarefas de eventos da agenda serão adicionadas aqui.",
             });
-            // We can't immediately add the task as the goal might not be in the state yet.
-            // The user will have to click again. This is a limitation of this context setup.
-            // A more robust solution might involve returning the new goal from addGoal.
-            return;
+            // Since context updates might not be immediate, we'll return the new goal object
+            // so the calling function can use it right away.
+            return newGoal;
         }
+        return targetGoal;
+    };
 
+
+    const handleCreateTask = () => {
+        const targetGoal = getOrCreateAgendaGoal();
+        
         const deadline = event.start.dateTime ? new Date(event.start.dateTime) : undefined;
         let duration;
         if (event.start.dateTime && event.end.dateTime) {
@@ -73,7 +79,7 @@ export function CalendarEventItem({ event, isSelected, onSelectionChange }: Cale
 
         toast({
             title: "Tarefa Criada!",
-            description: `A tarefa "${event.summary}" foi adicionada à sua meta "${goalName}".`,
+            description: `A tarefa "${event.summary}" foi adicionada à sua meta "${targetGoal.name}".`,
         });
     };
 
