@@ -7,7 +7,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { AgentInput, AgentOutput, AgentInputSchema, AgentOutputSchema } from '@/app/types';
 import wav from 'wav';
 
@@ -22,6 +22,7 @@ const agentPrompt = ai.definePrompt({
     name: 'agentPrompt',
     input: { schema: AgentInputSchema },
     output: { schema: z.object({ textResponse: AgentOutputSchema.shape.textResponse }) },
+    model: 'googleai/gemini-2.5-flash',
     prompt: `
         Você é Flow, um assistente de produtividade amigável e inteligente para o aplicativo GoalFlow.
         Sua personalidade é concisa, prestativa e um pouco espirituosa.
@@ -47,9 +48,6 @@ const agentPrompt = ai.definePrompt({
 
         Responda à pergunta do usuário de forma clara e direta.
     `,
-    config: {
-        model: 'googleai/gemini-2.5-flash',
-    }
 });
 
 
