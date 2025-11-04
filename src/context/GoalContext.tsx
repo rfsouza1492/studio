@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch, useCallback } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { addDays, addMonths, addWeeks } from 'date-fns';
 
@@ -28,7 +28,10 @@ const initialState: State = {
 const goalReducer = (state: State, action: Action): State => {
   switch (action.type) {
     case 'SET_STATE':
-      return action.payload;
+        if (!action.payload || !action.payload.goals || !action.payload.tasks) {
+            return initialState;
+        }
+        return action.payload;
     case 'ADD_GOAL':
       const newGoal: Goal = {
         id: action.payload.id || crypto.randomUUID(), 
@@ -154,11 +157,11 @@ export const useGoals = () => {
   }
   const { state, dispatch } = context;
 
-  const addGoal = (payload: Pick<Goal, 'id' | 'name'> & Partial<Omit<Goal, 'id' | 'name'>>) => dispatch({ type: 'ADD_GOAL', payload });
-  const editGoal = (goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal });
-  const deleteGoal = (id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } });
+  const addGoal = useCallback((payload: Pick<Goal, 'id' | 'name'> & Partial<Omit<Goal, 'id' | 'name'>>) => dispatch({ type: 'ADD_GOAL', payload }), [dispatch]);
+  const editGoal = useCallback((goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal }), [dispatch]);
+  const deleteGoal = useCallback((id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } }), [dispatch]);
 
-  const addTask = (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number, completed?: boolean) => {
+  const addTask = useCallback((goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number, completed?: boolean) => {
     const newTask: Task = {
       id: crypto.randomUUID(),
       goalId,
@@ -170,11 +173,11 @@ export const useGoals = () => {
       duration,
     };
     dispatch({ type: 'ADD_TASK', payload: newTask });
-  };
+  }, [dispatch]);
 
-  const editTask = (task: Task) => dispatch({ type: 'EDIT_TASK', payload: task });
-  const deleteTask = (id: string) => dispatch({ type: 'DELETE_TASK', payload: { id } });
-  const toggleTask = (id: string) => dispatch({ type: 'TOGGLE_TASK', payload: { id } });
+  const editTask = useCallback((task: Task) => dispatch({ type: 'EDIT_TASK', payload: task }), [dispatch]);
+  const deleteTask = useCallback((id: string) => dispatch({ type: 'DELETE_TASK', payload: { id } }), [dispatch]);
+  const toggleTask = useCallback((id: string) => dispatch({ type: 'TOGGLE_TASK', payload: { id } }), [dispatch]);
 
   return { ...state, dispatch, addGoal, editGoal, deleteGoal, addTask, editTask, deleteTask, toggleTask };
 };
