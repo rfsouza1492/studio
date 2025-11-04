@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 import { priorities, recurrences } from "@/app/types";
 
@@ -7,7 +8,7 @@ export const taskSchema = z.object({
   deadline: z.date().optional(),
   time: z.string().optional(),
   recurrence: z.enum(recurrences),
-  duration: z.coerce.number().min(0).optional(),
+  duration: z.union([z.coerce.number().min(0), z.literal('')]).optional(),
 }).refine(data => {
     if (data.deadline && data.time) {
         const combined = new Date(data.deadline);

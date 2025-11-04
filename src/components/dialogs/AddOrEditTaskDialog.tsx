@@ -41,7 +41,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
       deadline: task?.deadline ? new Date(task.deadline) : undefined,
       recurrence: task?.recurrence || 'None',
       time: task?.deadline ? format(new Date(task.deadline), 'HH:mm') : "09:00",
-      duration: task?.duration || undefined,
+      duration: task?.duration || '',
     },
   });
 
@@ -53,7 +53,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
         deadline: task?.deadline ? new Date(task.deadline) : undefined,
         recurrence: task?.recurrence || 'None',
         time: task?.deadline ? format(new Date(task.deadline), 'HH:mm') : "09:00",
-        duration: task?.duration || undefined,
+        duration: task?.duration || '',
       });
     }
   }, [open, task, form]);
@@ -66,11 +66,13 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
         combinedDeadline.setHours(hours, minutes);
     }
     
+    const durationValue = values.duration ? Number(values.duration) : undefined;
+
     if (isEditMode) {
-      editTask({ ...task!, ...values, deadline: combinedDeadline?.toISOString(), duration: values.duration });
+      editTask({ ...task!, ...values, deadline: combinedDeadline?.toISOString(), duration: durationValue });
       toast({ title: "Tarefa Atualizada", description: "Sua tarefa foi atualizada." });
     } else {
-      addTask(goalId, values.title, values.priority, values.recurrence, combinedDeadline, values.duration);
+      addTask(goalId, values.title, values.priority, values.recurrence, combinedDeadline, durationValue);
       toast({ title: "Tarefa Adicionada", description: "Uma nova tarefa foi adicionada à sua meta." });
     }
     onOpenChange(false);
@@ -211,7 +213,7 @@ export function AddOrEditTaskDialog({ open, onOpenChange, goalId, task }: AddOrE
                     <FormItem>
                         <FormLabel>Duração (minutos)</FormLabel>
                         <FormControl>
-                            <Input type="number" placeholder="ex: 30" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)} />
+                            <Input type="number" placeholder="ex: 30" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
