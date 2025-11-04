@@ -18,7 +18,8 @@ interface Message {
   text: string;
 }
 
-const isApiKeyConfigured = !!process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+// Read the environment variable at build time
+const isApiKeyConfigured = !!process.env.GEMINI_API_KEY;
 
 export default function AgentPage() {
   const [isRecording, setIsRecording] = useState(false);
@@ -270,4 +271,3 @@ export default function AgentPage() {
     </div>
   );
 }
-
