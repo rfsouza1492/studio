@@ -1,6 +1,7 @@
 'use client';
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { addMinutes, formatISO, startOfToday, endOfToday } from 'date-fns';
+import { gapi, loadGapiInsideDOM } from 'gapi-script';
 
 export interface CalendarEvent {
   id: string;
@@ -24,85 +25,82 @@ const CLIENT_ID = '859574091958-fi657c59q9ucnpoun6u9mf9ifptvlssk.apps.googleuser
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile';
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 
-declare global {
-  interface Window {
-    gapi: any;
-    google: any;
-  }
-}
 
 export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; } | null>(null);
   const [isGapiReady, setIsGapiReady] = useState(false);
+  const [gapiInstance, setGapiInstance] = useState<any>(null);
 
-  const updateSigninStatus = useCallback((signedIn: boolean) => {
-    setIsSignedIn(signedIn);
-    if (signedIn) {
-      const gapiAuthInstance = window.gapi.auth2.getAuthInstance();
-      const profile = gapiAuthInstance.currentUser.get().getBasicProfile();
-      if (profile) {
-        setUser({
-          name: profile.getName(),
-          email: profile.getEmail(),
-        });
-      }
-    } else {
-      setUser(null);
-    }
-  }, []);
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      window.gapi.load('client:auth2', () => {
-        window.gapi.client.init({
-          clientId: CLIENT_ID,
-          scope: SCOPES,
-          discoveryDocs: DISCOVERY_DOCS
-        }).then(() => {
-            setIsGapiReady(true);
-            const authInstance = window.gapi.auth2.getAuthInstance();
-            if (authInstance) {
-                authInstance.isSignedIn.listen(updateSigninStatus);
-                updateSigninStatus(authInstance.isSignedIn.get());
-            } else {
-                console.error("Auth instance could not be retrieved after init.");
-            }
-        }).catch((err: any) => {
-            console.error("Error initializing gapi client", err);
+    const initClient = async () => {
+      try {
+        const gapi = await loadGapiInsideDOM();
+        setGapiInstance(gapi);
+        
+        await new Promise<void>((resolve, reject) => {
+            gapi.load('client:auth2', () => {
+                gapi.client.init({
+                    clientId: CLIENT_ID,
+                    scope: SCOPES,
+                    discoveryDocs: DISCOVERY_DOCS,
+                }).then(() => {
+                    resolve();
+                }, (err: any) => {
+                    reject(err);
+                });
+            });
         });
-      });
-    };
-    script.onerror = () => {
-        console.error("Failed to load Google API script.");
-    }
-    document.body.appendChild(script);
+        
+        const authInstance = gapi.auth2.getAuthInstance();
+        if(!authInstance) {
+            throw new Error("Failed to get auth instance");
+        }
 
-    return () => {
-      document.body.removeChild(script);
+        setIsGapiReady(true);
+        
+        const updateStatus = (signedIn: boolean) => {
+            setIsSignedIn(signedIn);
+            if (signedIn) {
+                const profile = authInstance.currentUser.get().getBasicProfile();
+                if (profile) {
+                    setUser({
+                        name: profile.getName(),
+                        email: profile.getEmail(),
+                    });
+                }
+            } else {
+                setUser(null);
+            }
+        };
+
+        authInstance.isSignedIn.listen(updateStatus);
+        updateStatus(authInstance.isSignedIn.get());
+
+      } catch (error) {
+        console.error('Error initializing Google API client', error);
+      }
     };
-  }, [updateSigninStatus]);
+    initClient();
+  }, []);
 
   const signIn = () => {
-    if (isGapiReady && window.gapi?.auth2) {
-      window.gapi.auth2.getAuthInstance().signIn();
+    if (isGapiReady && gapiInstance) {
+      gapiInstance.auth2.getAuthInstance().signIn();
     } else {
       console.error("GAPI not ready for sign-in.");
     }
   };
 
   const signOut = () => {
-    if (isGapiReady && window.gapi?.auth2) {
-      window.gapi.auth2.getAuthInstance().signOut();
+    if (isGapiReady && gapiInstance) {
+      gapiInstance.auth2.getAuthInstance().signOut();
     }
   };
   
   const createEvent = async (summary: string, startTime: Date, duration: number) => {
-    if (!isSignedIn || !isGapiReady) return;
+    if (!isSignedIn || !isGapiReady || !gapiInstance) return;
     
     const endTime = addMinutes(startTime, duration);
 
@@ -119,7 +117,7 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     try {
-      const request = window.gapi.client.calendar.events.insert({
+      const request = gapiInstance.client.calendar.events.insert({
         calendarId: 'primary',
         resource: event,
       });
@@ -133,13 +131,13 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const listTodayEvents = async (): Promise<CalendarEvent[]> => {
-    if (!isSignedIn || !isGapiReady) return [];
+    if (!isSignedIn || !isGapiReady || !gapiInstance) return [];
        
     const todayStart = startOfToday();
     const todayEnd = endOfToday();
 
     try {
-      const response = await window.gapi.client.calendar.events.list({
+      const response = await gapiInstance.client.calendar.events.list({
         'calendarId': 'primary',
         'timeMin': todayStart.toISOString(),
         'timeMax': todayEnd.toISOString(),
