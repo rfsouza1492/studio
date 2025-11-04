@@ -4,50 +4,12 @@
  * @fileOverview O fluxo de IA para o agente de conversação do GoalFlow.
  *
  * - talkToAgent - A função principal que processa a consulta do usuário.
- * - AgentInput - O tipo de entrada para a função talkToAgent.
- * - AgentOutput - O tipo de retorno para a função talkToAgent.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { Goal, Task } from '@/app/types';
+import { AgentInput, AgentOutput, AgentInputSchema, AgentOutputSchema } from '@/app/types';
 import wav from 'wav';
-
-// Definindo esquemas Zod para validação
-const GoalSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  kpiName: z.string().optional(),
-  kpiTarget: z.number().optional(),
-  kpiCurrent: z.number().optional(),
-});
-
-const TaskSchema = z.object({
-  id: z.string(),
-  goalId: z.string(),
-  title: z.string(),
-  completed: z.boolean(),
-  priority: z.enum(["Low", "Medium", "High"]),
-  deadline: z.string().optional(),
-  recurrence: z.enum(["None", "Daily", "Weekly", "Monthly"]),
-  duration: z.number().optional(),
-});
-
-export const AgentInputSchema = z.object({
-  query: z.string().describe('A pergunta ou comando do usuário.'),
-  context: z.object({
-    goals: z.array(GoalSchema),
-    tasks: z.array(TaskSchema),
-  }).describe('O estado atual das metas e tarefas do usuário.'),
-});
-export type AgentInput = z.infer<typeof AgentInputSchema>;
-
-export const AgentOutputSchema = z.object({
-  textResponse: z.string().describe('A resposta em texto para o usuário.'),
-  audioResponse: z.string().optional().describe('A resposta em áudio (data URI base64) para o usuário.'),
-});
-export type AgentOutput = z.infer<typeof AgentOutputSchema>;
-
 
 // Função wrapper que será chamada pelo front-end
 export async function talkToAgent(input: AgentInput): Promise<AgentOutput> {
