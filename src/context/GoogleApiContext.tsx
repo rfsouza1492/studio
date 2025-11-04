@@ -77,7 +77,7 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
     };
     initGapiClient();
-  }, []);
+  }, [gapi]);
 
   const signIn = () => {
     if (gapi) {
