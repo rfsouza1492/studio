@@ -69,40 +69,41 @@ const goalReducer = (state: State, action: Action): State => {
       const task = state.tasks.find(t => t.id === action.payload.id);
       if (!task) return state;
 
-      // Handle recurring tasks: create a new one for the next period
-      if (task.completed === false && task.recurrence && task.recurrence !== 'None' && task.deadline) {
-        const currentDeadline = new Date(task.deadline);
-        let nextDeadline: Date;
+      const updatedTask = { ...task, completed: !task.completed };
 
-        switch (task.recurrence) {
-          case 'Daily':
-            nextDeadline = addDays(currentDeadline, 1);
-            break;
-          case 'Weekly':
-            nextDeadline = addWeeks(currentDeadline, 1);
-            break;
-          case 'Monthly':
-            nextDeadline = addMonths(currentDeadline, 1);
-            break;
-          default:
-            nextDeadline = currentDeadline;
-            break;
-        }
+      // Handle recurring tasks: create a new one for the next period ONLY when completing
+      if (updatedTask.completed && task.recurrence !== 'None' && task.deadline) {
+          const currentDeadline = new Date(task.deadline);
+          let nextDeadline: Date;
 
-        const recurringTask: Task = { ...task, id: crypto.randomUUID(), deadline: nextDeadline.toISOString(), completed: false };
-        const oldTask: Task = { ...task, completed: true, recurrence: 'None' }; // Mark old as complete and non-recurring
+          switch (task.recurrence) {
+              case 'Daily':
+                  nextDeadline = addDays(currentDeadline, 1);
+                  break;
+              case 'Weekly':
+                  nextDeadline = addWeeks(currentDeadline, 1);
+                  break;
+              case 'Monthly':
+                  nextDeadline = addMonths(currentDeadline, 1);
+                  break;
+              default:
+                  nextDeadline = currentDeadline; 
+          }
 
-        return {
-          ...state,
-          tasks: [...state.tasks.filter(t => t.id !== action.payload.id), oldTask, recurringTask]
-        };
+          const recurringTask: Task = { ...task, id: crypto.randomUUID(), deadline: nextDeadline.toISOString(), completed: false };
+          
+          return {
+              ...state,
+              tasks: [...state.tasks.map(t => t.id === action.payload.id ? updatedTask : t), recurringTask],
+          };
       }
-      // Handle non-recurring tasks
+      
+      // Handle non-recurring tasks or un-checking a task
       return {
-        ...state,
-        tasks: state.tasks.map(t =>
-          t.id === action.payload.id ? { ...t, completed: !t.completed } : t
-        ),
+          ...state,
+          tasks: state.tasks.map(t =>
+              t.id === action.payload.id ? updatedTask : t
+          ),
       };
     }
     default:
@@ -124,6 +125,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Could not load state from localStorage", error);
+      // If parsing fails, clear the corrupted state
       localStorage.removeItem('goalFlowState');
     }
   }, []);
