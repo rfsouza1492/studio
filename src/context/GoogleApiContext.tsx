@@ -20,13 +20,15 @@ interface GoogleApiContextType {
 
 const GoogleApiContext = createContext<GoogleApiContextType | undefined>(undefined);
 
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 const CLIENT_ID = '859574091958-fi657c59q9ucnpoun6u9mf9ifptvlssk.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile';
+const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+
 
 declare global {
   interface Window {
     gapi: any;
+    google: any;
   }
 }
 
@@ -58,32 +60,27 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
     script.defer = true;
     script.onload = () => {
       window.gapi.load('client:auth2', () => {
-        
-        // Etapa 1: Inicializar o cliente de autenticação primeiro
-        window.gapi.auth2.init({
-            clientId: CLIENT_ID,
-            scope: SCOPES,
+        window.gapi.client.init({
+          clientId: CLIENT_ID,
+          scope: SCOPES,
+          discoveryDocs: DISCOVERY_DOCS
         }).then(() => {
-            // Etapa 2: Inicializar o cliente de API (para o Calendar)
-            window.gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-            }).then(() => {
-                setIsGapiReady(true);
-                const authInstance = window.gapi.auth2.getAuthInstance();
-                if (authInstance) {
-                    authInstance.isSignedIn.listen(updateSigninStatus);
-                    updateSigninStatus(authInstance.isSignedIn.get());
-                }
-            }).catch((err: any) => {
-                console.error("Error initializing gapi client", err);
-            });
+            setIsGapiReady(true);
+            const authInstance = window.gapi.auth2.getAuthInstance();
+            if (authInstance) {
+                authInstance.isSignedIn.listen(updateSigninStatus);
+                updateSigninStatus(authInstance.isSignedIn.get());
+            } else {
+                console.error("Auth instance could not be retrieved after init.");
+            }
         }).catch((err: any) => {
-            console.error("Error initializing gapi auth2", err);
+            console.error("Error initializing gapi client", err);
         });
-
       });
     };
+    script.onerror = () => {
+        console.error("Failed to load Google API script.");
+    }
     document.body.appendChild(script);
 
     return () => {
