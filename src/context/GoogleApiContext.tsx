@@ -1,7 +1,6 @@
 'use client';
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { addMinutes, formatISO, startOfToday, endOfToday } from 'date-fns';
-import { loadGapiInsideDOM } from 'gapi-script';
 
 export interface CalendarEvent {
   id: string;
@@ -35,7 +34,9 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
   useEffect(() => {
     const initClient = async () => {
       try {
-        const gapi = await loadGapiInsideDOM();
+        // Dynamically import gapi-script only on the client-side
+        const gapiScript = await import('gapi-script');
+        const gapi = await gapiScript.loadGapiInsideDOM();
         setGapiInstance(gapi);
         
         gapi.load('client:auth2', () => {
@@ -47,10 +48,9 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
                 const authInstance = gapi.auth2.getAuthInstance();
                 if(!authInstance) {
                     console.error("Auth instance could not be retrieved after init.");
+                    setIsGapiReady(false);
                     return;
                 }
-                
-                setIsGapiReady(true);
                 
                 const updateStatus = (signedIn: boolean) => {
                     setIsSignedIn(signedIn);
@@ -69,14 +69,17 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
 
                 authInstance.isSignedIn.listen(updateStatus);
                 updateStatus(authInstance.isSignedIn.get());
+                setIsGapiReady(true); // GAPI is fully ready here
 
             }, (err: any) => {
                 console.error("Error initializing gapi client", err);
+                setIsGapiReady(false);
             });
         });
 
       } catch (error) {
         console.error('Error initializing Google API client', error);
+        setIsGapiReady(false);
       }
     };
     
