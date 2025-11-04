@@ -22,7 +22,7 @@ export default function Home() {
             { id: 'goal-3', name: 'Rotina e planejamento' },
           ],
           tasks: [
-            { id: 'task-1', goalId: 'goal-1', title: '19:00–20:00 Estudo focado (Node.js / HubSpot / SQL)', completed: false, priority: 'High', recurrence: 'Daily' },
+            { id: 'task-1', goalId: 'goal-1', title: '19:00–20:00 Estudo focado (Node.js / HubSpot / SQL)', completed: false, priority: 'High', recurrence: 'Daily', deadline: new Date().toISOString() },
             { id: 'task-2', goalId: 'goal-2', title: '06:00–07:00 Treino (Bike/Corrida)', completed: true, priority: 'Medium', recurrence: 'None' },
             { id: 'task-3', goalId: 'goal-2', title: '07:20–07:40 Yoga', completed: false, priority: 'Low', recurrence: 'None' },
             { id: 'task-4', goalId: 'goal-2', title: '07:40–07:55 Meditação', completed: true, priority: 'Medium', recurrence: 'None' },
@@ -77,4 +77,3 @@ function EmptyState() {
     </>
   );
 }
-

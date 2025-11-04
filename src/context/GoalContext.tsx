@@ -120,34 +120,16 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       const storedState = localStorage.getItem('goalFlowState');
       if (storedState) {
         const parsedState = JSON.parse(storedState);
-        // Add default values for backward compatibility
-        if (parsedState.goals) {
-          parsedState.goals = parsedState.goals.map((g: any) => ({
-            ...g,
-            kpiName: g.kpiName || undefined,
-            kpiCurrent: g.kpiCurrent || 0,
-            kpiTarget: g.kpiTarget || 0,
-          }));
-        }
-        if (parsedState.tasks) {
-          parsedState.tasks = parsedState.tasks.map((t: any) => ({
-            ...t,
-            priority: t.priority || 'Medium',
-            recurrence: t.recurrence || 'None',
-          }));
-        }
         dispatch({ type: 'SET_STATE', payload: parsedState });
       }
     } catch (error) {
       console.error("Could not load state from localStorage", error);
-      // If state is corrupted, clear it to start fresh
       localStorage.removeItem('goalFlowState');
     }
   }, []);
 
   useEffect(() => {
     try {
-        // Avoid writing to localStorage on the initial empty state if data is loading
         if(state.goals.length > 0 || state.tasks.length > 0) {
             localStorage.setItem('goalFlowState', JSON.stringify(state));
         }

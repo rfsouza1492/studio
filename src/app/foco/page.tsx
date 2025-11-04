@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useGoals } from '@/context/GoalContext';
@@ -24,10 +25,11 @@ export default function FocoPage() {
     const incompleteTasks = useMemo(() => tasks.filter(task => !task.completed), [tasks]);
     const selectedTask = useMemo(() => tasks.find(task => task.id === selectedTaskId), [tasks, selectedTaskId]);
 
-     const handleTimerToggle = useCallback(() => {
-        setIsActive(prev => !prev);
+    const switchMode = useCallback((newMode: TimerMode) => {
+        setMode(newMode);
+        setIsActive(false);
+        setTime(newMode === 'pomodoro' ? POMODORO_DURATION : SHORT_BREAK_DURATION);
     }, []);
-
 
     useEffect(() => {
         let interval: NodeJS.Timeout | null = null;
@@ -37,7 +39,7 @@ export default function FocoPage() {
             }, 1000);
         } else if (isActive && time === 0) {
              const audio = new Audio('/alarm.mp3');
-             audio.play().catch(e => console.log("Failed to play audio:", e));
+             audio.play().catch(e => console.error("Failed to play audio:", e));
             
             if (mode === 'pomodoro') {
                 if(selectedTaskId) {
@@ -55,17 +57,12 @@ export default function FocoPage() {
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [isActive, time, mode, selectedTaskId, toggleTask]);
+    }, [isActive, time, mode, selectedTaskId, toggleTask, switchMode]);
     
     useEffect(() => {
         document.title = `${formatTime(time)} - ${mode === 'pomodoro' ? 'Foco' : 'Pausa'}`;
     }, [time, mode]);
 
-    const switchMode = (newMode: TimerMode) => {
-        setMode(newMode);
-        setIsActive(false);
-        setTime(newMode === 'pomodoro' ? POMODORO_DURATION : SHORT_BREAK_DURATION);
-    };
 
     const formatTime = (seconds: number) => {
         const minutes = Math.floor(seconds / 60);
@@ -73,10 +70,14 @@ export default function FocoPage() {
         return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     };
 
-    const handleReset = () => {
+    const handleReset = useCallback(() => {
         setIsActive(false);
         setTime(mode === 'pomodoro' ? POMODORO_DURATION : SHORT_BREAK_DURATION);
-    };
+    }, [mode]);
+
+    const handleTimerToggle = useCallback(() => {
+        setIsActive(prev => !prev);
+    }, []);
 
     const progressPercentage = ((mode === 'pomodoro' ? POMODORO_DURATION : SHORT_BREAK_DURATION) - time) / (mode === 'pomodoro' ? POMODORO_DURATION : SHORT_BREAK_DURATION) * 100;
 

@@ -1,6 +1,6 @@
 
 'use client';
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useCallback } from 'react';
 import { useGoals } from '@/context/GoalContext';
 import { TaskItem } from '@/components/tasks/TaskItem';
 import { Header } from '@/components/layout/Header';
@@ -15,45 +15,50 @@ import { Task } from '@/app/types';
 export default function TodayPage() {
   const { tasks, editTask, addTask } = useGoals();
 
-  // This effect will run once on component mount to handle recurring tasks
-  useEffect(() => {
+  const handleRecurringTasks = useCallback(() => {
     const today = startOfToday();
     const tasksToUpdate: Task[] = [];
     const tasksToAdd: Parameters<typeof addTask>[] = [];
 
     tasks.forEach(task => {
-        // Handle daily recurring tasks that are in the past and not completed
-        if (task.recurrence === 'Daily' && task.deadline && isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline)) && !task.completed) {
+        if (task.recurrence === 'Daily' && task.deadline && isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline))) {
            
-            // Create a new task for today based on the old one
             const newDeadline = new Date(task.deadline);
-            newDeadline.setHours(today.getHours(), today.getMinutes(), today.getSeconds(), today.getMilliseconds());
-            const todayDeadline = startOfToday();
-            todayDeadline.setHours(new Date(task.deadline).getHours(), new Date(task.deadline).getMinutes());
+            newDeadline.setFullYear(today.getFullYear(), today.getMonth(), today.getDate());
 
-            tasksToAdd.push([
-                task.goalId,
-                task.title,
-                task.priority,
-                task.recurrence,
-                todayDeadline,
-                task.duration,
-                false
-            ]);
+            const taskAlreadyExistsForToday = tasks.some(t => 
+                t.title === task.title && 
+                t.deadline && 
+                isToday(new Date(t.deadline))
+            );
+
+            if (!taskAlreadyExistsForToday) {
+                tasksToAdd.push([
+                    task.goalId,
+                    task.title,
+                    task.priority,
+                    task.recurrence,
+                    newDeadline,
+                    task.duration,
+                    false
+                ]);
+            }
             
-            // Mark the old task as non-recurring to stop it from being processed again
-            tasksToUpdate.push({ ...task, recurrence: 'None' });
+            if (task.recurrence !== 'None') {
+              tasksToUpdate.push({ ...task, recurrence: 'None' });
+            }
         }
     });
 
     if (tasksToUpdate.length > 0 || tasksToAdd.length > 0) {
-        console.log(`Re-scheduling ${tasksToAdd.length} daily task(s) for today.`);
-        // Batch updates and additions
         tasksToUpdate.forEach(editTask);
         tasksToAdd.forEach(args => addTask(...args));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once when the page loads
+  }, [tasks, addTask, editTask]);
+
+  useEffect(() => {
+    handleRecurringTasks();
+  }, [handleRecurringTasks]);
 
   const todayTasks = useMemo(() => {
     return tasks
