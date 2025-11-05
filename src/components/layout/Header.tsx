@@ -37,6 +37,13 @@ export function Header() {
     { href: '/integrations', label: 'Integrações', icon: Plug },
   ];
 
+  const Logo = () => (
+    <Link href="/" className="flex items-center gap-3">
+        <Target className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">GoalFlow</h1>
+    </Link>
+  );
+
   return (
     <>
       <header className="flex items-center justify-between py-2">
@@ -50,10 +57,7 @@ export function Header() {
             <SheetContent side="left" className="w-[280px] p-0">
                 <SheetHeader className='p-6'>
                   <SheetTitle className="sr-only">Menu Principal</SheetTitle>
-                  <Link href="/" className="flex items-center gap-3">
-                    <Target className="h-7 w-7 text-primary" />
-                    <h1 className="text-2xl font-bold text-foreground">GoalFlow</h1>
-                  </Link>
+                  <Logo />
                 </SheetHeader>
               <Separator />
               <div className="flex flex-col gap-4 p-4">
@@ -75,10 +79,9 @@ export function Header() {
               </div>
             </SheetContent>
           </Sheet>
-          <Link href="/" className="flex items-center gap-3">
-            <Target className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">GoalFlow</h1>
-          </Link>
+          <div className="hidden sm:flex">
+            <Logo />
+          </div>
         </div>
 
          <div className="hidden lg:flex items-center gap-1">
