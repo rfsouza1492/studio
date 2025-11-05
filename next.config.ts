@@ -6,10 +6,14 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // This is required to allow requests from the development domains.
-  allowedDevOrigins: [
-    'https://*.cluster-ocv3ypmyqfbqysslgd7zlhmxek.cloudworkstations.dev',
-  ],
+  async headers() {
+    return [
+      {
+        source: '/_next/:path*',
+        headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
