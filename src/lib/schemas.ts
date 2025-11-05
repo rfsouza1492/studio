@@ -13,7 +13,7 @@ export const taskSchema = z.object({
     if (data.deadline && data.time) {
         const combined = new Date(data.deadline);
         const [hours, minutes] = data.time.split(':').map(Number);
-        combined.setHours(hours, minutes);
+        combined.setHours(hours, minutes, 0, 0); // Set seconds and ms to 0 for accurate comparison
         return combined > new Date();
     }
     if (data.deadline) {
@@ -26,7 +26,7 @@ export const taskSchema = z.object({
     return true;
 }, {
     message: "Deadline cannot be in the past.",
-    path: ["deadline"],
+    path: ["time"], // Point error to time field for better UX
 });
 
 export const goalSchema = z.object({
