@@ -6,12 +6,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    // allowedDevOrigins deve estar fora do 'experimental'
-  },
   // This is required to allow requests from the development domains.
   allowedDevOrigins: [
-      "https://*.cluster-ocv3ypmyqfbqysslgd7zlhmxek.cloudworkstations.dev",
+    'https://*.cluster-ocv3ypmyqfbqysslgd7zlhmxek.cloudworkstations.dev',
   ],
 };
 
