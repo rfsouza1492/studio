@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { talkToAgent } from '@/ai/flows/agent-flow';
-import { AgentInput } from '@/app/types';
+import { AgentInputSchema } from '@/lib/schemas';
 
 export async function POST(req: NextRequest) {
   try {
-    const { query, context }: AgentInput = await req.json();
+    const body = await req.json();
+    const agentInput = AgentInputSchema.parse(body);
 
-    if (!query || !context) {
-        return NextResponse.json({ message: 'Parâmetros inválidos.' }, { status: 400 });
-    }
+    const agentResponse = await talkToAgent(agentInput);
 
-    const result = await talkToAgent({ query, context });
-
-    return NextResponse.json(result);
-  } catch (error: any) {
-    console.error('Erro no endpoint do agente:', error);
+    return NextResponse.json(agentResponse);
+  } catch (e) {
+    console.error('Erro na rota da API do agente:', e);
+    const errorMessage = e instanceof Error ? e.message : 'Ocorreu um erro desconhecido.';
     return NextResponse.json(
-      { message: 'Erro interno do servidor ao processar a mensagem.', details: error.message },
+      {
+        message: `Falha ao processar a solicitação: ${errorMessage}`,
+      },
       { status: 500 }
     );
   }

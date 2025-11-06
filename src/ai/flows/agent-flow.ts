@@ -4,20 +4,13 @@
  *
  * - talkToAgent - A função principal que processa a consulta do usuário.
  */
-import { GoogleGenAI } from '@google/genai';
-import type { AgentInput, AgentOutput } from '@/app/types';
+import { z } from 'zod';
+import { AgentInputSchema, AgentOutputSchema } from '@/lib/schemas';
+import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { geminiPro } from '../../genkit.config';
+import { generate } from '@genkit-ai/ai';
 
-// Pega a chave da API das variáveis de ambiente. Falha se não estiver definida.
-if (!process.env.GEMINI_API_KEY) {
-  // Este erro será lançado durante a inicialização do servidor se a chave não estiver definida.
-  // Isso é importante para o ambiente de produção (deploy).
-  throw new Error('A variável de ambiente GEMINI_API_KEY não está definida.');
-}
-const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
-
-export async function talkToAgent({ query, context }: AgentInput): Promise<AgentOutput> {
-  // 1. Define as instruções estritas para o modelo de IA
-  const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
+const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
 You are having a conversation with a user about their goals and tasks.
 You MUST respond with a valid JSON object that adheres to the AgentOutput schema and nothing else.
 Your entire response must be a single JSON object.
@@ -28,38 +21,46 @@ Here is the required JSON object structure:
   "message": "Your conversational response here."
 }`;
 
-  try {
-    // 2. Configura o modelo com a instrução do sistema e força a saída JSON
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash-latest',
-      systemInstruction: systemPrompt,
-      generationConfig: {
-        responseMimeType: "application/json",
-      }
+export const talkToAgentFlow = defineFlow(
+  {
+    name: 'talkToAgentFlow',
+    inputSchema: AgentInputSchema,
+    outputSchema: AgentOutputSchema,
+  },
+  async ({ query, context }) => {
+    const prompt = `User message: "${query}"\n\nUSER'S CURRENT CONTEXT (Goals and Tasks):\n${JSON.stringify(
+      context,
+      null,
+      2
+    )}`;
+
+    const llmResponse = await generate({
+      model: geminiPro,
+      prompt: prompt,
+      config: {
+        temperature: 0.5,
+      },
+      system: systemPrompt,
+      output: {
+        format: 'json',
+        schema: AgentOutputSchema,
+      },
     });
 
-    // 3. Constrói o prompt do usuário
-    const prompt = `User message: "${query}"\n\nUSER'S CURRENT CONTEXT (Goals and Tasks):\n${JSON.stringify(context, null, 2)}`;
-    
-    // 4. Faz a chamada da API
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    
-    const parsedJson: AgentOutput = JSON.parse(text);
-
-    // 5. Validação básica (o 'responseMimeType' já garante o formato JSON)
-    if (!parsedJson || typeof parsedJson.message !== 'string') {
-      throw new Error('Estrutura JSON inválida da IA: a propriedade "message" está faltando ou não é uma string.');
+    const agentOutput = llmResponse.output();
+    if (!agentOutput) {
+      throw new Error('A resposta da IA está vazia ou em um formato inválido.');
     }
 
-    return parsedJson;
+    return agentOutput;
+  }
+);
 
+export async function talkToAgent(input: z.infer<typeof AgentInputSchema>): Promise<z.infer<typeof AgentOutputSchema>> {
+  try {
+    return await runFlow(talkToAgentFlow, input);
   } catch (error) {
-    console.error('Erro em talkToAgent:', error);
-    // 6. Retorna um erro estruturado se algo der errado
-    const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
-    // Retorna uma mensagem amigável para o usuário.
+    console.error('Erro ao executar o fluxo talkToAgent:', error);
     return {
       message: `Desculpe, tive um problema para processar sua solicitação. O serviço de IA pode não estar configurado corretamente.`,
     };

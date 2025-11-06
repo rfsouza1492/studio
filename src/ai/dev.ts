@@ -1,4 +1,3 @@
-import { start } from '@genkit-ai/tools/registry';
 import { dev } from 'genkit/dev';
 import config from '../../genkit.config';
 
