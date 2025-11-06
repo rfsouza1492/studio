@@ -96,11 +96,7 @@ const agentFlow = ai.defineFlow(
 Mensagem do usuário: ${query}`,
       output: { 
           format: 'json',
-          schema: z.object({
-              message: z.string(),
-              suggestions: z.array(GoalSuggestionSchema).optional(),
-              action: z.enum(['create_goals', 'clarify', 'answer']).optional()
-          })
+          schema: AgentOutputSchema,
       },
     });
 

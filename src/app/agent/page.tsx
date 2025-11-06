@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useGoals } from '@/context/GoalContext';
 import { Button } from '@/components/ui/button';
 import { Mic, Send, Sparkles, Bot, User, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,7 @@ type Message = {
 
 export default function AgentPage() {
   const { goals, tasks, addGoal, addTask } = useGoals();
-  const [mode, setMode] = useState<'chat' | 'goal_coach'>('chat');
+  const [mode, setMode] = useState<'chat' | 'goal_coach'>('goal_coach');
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isListening, setIsListening] = useState(false);
@@ -53,6 +53,10 @@ export default function AgentPage() {
 
       const data = await response.json();
       
+      if (!data || !data.message) {
+        throw new Error("Resposta da API inválida.");
+      }
+
       const agentMessage: Message = {
         role: 'assistant',
         content: data.message,
@@ -87,7 +91,7 @@ export default function AgentPage() {
 
     // Cria as tarefas
     suggestion.tasks.forEach((task) => {
-      addTask(newGoalId, task.title, task.priority, task.recurrence, undefined, task.duration);
+      addTask(newGoalId, task.title, task.priority, task.recurrence || 'None', undefined, task.duration);
     });
 
     toast({
@@ -135,7 +139,9 @@ export default function AgentPage() {
                                 <div className="relative flex h-32 w-32 sm:h-40 sm:w-40 items-center justify-center rounded-full bg-primary/10 mb-4">
                                     <Sparkles className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
                                 </div>
-                                <h2 className="text-xl font-bold">Modo Coach de Metas Ativado!</h2>
+                                <h2 className="text-xl font-bold">
+                                     {mode === 'goal_coach' ? 'Modo Coach de Metas!' : 'Modo Chat'}
+                                </h2>
                                 <p className="mt-2 text-base sm:text-lg text-muted-foreground">
                                     {mode === 'goal_coach' 
                                         ? "Me diga um objetivo que você tem em mente. Ex: 'Quero aprender a programar' ou 'Quero ser mais saudável'."

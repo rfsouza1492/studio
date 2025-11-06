@@ -59,9 +59,9 @@ export type AgentInput = z.infer<typeof AgentInputSchema>;
 
 const TaskSuggestionSchema = z.object({
   title: z.string().describe("Tarefa específica"),
-  priority: z.enum(["High", "Medium", "Low"]),
+  priority: z.enum(priorities),
   duration: z.number().optional().describe("Duração em minutos"),
-  recurrence: z.enum(["Daily", "Weekly", "None", "Monthly"]).optional().describe("Frequência da tarefa"),
+  recurrence: z.enum(recurrences).optional().describe("Frequência da tarefa"),
 });
 export type TaskSuggestion = z.infer<typeof TaskSuggestionSchema>;
 
