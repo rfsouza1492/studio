@@ -8,8 +8,8 @@
 import type { AgentInput, AgentOutput } from '@/app/types';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-// Use the 'v1beta' endpoint which is compatible with the 'gemini-1.5-flash' model identifier.
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+// Use the 'v1beta' endpoint with the stable 'gemini-pro' model.
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
 export async function talkToAgent({ query, context }: AgentInput): Promise<AgentOutput> {
   // 1. Check for API Key
@@ -36,8 +36,7 @@ Here is the required JSON object structure:
 }`;
 
   // 3. Construct the request body for the REST API
-  // Note: The system prompt is placed first in the contents array for the v1beta API.
-  // The generationConfig has been removed as it was causing invalid payload errors.
+  // Note: The system prompt is placed first in the contents array.
   const requestBody = {
     "contents": [
       {
@@ -65,7 +64,7 @@ Here is the required JSON object structure:
     });
 
     if (!response.ok) {
-      const errorBody = await response.text(); // Use .text() to avoid JSON parsing errors on non-JSON responses
+      const errorBody = await response.text();
       console.error('Error from Gemini API:', response.status, errorBody);
       throw new Error(`Gemini API request failed: ${errorBody}`);
     }
