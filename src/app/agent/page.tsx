@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useGoals } from '@/context/GoalContext';
 import { Button } from '@/components/ui/button';
 import { Mic, Send, Sparkles, Bot, User, Loader2 } from 'lucide-react';
@@ -26,6 +26,17 @@ export default function AgentPage() {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Auto-scroll to the bottom when new messages are added
+    if (scrollAreaRef.current) {
+        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+        if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
+        }
+    }
+  }, [messages, isLoading]);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -70,9 +81,9 @@ export default function AgentPage() {
       toast({
           variant: 'destructive',
           title: 'Erro de comunicação',
-          description: 'Não foi possível obter uma resposta do agente.'
+          description: error instanceof Error ? error.message : 'Não foi possível obter uma resposta do agente.'
       })
-      // Remove user message if agent fails
+      // Remove user message if agent fails to allow retry
       setMessages(prev => prev.filter(m => m !== userMessage));
 
     } finally {
@@ -82,14 +93,14 @@ export default function AgentPage() {
 
   const handleApplySuggestion = (suggestion: GoalSuggestion) => {
     const newGoalId = crypto.randomUUID();
-    // Cria a meta
+    // Creates the goal
     addGoal({
       id: newGoalId,
       name: suggestion.goalName,
       kpiName: suggestion.kpiName,
     });
 
-    // Cria as tarefas
+    // Creates the tasks
     suggestion.tasks.forEach((task) => {
       addTask(newGoalId, task.title, task.priority, task.recurrence || 'None', undefined, task.duration);
     });
@@ -108,7 +119,7 @@ export default function AgentPage() {
                  <h1 className="text-3xl font-bold flex items-center gap-2"><Bot className='h-8 w-8 text-primary' /> Agente Flow</h1>
                  <p className="text-muted-foreground mt-1">Converse ou deixe o Flow ser seu coach de metas.</p>
             </div>
-            {/* Toggle de Modo */}
+            {/* Mode Toggle */}
             <div className="flex gap-2 flex-shrink-0">
             <Button
                 variant={mode === 'chat' ? 'default' : 'outline'}
@@ -132,7 +143,7 @@ export default function AgentPage() {
       <main>
         <Card className="flex h-[calc(100vh-280px)] sm:h-[70vh] flex-col">
             <CardContent className="flex flex-1 flex-col p-0">
-                 <ScrollArea className="flex-1 p-4">
+                 <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                     <div className="space-y-6">
                          {messages.length === 0 && !isLoading && (
                             <div className="flex h-full flex-col items-center justify-center p-4 sm:p-8 text-center min-h-[200px]">
@@ -172,7 +183,7 @@ export default function AgentPage() {
                                     )}
                                 </div>
 
-                                {/* Renderizar Sugestões */}
+                                {/* Render Suggestions */}
                                 {msg.suggestions?.map((suggestion, i) => (
                                 <Card key={i} className="p-4 mt-4 ml-12 border-2 border-dashed border-primary/30 bg-primary/5">
                                     <h3 className="font-bold text-md flex items-center gap-2">
@@ -226,7 +237,7 @@ export default function AgentPage() {
                         variant="outline"
                         size="icon"
                         disabled
-                        onClick={() => {/* Implementar Web Speech API */}}
+                        onClick={() => {/* Implement Web Speech API */}}
                     >
                         <Mic className={isListening ? 'text-red-500' : ''} />
                     </Button>

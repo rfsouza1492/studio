@@ -29,9 +29,9 @@ const goalReducer = (state: State, action: Action): State => {
       const newGoal: Goal = {
         id: action.payload.id || crypto.randomUUID(), 
         name: action.payload.name,
-        kpiName: action.payload.kpiName,
-        kpiCurrent: action.payload.kpiCurrent,
-        kpiTarget: action.payload.kpiTarget,
+        kpiName: action.payload.kpiName || undefined,
+        kpiCurrent: action.payload.kpiCurrent || undefined,
+        kpiTarget: action.payload.kpiTarget || undefined,
       };
       return { ...state, goals: [...state.goals, newGoal] };
     case 'EDIT_GOAL':

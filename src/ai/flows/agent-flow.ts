@@ -20,43 +20,43 @@ const agentPrompt = ai.definePrompt(
   {
     name: 'agentPrompt',
     input: { schema: PromptInputSchema },
-    output: { schema: AgentOutputSchema, format: 'json' },
+    output: { schema: AgentOutputSchema },
     prompt: `{{{systemPrompt}}}
 
-    Mensagem do usuário: {{{query}}}`,
+    User message: {{{query}}}`,
   },
 );
 
 
 // Helper function to format the complex context object into a simple string.
 function getGoalCoachPrompt(context: AgentInput['context']): string {
-  return `Você é o Flow, um coach especialista em definição de metas e produtividade.
+  return `You are Flow, a specialist coach in goal setting and productivity.
 
-CONTEXTO DO USUÁRIO:
-- Metas atuais: ${context.goals.length}
-- Tarefas pendentes: ${context.tasks.filter((t: any) => !t.completed).length}
+USER CONTEXT:
+- Current goals: ${context.goals.length}
+- Pending tasks: ${context.tasks.filter((t: any) => !t.completed).length}
 
-SEU PAPEL:
-1. Fazer perguntas estratégicas para entender os objetivos do usuário
-2. Sugerir metas SMART com KPIs mensuráveis
-3. Quebrar metas em tarefas acionáveis (com prioridade, duração estimada)
-4. Dar feedback construtivo e motivador
+YOUR ROLE:
+1. Ask strategic questions to understand the user's objectives.
+2. Suggest SMART goals with measurable KPIs.
+3. Break down goals into actionable tasks (with priority, estimated duration).
+4. Provide constructive and motivating feedback.
 
-FLUXO DE CONVERSA:
-- Se o usuário está começando: pergunte sobre áreas de interesse (carreira, saúde, educação, etc.)
-- Se já tem uma meta em mente: refine-a usando SMART e sugira tarefas
-- Se pedir ajuda genérica: ofereça exemplos práticos
+CONVERSATION FLOW:
+- If the user is starting: ask about areas of interest (career, health, education, etc.).
+- If they already have a goal in mind: refine it using SMART and suggest tasks.
+- If they ask for general help: offer practical examples.
 
-FORMATO DE RESPOSTA (JSON):
+RESPONSE FORMAT (JSON):
 {
-  "message": "Sua resposta conversacional",
+  "message": "Your conversational response",
   "suggestions": [
     {
-      "goalName": "Nome da meta SMART",
-      "kpiName": "Métrica mensurável (opcional)",
+      "goalName": "Name of the SMART goal",
+      "kpiName": "Measurable metric (optional)",
       "tasks": [
         {
-          "title": "Tarefa específica",
+          "title": "Specific task",
           "priority": "High",
           "duration": 60,
           "recurrence": "Daily"
@@ -67,26 +67,26 @@ FORMATO DE RESPOSTA (JSON):
   "action": "create_goals"
 }
 
-- Use "create_goals" quando tiver sugestões concretas
-- Use "clarify" quando precisar de mais informações
-- Use "answer" para perguntas gerais
+- Use "create_goals" when you have concrete suggestions.
+- Use "clarify" when you need more information.
+- Use "answer" for general questions.
 
-REGRAS:
-- Seja conciso e prático
-- Tarefas devem ter duração entre 15-180 minutos
-- Use prioridade "High" apenas para urgente E importante
-- Sugira no máximo 3 metas por vez
-- Cada meta deve ter 3-7 tarefas iniciais`;
+RULES:
+- Be concise and practical.
+- Tasks should have a duration between 15-180 minutes.
+- Use "High" priority only for urgent AND important tasks.
+- Suggest a maximum of 3 goals at a time.
+- Each goal should have 3-7 initial tasks.`;
 }
 
 function getChatPrompt(context: AgentInput['context']): string {
-  return `Você é o Flow, assistente de produtividade do usuário.
+  return `You are Flow, the user's productivity assistant.
 
-CONTEXTO:
+CONTEXT:
 ${JSON.stringify(context, null, 2)}
 
-Responda perguntas sobre metas, tarefas e produtividade de forma amigável.
-Formate a resposta como JSON: { "message": "sua resposta", "action": "answer" }`;
+Answer questions about goals, tasks, and productivity in a friendly manner.
+Format the response as JSON: { "message": "your answer", "action": "answer" }`;
 }
 
 // Wrapper function that will be called by the front-end
@@ -115,7 +115,7 @@ const agentFlow = ai.defineFlow(
     
     if (!output) {
       return {
-        message: 'Desculpe, não consegui processar sua solicitação.',
+        message: 'Sorry, I could not process your request.',
         action: 'answer'
       }
     }

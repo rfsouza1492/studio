@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 export const priorities = ["Low", "Medium", "High"] as const;
@@ -48,36 +47,36 @@ const TaskSchema = z.object({
 });
 
 export const AgentInputSchema = z.object({
-  query: z.string().describe('A pergunta ou comando do usuário.'),
+  query: z.string().describe('The user\'s question or command.'),
   context: z.object({
     goals: z.array(GoalSchema),
     tasks: z.array(TaskSchema),
-  }).describe('O estado atual das metas e tarefas do usuário.'),
+  }).describe('The current state of the user\'s goals and tasks.'),
   mode: z.enum(['chat', 'goal_coach']).default('chat'),
 });
 export type AgentInput = z.infer<typeof AgentInputSchema>;
 
 
 const TaskSuggestionSchema = z.object({
-  title: z.string().describe("Tarefa específica"),
+  title: z.string().describe("Specific task"),
   priority: z.enum(priorities),
-  duration: z.number().optional().describe("Duração em minutos"),
-  recurrence: z.enum(recurrences).optional().describe("Frequência da tarefa"),
+  duration: z.number().optional().describe("Duration in minutes"),
+  recurrence: z.enum(recurrences).optional().describe("Task frequency"),
 });
 export type TaskSuggestion = z.infer<typeof TaskSuggestionSchema>;
 
 
 export const GoalSuggestionSchema = z.object({
-  goalName: z.string().describe("Nome da meta SMART"),
-  kpiName: z.string().optional().describe("Métrica mensurável (opcional)"),
+  goalName: z.string().describe("Name of the SMART goal"),
+  kpiName: z.string().optional().describe("Measurable metric (optional)"),
   tasks: z.array(TaskSuggestionSchema),
 });
 export type GoalSuggestion = z.infer<typeof GoalSuggestionSchema>;
 
 
 export const AgentOutputSchema = z.object({
-  message: z.string().describe('A resposta conversacional para o usuário.'),
-  suggestions: z.array(GoalSuggestionSchema).optional().describe('Uma lista de metas e tarefas sugeridas.'),
-  action: z.enum(['create_goals', 'clarify', 'answer']).optional().describe('A ação que o agente está realizando.'),
+  message: z.string().describe('The conversational response to the user.'),
+  suggestions: z.array(GoalSuggestionSchema).optional().describe('A list of suggested goals and tasks.'),
+  action: z.enum(['create_goals', 'clarify', 'answer']).optional().describe('The action the agent is performing.'),
 });
 export type AgentOutput = z.infer<typeof AgentOutputSchema>;
