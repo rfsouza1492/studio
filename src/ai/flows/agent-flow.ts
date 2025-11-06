@@ -1,27 +1,14 @@
-
 'use server';
 /**
- * @fileOverview The AI flow for the GoalFlow conversational agent.
+ * @fileOverview O fluxo de IA para o agente de conversação GoalFlow.
  *
- * - talkToAgent - The main function that processes the user's query.
+ * - talkToAgent - A função principal que processa a consulta do usuário.
  */
 import type { AgentInput, AgentOutput } from '@/app/types';
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-// Use the 'v1beta' endpoint with the stable 'gemini-pro' model.
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+import { ai } from '@/ai/genkit';
 
 export async function talkToAgent({ query, context }: AgentInput): Promise<AgentOutput> {
-  // 1. Check for API Key
-  if (!GEMINI_API_KEY) {
-    const errorMessage = "A chave da API Gemini não está configurada.";
-    console.error(errorMessage);
-    return {
-      message: "O serviço de IA não está configurado. A chave da API está faltando.",
-    };
-  }
-
-  // 2. Define the strict instructions for the AI model
+  // 1. Define as instruções estritas para o modelo de IA
   const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
 You are having a conversation with a user about their goals and tasks.
 You MUST respond with a valid JSON object that adheres to the AgentOutput schema and nothing else.
@@ -35,67 +22,41 @@ Here is the required JSON object structure:
   "message": "Your conversational response here."
 }`;
 
-  // 3. Construct the request body for the REST API
-  // Note: The system prompt is placed first in the contents array.
-  const requestBody = {
-    "contents": [
-      {
-        "role": "system",
-        "parts": [{ "text": systemPrompt }]
-      },
-      {
-        "role": "user",
-        "parts": [
-          { "text": `User message: "${query}"` },
-          { "text": `USER'S CURRENT CONTEXT (Goals and Tasks):\n${JSON.stringify(context, null, 2)}` }
-        ]
-      }
-    ]
-  };
-
-  // 4. Make the API call using fetch
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
+    // 2. Faz a chamada da API usando Genkit
+    const { output } = await ai.generate({
+      model: 'googleai/gemini-1.5-flash-latest',
+      system: systemPrompt,
+      prompt: [
+        { text: `User message: "${query}"` },
+        { text: `USER'S CURRENT CONTEXT (Goals and Tasks):\n${JSON.stringify(context, null, 2)}` }
+      ]
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('Error from Gemini API:', response.status, errorBody);
-      throw new Error(`Gemini API request failed: ${errorBody}`);
+    if (!output) {
+      throw new Error("A resposta da IA está vazia.");
     }
-
-    const responseData = await response.json();
     
-    // 5. Extract and parse the JSON response from the AI
-    if (!responseData.candidates || !responseData.candidates[0].content.parts[0].text) {
-        throw new Error("Invalid response structure from Gemini API.");
-    }
+    // 3. Extrai e analisa a resposta JSON da IA
+    // Limpa a formatação markdown potencial antes de analisar
+    const textResponse = String(output)
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .trim();
 
-    // Clean potential markdown formatting before parsing
-    const textResponse = responseData.candidates[0].content.parts[0].text
-        .replace(/```json/g, '')
-        .replace(/```/g, '')
-        .trim();
-    
-    // Attempt to parse the cleaned text as JSON
     const parsedJson: AgentOutput = JSON.parse(textResponse);
-    
-    // Basic validation
+
+    // Validação básica
     if (!parsedJson || typeof parsedJson.message !== 'string') {
-         throw new Error('Invalid JSON structure from AI: "message" property is missing or not a string.');
+      throw new Error('Estrutura JSON inválida da IA: a propriedade "message" está faltando ou não é uma string.');
     }
-    
+
     return parsedJson;
 
   } catch (error) {
-    console.error('Error in talkToAgent:', error);
-    // 6. Return a structured error if anything goes wrong
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error('Erro em talkToAgent:', error);
+    // 4. Retorna um erro estruturado se algo der errado
+    const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
     return {
       message: `Desculpe, tive um problema para processar sua solicitação. ${errorMessage}`,
     };
