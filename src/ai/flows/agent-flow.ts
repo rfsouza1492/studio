@@ -22,7 +22,7 @@ Here is the required JSON object structure:
 }`;
 
   try {
-    // 2. Faz a chamada da API usando Genkit, especificando o modelo correto.
+    // 2. Faz a chamada da API usando Genkit, especificando o modelo corretamente.
     const response = await ai.generate({
       model: googleAI.model('gemini-pro'),
       system: systemPrompt,
