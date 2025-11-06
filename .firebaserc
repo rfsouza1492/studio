@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "default": "magnetai-4h4a8"
+  },
+  "hosting": {
+    "source": ".",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "frameworksBackend": {
+      "custom": {
+        "buildCommand": "npm run build",
+        "startCommand": "npm run start",
+        "requiredEnv": ["GEMINI_API_KEY", "NEXT_PUBLIC_GEMINI_API_KEY", "NEXT_PUBLIC_API_URL"]
+      }
+    }
+  }
+}
