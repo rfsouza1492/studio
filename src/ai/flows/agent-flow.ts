@@ -16,8 +16,6 @@ You MUST respond with a valid JSON object that adheres to the AgentOutput schema
 Your entire response must be a single JSON object.
 Do not include any markdown formatting (like \`\`\`json), commentary, or any other characters outside of the JSON object.
 
-The JSON object must always include a "message" (string) property.
-
 Here is the required JSON object structure:
 {
   "message": "Your conversational response here."
@@ -28,10 +26,7 @@ Here is the required JSON object structure:
     const response = await ai.generate({
       model: googleAI.model('gemini-pro'),
       system: systemPrompt,
-      prompt: [
-        { text: `User message: "${query}"` },
-        { text: `USER'S CURRENT CONTEXT (Goals and Tasks):\n${JSON.stringify(context, null, 2)}` }
-      ]
+      prompt: `User message: "${query}"\n\nUSER'S CURRENT CONTEXT (Goals and Tasks):\n${JSON.stringify(context, null, 2)}`
     });
 
     if (!response.output) {
