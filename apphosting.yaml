@@ -5,3 +5,10 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+# The runtime to use for your application.
+runtime: nodejs18
+
+# The command to start your application.
+# App Hosting will automatically run `npm run build` before this command.
+entrypoint: npm start
