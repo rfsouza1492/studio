@@ -4,7 +4,7 @@
  *
  * - talkToAgent - A função principal que processa a consulta do usuário.
  */
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import type { AgentInput, AgentOutput } from '@/app/types';
 
 // Pega a chave da API das variáveis de ambiente. Falha se não estiver definida.
@@ -13,7 +13,7 @@ if (!process.env.GEMINI_API_KEY) {
   // Isso é importante para o ambiente de produção (deploy).
   throw new Error('A variável de ambiente GEMINI_API_KEY não está definida.');
 }
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
 
 export async function talkToAgent({ query, context }: AgentInput): Promise<AgentOutput> {
   // 1. Define as instruções estritas para o modelo de IA
