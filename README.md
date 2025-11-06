@@ -1,62 +1,127 @@
-# GoalFlow: Seu Aliado de Produtividade
+# Manual de Usuário do GoalFlow
 
-Bem-vindo ao GoalFlow! Este aplicativo foi desenvolvido para ajudá-lo a organizar suas metas, gerenciar tarefas diárias e manter o foco usando a técnica Pomodoro, tudo integrado à sua agenda do Google.
+Bem-vindo ao **GoalFlow**, seu novo assistente pessoal de produtividade. Este aplicativo foi desenhado para ajudar você a organizar suas metas, gerenciar tarefas, manter o foco e integrar tudo à sua vida digital.
 
-## Funcionalidades Principais
+## Índice
 
-### 1. Gestão de Metas e Tarefas
-- **Crie Metas:** Organize seu trabalho em metas maiores (ex: "Aprender Next.js", "Projeto Cliente X").
-- **Adicione Tarefas:** Quebre suas metas em tarefas menores e gerenciáveis.
-- **Defina Detalhes:** Atribua prioridade, data de entrega, recorrência e duração estimada para cada tarefa.
-- **Acompanhe o Progresso:** Monitore o avanço de suas metas com base nas tarefas concluídas ou em um KPI (Indicador-Chave de Performance) que você pode definir.
-
-### 2. Página "Checklist de Hoje"
-- Uma visualização centralizada de todas as tarefas que você agendou para o dia atual.
-- Permite que você veja rapidamente o que precisa ser feito e marque as tarefas como concluídas.
-
-### 3. Página "Foco" (Técnica Pomodoro)
-- **Timer de Foco:** Um timer regressivo de 25 minutos para trabalho focado e um de 5 minutos para pausas.
-- **Associe Tarefas:** Selecione uma tarefa da sua lista para focar durante a sessão.
-- **Conclusão Automática:** Ao final de um ciclo de 25 minutos, a tarefa selecionada é marcada como concluída.
-- **Contador de Ciclos:** Acompanhe quantos "pomodoros" você completou.
-
-### 4. Página "Agenda" (Integração com Google Calendar)
-- **Visualize Eventos:** Conecte sua conta do Google para ver os eventos da sua agenda do dia.
-- **Crie Tarefas a Partir de Eventos:** Crie tarefas no GoalFlow com um único clique a partir dos seus eventos do calendário.
-- **Criação em Massa:** Selecione múltiplos eventos e crie tarefas para todos eles de uma só vez.
-
-### 5. Tarefas para o Calendário
-- **Crie Eventos a Partir de Tarefas:** Se uma tarefa no app tem data e duração, você pode clicar em um botão para adicioná-la como um evento no seu Google Calendar.
+1.  [Conceitos Principais](#1-conceitos-principais)
+    *   [Metas](#metas)
+    *   [Tarefas](#tarefas)
+2.  [Guia de Funcionalidades](#2-guia-de-funcionalidades)
+    *   [Página Principal: Metas e Tarefas](#página-principal-metas-e-tarefas)
+    *   [Página Checklist de Hoje](#página-checklist-de-hoje)
+    *   [Página Dashboard](#página-dashboard)
+    *   [Página Foco (Pomodoro)](#página-foco-pomodoro)
+    *   [Página Agenda (Google Calendar)](#página-agenda-google-calendar)
+    *   [Página Agente IA](#página-agente-ia)
+    *   [Página Integrações](#página-integrações)
+3.  [Configurações Essenciais](#3-configurações-essenciais)
+    *   [Conectar Conta Google](#conectar-conta-google)
+    *   [Permissão de Microfone](#permissão-de-microfone)
 
 ---
 
-## Configurações Essenciais
+## 1. Conceitos Principais
 
-Para que todas as funcionalidades operem corretamente, algumas configurações são necessárias.
+### Metas
 
-### 1. Configuração da API do Google Calendar
+Uma **meta** é um objetivo maior que você deseja alcançar. Pode ser qualquer coisa, como "Aprender um novo idioma", "Desenvolver um projeto" ou "Manter a forma".
 
-Para que a integração com o Google Calendar funcione, você precisa autorizar o URL do seu aplicativo no Google Cloud Console.
+-   **KPI (Indicador-Chave de Performance):** Opcionalmente, você pode definir um KPI para sua meta, como "ler 50 páginas" ou "correr 10 km". Isso ajuda a medir o progresso de forma quantitativa, em vez de apenas contar tarefas.
 
-1.  **Copie o URL do seu aplicativo:** Por exemplo, `https://6000-firebase-studio-1762225763401.cluster-ocv3ypmyqfbqysslgd7zlhmxek.cloudworkstations.dev`.
-2.  **Acesse o Google Cloud Console:** Vá para a página de [Credenciais](https://console.cloud.google.com/apis/credentials) do seu projeto.
-3.  **Edite o ID de Cliente OAuth 2.0:** Clique no nome do seu ID de cliente para abrir as configurações.
-4.  **Adicione a "Origem JavaScript autorizada":**
-    *   Na seção **"Origens JavaScript autorizadas"**, clique em **"+ ADICIONAR URI"**.
-    *   Cole o URL do seu aplicativo no campo.
-5.  **Salve** as alterações.
+### Tarefas
 
-> **Nota:** Pode levar alguns minutos para que a alteração seja propagada.
+Uma **tarefa** é um passo concreto para alcançar uma meta. Dividir suas metas em tarefas menores torna o trabalho mais gerenciável.
 
-### 2. Configuração do Webhook da Alexa
+-   **Propriedades da Tarefa:**
+    -   **Prioridade:** Alta, Média ou Baixa.
+    -   **Data e Hora de Entrega:** Prazo final para a conclusão.
+    -   **Recorrência:** Defina se a tarefa se repete (Diariamente, Semanalmente, etc.).
+    -   **Duração:** Tempo estimado em minutos para concluir a tarefa. Essencial para criar eventos na agenda.
 
-A página "Foco" pode enviar uma notificação para a Alexa quando um timer é iniciado. Para isso, você precisa criar um webhook em um serviço como o IFTTT (If This Then That) e conectá-lo a uma rotina da Alexa.
+---
 
-1.  **Crie o Webhook:** Use o IFTTT ou outro serviço para criar um webhook que possa acionar uma rotina na Alexa.
-2.  **Obtenha o URL do Webhook:** O serviço fornecerá um URL único.
-3.  **Atualize o Código:** Abra o arquivo `src/app/foco/page.tsx` e substitua o URL de exemplo pelo seu URL real na seguinte constante:
-    ```javascript
-    const ALEXA_WEBHOOK_URL = 'https://seu-webhook-aqui.com';
-    ```
+## 2. Guia de Funcionalidades
 
-Com essas instruções, você está pronto para aproveitar ao máximo o GoalFlow!
+### Página Principal: Metas e Tarefas
+
+Esta é sua central de comando. Aqui você pode:
+
+-   **Criar uma Nova Meta:** Clique no botão **"Nova Meta"**. Dê um nome e, opcionalmente, configure um KPI.
+-   **Visualizar Suas Metas:** Todas as suas metas são exibidas em cartões, mostrando o progresso atual.
+-   **Adicionar Tarefas a uma Meta:** Em cada cartão de meta, clique em **"Adicionar Tarefa"**.
+-   **Gerenciar Metas e Tarefas:**
+    -   Clique nos três pontos (`...`) em um cartão de meta ou tarefa para **editar** ou **deletar**.
+    -   Marque uma tarefa como concluída usando a caixa de seleção.
+
+### Página Checklist de Hoje
+
+-   **O que é:** Uma visão focada de todas as tarefas que têm prazo para o dia de hoje.
+-   **Como usar:** Acesse a página para ver sua lista de prioridades do dia e marque as tarefas à medida que as conclui.
+
+### Página Dashboard
+
+-   **O que é:** Um painel visual com gráficos que mostram sua produtividade.
+-   **Métricas:**
+    -   **Progresso das Metas:** Barras de progresso para cada meta individual.
+    -   **Progresso Geral:** Um gráfico de pizza mostrando a proporção de tarefas concluídas vs. pendentes.
+    -   **Tarefas por Prioridade:** Um gráfico de barras que exibe a distribuição de tarefas pendentes por nível de prioridade (Alta, Média, Baixa).
+
+### Página Foco (Pomodoro)
+
+-   **O que é:** Uma ferramenta baseada na Técnica Pomodoro para ajudar você a se concentrar.
+-   **Como usar:**
+    1.  **Selecione uma Tarefa:** Escolha uma tarefa da sua lista no menu suspenso.
+    2.  **Inicie o Timer de Foco:** Um timer de 25 minutos começará. Concentre-se exclusivamente na tarefa escolhida.
+    3.  **Conclusão Automática:** Ao final dos 25 minutos, a tarefa selecionada será automaticamente marcada como concluída.
+    4.  **Faça uma Pausa:** O modo mudará para "Pausa", iniciando um timer de 5 minutos.
+    5.  **Repita:** Após a pausa, você pode iniciar um novo ciclo de foco com outra tarefa.
+
+### Página Agenda (Google Calendar)
+
+-   **O que é:** Uma integração direta com sua agenda do Google.
+-   **Como usar:**
+    1.  **Conecte sua Conta:** Se ainda não estiver conectado, clique em **"Conectar com o Google"**.
+    2.  **Visualize Eventos:** Veja todos os eventos agendados para hoje.
+    3.  **Crie Tarefas a Partir de Eventos:**
+        -   Clique em **"Criar Tarefa"** ao lado de um evento para convertê-lo em uma tarefa no GoalFlow.
+        -   Selecione vários eventos e use o botão **"Criar Tarefas Selecionadas"** para criá-los em massa. As tarefas serão adicionadas a uma meta chamada "Tarefas da Agenda".
+    4.  **Crie Eventos a Partir de Tarefas:** Em qualquer tarefa do aplicativo que tenha **data e duração** definidas, clique no ícone de calendário (**<CalendarPlus />**) para adicioná-la como um evento no seu Google Calendar.
+
+### Página Agente IA
+
+-   **O que é:** Converse com o Flow, seu assistente de produtividade com inteligência artificial.
+-   **Como usar:**
+    -   **Converse por Voz:** Pressione o ícone do microfone, faça sua pergunta e o agente responderá.
+    -   **Converse por Texto:** Digite sua pergunta na caixa de texto e pressione Enter ou o botão de envio.
+-   **O que perguntar:**
+    -   "Quais são minhas tarefas de alta prioridade?"
+    -   "Resuma minhas metas."
+    -   Perguntas de conhecimento geral, como "Quem foi o primeiro programador?".
+
+### Página Integrações
+
+-   **O que é:** Uma área dedicada para gerenciar conexões com outras ferramentas.
+-   **Status Atual:** Atualmente, esta página é um espaço reservado para futuras integrações.
+
+---
+
+## 3. Configurações Essenciais
+
+Para aproveitar ao máximo o GoalFlow, algumas configurações rápidas são necessárias.
+
+### Conectar Conta Google
+
+Para usar as funcionalidades da **Agenda** e criar eventos a partir de tarefas, você precisa se conectar com sua Conta do Google.
+
+-   Clique no botão **"Conectar"** no cabeçalho ou na página da Agenda e siga as instruções para autorizar o acesso.
+
+### Permissão de Microfone
+
+Para usar o comando de voz na página do **Agente IA**, você precisará conceder permissão ao seu navegador para acessar o microfone.
+
+-   Ao clicar no ícone do microfone pela primeira vez, seu navegador solicitará a permissão. Clique em **"Permitir"**.
+
+---
+
+Aproveite o GoalFlow para alcançar suas metas e organizar seu dia!

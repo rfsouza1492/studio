@@ -98,7 +98,7 @@ export default function FocoPage() {
                            </div>
                         </CardTitle>
                         <CardDescription>
-                            Escolha uma tarefa, inicie o timer e concentre-se.
+                            Escolha uma tarefa, inicie o timer e concentre-se. Ao final de um ciclo de foco, a tarefa é marcada como concluída.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col items-center gap-8 pt-6">
