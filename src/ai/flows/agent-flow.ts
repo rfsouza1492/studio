@@ -6,7 +6,7 @@
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { AgentInputSchema, AgentOutputSchema, GoalSuggestionSchema } from '@/app/types';
+import { AgentInputSchema, AgentOutputSchema } from '@/app/types';
 import type { AgentInput, AgentOutput } from '@/app/types';
 
 
@@ -88,12 +88,11 @@ const agentFlow = ai.defineFlow(
     const systemPrompt = mode === 'goal_coach' 
       ? getGoalCoachPrompt(context)
       : getChatPrompt(context);
+    
+    const prompt = `${systemPrompt}\n\nMensagem do usuário: ${query}`;
 
     const { output } = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
-      prompt: `${systemPrompt}
-
-Mensagem do usuário: ${query}`,
+      prompt: prompt,
       output: { 
           format: 'json',
           schema: AgentOutputSchema,
