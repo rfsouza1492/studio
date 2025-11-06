@@ -108,31 +108,29 @@ const goalReducer = (state: State, action: Action): State => {
 const GoalContext = createContext<{ state: State; dispatch: Dispatch<Action> } | undefined>(undefined);
 
 export const GoalProvider = ({ children, initialState: providedInitialState }: { children: ReactNode, initialState?: State }) => {
-  
-  const initializer = () => {
-    if (typeof window === 'undefined') {
-        return providedInitialState || defaultInitialState;
-    }
+  const [state, dispatch] = useReducer(goalReducer, providedInitialState || defaultInitialState);
+
+  // Load state from localStorage on the client side after the initial render
+  useEffect(() => {
     try {
       const storedState = localStorage.getItem('goalFlowState');
       if (storedState) {
-        return JSON.parse(storedState);
+        dispatch({ type: 'SET_STATE', payload: JSON.parse(storedState) });
       }
     } catch (error) {
       console.error("Could not load state from localStorage", error);
+      // If parsing fails, it's safer to remove the corrupted item
       localStorage.removeItem('goalFlowState');
     }
-    // If nothing is in localStorage, use the provided initial state (for demo data) or the default.
-    return providedInitialState || defaultInitialState;
-  };
+  }, []); // Empty dependency array ensures this runs only once on the client
 
-  const [state, dispatch] = useReducer(goalReducer, undefined, initializer);
-
+  // Persist state to localStorage whenever it changes
   useEffect(() => {
     try {
-        if(state.goals.length > 0 || state.tasks.length > 0) {
-            localStorage.setItem('goalFlowState', JSON.stringify(state));
-        }
+      // Only save if there's something to save, and it's not the default state being saved on first load
+      if (state.goals.length > 0 || state.tasks.length > 0) {
+        localStorage.setItem('goalFlowState', JSON.stringify(state));
+      }
     } catch (error) {
       console.error("Could not save state to localStorage", error);
     }
