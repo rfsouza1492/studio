@@ -74,11 +74,12 @@ const agentFlow = ai.defineFlow(
       ? getGoalCoachPrompt(context)
       : getChatPrompt(context);
     
-    const fullPrompt = `${systemPrompt}\n\nUser message: "${query}"`;
-
     try {
       const { output } = await ai.generate({
-        prompt: fullPrompt,
+        prompt: [
+          {text: systemPrompt},
+          {text: `User message: "${query}"`}
+        ],
         output: { 
           format: 'json',
           schema: AgentOutputSchema
