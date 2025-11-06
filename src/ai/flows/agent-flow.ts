@@ -23,9 +23,8 @@ Here is the required JSON object structure:
 }`;
 
   try {
-    // 2. Faz a chamada da API usando Genkit
-    const { output } = await ai.generate({
-      model: 'googleai/gemini-1.5-flash-latest',
+    // 2. Faz a chamada da API usando Genkit, sem especificar um modelo para usar o padrão.
+    const response = await ai.generate({
       system: systemPrompt,
       prompt: [
         { text: `User message: "${query}"` },
@@ -33,13 +32,13 @@ Here is the required JSON object structure:
       ]
     });
 
-    if (!output) {
+    if (!response.output) {
       throw new Error("A resposta da IA está vazia.");
     }
     
     // 3. Extrai e analisa a resposta JSON da IA
     // Limpa a formatação markdown potencial antes de analisar
-    const textResponse = String(output)
+    const textResponse = response.text
       .replace(/```json/g, '')
       .replace(/```/g, '')
       .trim();
