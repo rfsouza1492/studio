@@ -25,6 +25,7 @@ export interface Goal {
   kpiCurrent?: number;
 }
 
+
 // Agent related schemas
 const GoalSchema = z.object({
   id: z.string(),
@@ -39,9 +40,9 @@ const TaskSchema = z.object({
   goalId: z.string(),
   title: z.string(),
   completed: z.boolean(),
-  priority: z.enum(["Low", "Medium", "High"]),
+  priority: z.enum(priorities),
   deadline: z.string().optional(),
-  recurrence: z.enum(["None", "Daily", "Weekly", "Monthly"]),
+  recurrence: z.enum(recurrences),
   duration: z.number().optional(),
 });
 
@@ -51,11 +52,31 @@ export const AgentInputSchema = z.object({
     goals: z.array(GoalSchema),
     tasks: z.array(TaskSchema),
   }).describe('O estado atual das metas e tarefas do usuário.'),
+   mode: z.enum(['chat', 'goal_coach']).default('chat'),
 });
 export type AgentInput = z.infer<typeof AgentInputSchema>;
 
+
+const TaskSuggestionSchema = z.object({
+  title: z.string().describe("Tarefa específica"),
+  priority: z.enum(["High", "Medium", "Low"]),
+  duration: z.number().optional().describe("Duração em minutos"),
+  recurrence: z.enum(["Daily", "Weekly", "None", "Monthly"]).optional().describe("Frequência da tarefa"),
+});
+export type TaskSuggestion = z.infer<typeof TaskSuggestionSchema>;
+
+
+export const GoalSuggestionSchema = z.object({
+  goalName: z.string().describe("Nome da meta SMART"),
+  kpiName: z.string().optional().describe("Métrica mensurável (opcional)"),
+  tasks: z.array(TaskSuggestionSchema),
+});
+export type GoalSuggestion = z.infer<typeof GoalSuggestionSchema>;
+
+
 export const AgentOutputSchema = z.object({
-  textResponse: z.string().describe('A resposta em texto para o usuário.'),
-  audioResponse: z.string().optional().describe('A resposta em áudio (data URI base64) para o usuário.'),
+  message: z.string().describe('A resposta conversacional para o usuário.'),
+  suggestions: z.array(GoalSuggestionSchema).optional().describe('Uma lista de metas e tarefas sugeridas.'),
+  action: z.enum(['create_goals', 'clarify', 'answer']).optional().describe('A ação que o agente está realizando.'),
 });
 export type AgentOutput = z.infer<typeof AgentOutputSchema>;

@@ -1,262 +1,248 @@
-
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Bot, User, Loader2, Send, TriangleAlert } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useGoals } from '@/context/GoalContext';
-import { talkToAgent } from '@/ai/flows/agent-flow';
-import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
 
-interface Message {
-  sender: 'user' | 'agent';
-  text: string;
+import { useState } from 'react';
+import { useGoals } from '@/context/GoalContext';
+import { Button } from '@/components/ui/button';
+import { Mic, Send, Sparkles, Bot, User, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import type { GoalSuggestion } from '@/app/types';
+
+type Message = {
+    role: 'user' | 'assistant';
+    content: string;
+    suggestions?: GoalSuggestion[];
+    action?: 'create_goals' | 'clarify' | 'answer';
 }
 
 export default function AgentPage() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { goals, tasks, addGoal, addTask } = useGoals();
+  const [mode, setMode] = useState<'chat' | 'goal_coach'>('chat');
+  const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputText, setInputText] = useState('');
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const { goals, tasks } = useGoals();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [isSpeechRecognitionSupported, setIsSpeechRecognitionSupported] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false);
 
-  useEffect(() => {
-    setIsClient(true);
-    
-    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognitionAPI) {
-      setIsSpeechRecognitionSupported(true);
-      const recognition = new SpeechRecognitionAPI();
-      recognition.continuous = false;
-      recognition.lang = 'pt-BR';
-      recognition.interimResults = false;
-      recognitionRef.current = recognition;
-    } else {
-        console.warn("Reconhecimento de fala não é suportado neste navegador.");
-    }
-  }, []);
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
 
-  const handleSendToAgent = async (text: string) => {
-    if (!text.trim()) {
-        setIsProcessing(false);
-        return;
-    }
-
-    setIsProcessing(true);
-    setMessages((prev) => [...prev, { sender: 'user', text: text }]);
+    const userMessage: Message = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
+    setInput('');
+    setIsLoading(true);
 
     try {
-      const response = await talkToAgent({
-        query: text,
-        context: {
-          goals,
-          tasks,
-        },
+      const response = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: currentInput,
+          context: { goals, tasks },
+          mode,
+        }),
       });
 
-      setMessages((prev) => [...prev, { sender: 'agent', text: response.textResponse }]);
-
-      if (response.audioResponse) {
-        const audio = new Audio(response.audioResponse);
-        audioRef.current = audio;
-        audio.play().catch(console.error);
-        audio.onended = () => setIsProcessing(false);
-        audio.onerror = () => setIsProcessing(false);
-      } else {
-        setIsProcessing(false);
+      if (!response.ok) {
+          throw new Error("A resposta da API não foi bem-sucedida.");
       }
 
+      const data = await response.json();
+      
+      const agentMessage: Message = {
+        role: 'assistant',
+        content: data.message,
+        suggestions: data.suggestions,
+        action: data.action,
+      };
+
+      setMessages(prev => [...prev, agentMessage]);
     } catch (error) {
-      console.error('Erro ao falar com o agente:', error);
-      let errorMessage = "Desculpe, não consegui processar sua solicitação.";
-      if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('400 Bad Request'))) {
-        errorMessage = "A chave da API do Gemini não é válida ou não foi configurada corretamente. Verifique o arquivo .env.local.";
-      }
-      setMessages((prev) => [...prev, { sender: 'agent', text: errorMessage }]);
-      setIsProcessing(false);
+      console.error('Erro ao enviar mensagem:', error);
+      toast({
+          variant: 'destructive',
+          title: 'Erro de comunicação',
+          description: 'Não foi possível obter uma resposta do agente.'
+      })
+      // Remove user message if agent fails
+      setMessages(prev => prev.filter(m => m !== userMessage));
+
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-        if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
-        }
-    }
-  }, [messages, isProcessing]);
+  const handleApplySuggestion = (suggestion: GoalSuggestion) => {
+    const newGoalId = crypto.randomUUID();
+    // Cria a meta
+    addGoal({
+      id: newGoalId,
+      name: suggestion.goalName,
+      kpiName: suggestion.kpiName,
+    });
 
-  const handleToggleRecording = () => {
-    if (!recognitionRef.current) return;
-    const recognition = recognitionRef.current;
+    // Cria as tarefas
+    suggestion.tasks.forEach((task) => {
+      addTask(newGoalId, task.title, task.priority, task.recurrence, undefined, task.duration);
+    });
 
-    if (isRecording) {
-      recognition.stop();
-      setIsRecording(false);
-    } else {
-      setMessages([]);
-      
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        handleSendToAgent(transcript);
-        setIsRecording(false); 
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Erro no reconhecimento de fala:', event.error);
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          toast({
-              variant: 'destructive',
-              title: 'Permissão de Microfone Negada',
-              description: 'Por favor, habilite o acesso ao microfone nas configurações do seu navegador.',
-          });
-        }
-        setIsRecording(false);
-        setIsProcessing(false);
-      };
-
-       recognition.onend = () => {
-        setIsRecording(false);
-      };
-      
-      try {
-        recognition.start();
-        setIsRecording(true);
-      } catch (error) {
-        console.error("Não foi possível iniciar o reconhecimento:", error)
-        setIsRecording(false);
-      }
-    }
+    toast({
+        title: "Plano de Ação Criado!",
+        description: `A meta "${suggestion.goalName}" foi criada com ${suggestion.tasks.length} tarefas!`,
+    })
   };
-
-  const handleTextSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
-    setMessages([]);
-    handleSendToAgent(inputText);
-    setInputText('');
-  }
-
-  const renderContent = () => {
-    if (!isClient) {
-      return (
-          <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-            <div className="relative flex h-32 w-32 sm:h-40 sm:w-40 items-center justify-center rounded-full bg-primary/10">
-                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Bot className="h-10 w-10" />
-                </div>
-            </div>
-            <Skeleton className="mt-6 h-4 w-1/2" />
-          </div>
-      )
-    }
-
-    return (
-        <>
-             {messages.length === 0 && !isRecording && !isProcessing ? (
-                    <div className="flex h-full flex-col items-center justify-center p-4 sm:p-8 text-center">
-                         <div className="relative flex h-32 w-32 sm:h-40 sm:w-40 items-center justify-center rounded-full bg-primary/10">
-                            <Bot className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
-                        </div>
-                        <p className="mt-6 text-base sm:text-lg text-muted-foreground">
-                            Pressione o microfone para começar ou digite abaixo.
-                        </p>
-                    </div>
-                ) : (
-                    <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-                        <div className="space-y-6">
-                            {messages.map((msg, index) => (
-                                <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : '')}>
-                                    {msg.sender === 'agent' && (
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
-                                           <Bot className="h-5 w-5" />
-                                        </div>
-                                    )}
-                                    <div className={cn(
-                                        "max-w-md rounded-xl px-4 py-3 text-sm",
-                                        msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                                    )}>
-                                        <p>{msg.text}</p>
-                                    </div>
-                                    {msg.sender === 'user' && (
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground flex-shrink-0">
-                                           <User className="h-5 w-5" />
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                            {isProcessing && messages[messages.length-1]?.sender === 'user' && (
-                                <div className="flex items-start gap-3">
-                                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
-                                        <Bot className="h-5 w-5" />
-                                    </div>
-                                    <div className="max-w-md rounded-xl bg-muted px-4 py-3 text-sm">
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                    </div>
-                                </div>
-                            )}
-                             {isRecording && (
-                                <div className="flex items-center justify-center p-4">
-                                    <p className="text-muted-foreground animate-pulse">Ouvindo...</p>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-             )}
-            <div className="mt-auto flex items-center gap-2 border-t p-4">
-                <form onSubmit={handleTextSubmit} className="flex-1 flex items-center gap-2">
-                    <Input 
-                        placeholder="Ou digite sua pergunta..."
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        disabled={isRecording || isProcessing}
-                    />
-                    <Button type="submit" size="icon" variant="ghost" disabled={!inputText || isProcessing || isRecording}>
-                        <Send className="h-5 w-5" />
-                    </Button>
-                </form>
-
-                {isSpeechRecognitionSupported && (
-                     <Button 
-                        size="icon" 
-                        onClick={handleToggleRecording} 
-                        disabled={isProcessing}
-                        variant={isRecording ? 'destructive' : 'default'}
-                    >
-                        {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                    </Button>
-                )}
-            </div>
-        </>
-    );
-  }
 
   return (
     <div className="container mx-auto max-w-3xl p-4 sm:p-6 md:p-8">
-      <Header />
-      <main className="mt-4 sm:mt-8">
-        <Card className="flex h-[calc(100vh-180px)] sm:h-[75vh] flex-col">
-           <CardHeader>
-                <CardTitle className='flex items-center gap-2'>
-                    <Bot className='h-6 w-6 text-primary' />
-                    <span>Agente IA</span>
-                </CardTitle>
-                <CardDescription>Converse com o Flow, seu assistente de produtividade.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-1 flex-col justify-between p-0">
-               {renderContent()}
+      <header className="mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                 <h1 className="text-3xl font-bold flex items-center gap-2"><Bot className='h-8 w-8 text-primary' /> Agente Flow</h1>
+                 <p className="text-muted-foreground mt-1">Converse ou deixe o Flow ser seu coach de metas.</p>
+            </div>
+            {/* Toggle de Modo */}
+            <div className="flex gap-2 flex-shrink-0">
+            <Button
+                variant={mode === 'chat' ? 'default' : 'outline'}
+                onClick={() => setMode('chat')}
+                size="sm"
+            >
+                💬 Chat
+            </Button>
+            <Button
+                variant={mode === 'goal_coach' ? 'default' : 'outline'}
+                onClick={() => setMode('goal_coach')}
+                 size="sm"
+            >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Coach
+            </Button>
+            </div>
+        </div>
+      </header>
+      
+      <main>
+        <Card className="flex h-[calc(100vh-280px)] sm:h-[70vh] flex-col">
+            <CardContent className="flex flex-1 flex-col p-0">
+                 <ScrollArea className="flex-1 p-4">
+                    <div className="space-y-6">
+                         {messages.length === 0 && !isLoading && (
+                            <div className="flex h-full flex-col items-center justify-center p-4 sm:p-8 text-center min-h-[200px]">
+                                <div className="relative flex h-32 w-32 sm:h-40 sm:w-40 items-center justify-center rounded-full bg-primary/10 mb-4">
+                                    <Sparkles className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
+                                </div>
+                                <h2 className="text-xl font-bold">Modo Coach de Metas Ativado!</h2>
+                                <p className="mt-2 text-base sm:text-lg text-muted-foreground">
+                                    {mode === 'goal_coach' 
+                                        ? "Me diga um objetivo que você tem em mente. Ex: 'Quero aprender a programar' ou 'Quero ser mais saudável'."
+                                        : "Faça uma pergunta sobre suas metas ou produtividade."
+                                    }
+                                </p>
+                            </div>
+                         )}
+
+                        {messages.map((msg, idx) => (
+                            <div key={idx}>
+                                <div className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : '')}>
+                                    {msg.role === 'assistant' && (
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                                            <Bot className="h-5 w-5" />
+                                        </div>
+                                    )}
+                                    <div className={cn(
+                                        "max-w-md rounded-xl px-4 py-3 text-sm whitespace-pre-wrap",
+                                        msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                                    )}>
+                                        <p>{msg.content}</p>
+                                    </div>
+                                    {msg.role === 'user' && (
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground flex-shrink-0">
+                                            <User className="h-5 w-5" />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Renderizar Sugestões */}
+                                {msg.suggestions?.map((suggestion, i) => (
+                                <Card key={i} className="p-4 mt-4 ml-12 border-2 border-dashed border-primary/30 bg-primary/5">
+                                    <h3 className="font-bold text-md flex items-center gap-2">
+                                        <Sparkles className='h-4 w-4 text-primary' /> Plano Sugerido
+                                    </h3>
+                                    <p className='mt-1 font-semibold text-primary'>{suggestion.goalName}</p>
+                                    {suggestion.kpiName && (
+                                    <p className="text-sm text-muted-foreground">📊 KPI: {suggestion.kpiName}</p>
+                                    )}
+                                    
+                                    <div className="mt-4 space-y-2">
+                                        <p className="font-semibold text-sm">Tarefas iniciais:</p>
+                                        <div className="space-y-2">
+                                            {suggestion.tasks.map((task, j) => (
+                                                <div key={j} className="text-sm pl-3 py-1 border-l-2 border-primary/20">
+                                                <p>✅ {task.title}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Prioridade: {task.priority} {task.duration ? `• Duração: ${task.duration}min` : ''}
+                                                </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                    onClick={() => handleApplySuggestion(suggestion)}
+                                    className="mt-4 w-full"
+                                    size="sm"
+                                    >
+                                    ✨ Criar este Plano no GoalFlow
+                                    </Button>
+                                </Card>
+                                ))}
+                            </div>
+                        ))}
+                         {isLoading && (
+                            <div className="flex items-start gap-3">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                                    <Bot className="h-5 w-5" />
+                                </div>
+                                <div className="max-w-md rounded-xl bg-muted px-4 py-3 text-sm">
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
+
+                <div className="flex items-center gap-2 border-t p-4">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        disabled
+                        onClick={() => {/* Implementar Web Speech API */}}
+                    >
+                        <Mic className={isListening ? 'text-red-500' : ''} />
+                    </Button>
+                    
+                    <form onSubmit={(e) => {e.preventDefault(); handleSendMessage();}} className="flex-1 flex items-center gap-2">
+                         <Input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder={
+                                mode === 'goal_coach'
+                                ? "Ex: 'Me ajude a criar metas de saúde'"
+                                : "Faça uma pergunta..."
+                            }
+                            disabled={isLoading}
+                        />
+                        
+                        <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+                            <Send />
+                        </Button>
+                    </form>
+                </div>
             </CardContent>
         </Card>
       </main>
