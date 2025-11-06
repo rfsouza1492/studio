@@ -5,7 +5,6 @@
  * - talkToAgent - The main function that processes the user's query.
  */
 import type { AgentInput, AgentOutput } from '@/app/types';
-import { AgentOutputSchema } from '@/app/types';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent';
@@ -52,7 +51,7 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
     ],
     "generationConfig": {
       // Use the correct property name for JSON output
-      "response_mime_type": "application/json",
+      "responseMimeType": "application/json",
     }
   };
 
@@ -68,23 +67,28 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
 
     if (!response.ok) {
       const errorBody = await response.json();
+      const errorMessage = errorBody.error?.message || 'Unknown API error';
       console.error('Error from Gemini API:', response.status, JSON.stringify(errorBody, null, 2));
-      throw new Error(`Gemini API request failed: ${JSON.stringify(errorBody)}`);
+      throw new Error(`Gemini API request failed: ${errorMessage}`);
     }
 
     const responseData = await response.json();
     
     // 5. Extract and parse the JSON response from the AI
+    if (!responseData.candidates || !responseData.candidates[0].content.parts[0].text) {
+        throw new Error("Invalid response structure from Gemini API.");
+    }
     const text = responseData.candidates[0].content.parts[0].text;
     
-    const validationResult = AgentOutputSchema.safeParse(JSON.parse(text));
-
-    if (!validationResult.success) {
-        console.error("Invalid JSON structure from AI:", validationResult.error);
-        throw new Error('Invalid JSON structure from AI.');
+    // Attempt to parse the text as JSON
+    const parsedJson = JSON.parse(text);
+    
+    // Basic validation
+    if (!parsedJson || typeof parsedJson.message !== 'string') {
+         throw new Error('Invalid JSON structure from AI: "message" property is missing or not a string.');
     }
     
-    return validationResult.data;
+    return parsedJson as AgentOutput;
 
   } catch (error) {
     console.error('Error in talkToAgent:', error);
