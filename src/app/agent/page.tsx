@@ -3,24 +3,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGoals } from '@/context/GoalContext';
 import { Button } from '@/components/ui/button';
-import { Mic, Send, Sparkles, Bot, User, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Mic, Send, Bot, User, Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import type { GoalSuggestion } from '@/app/types';
+import type { AgentOutput } from '@/app/types';
 
 type Message = {
     role: 'user' | 'assistant';
     content: string;
-    suggestions?: GoalSuggestion[];
-    action?: 'create_goals' | 'clarify' | 'answer';
 }
 
 export default function AgentPage() {
-  const { goals, tasks, addGoal, addTask } = useGoals();
-  const [mode, setMode] = useState<'chat' | 'goal_coach'>('goal_coach');
+  const { goals, tasks } = useGoals();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isListening, setIsListening] = useState(false);
@@ -54,7 +51,6 @@ export default function AgentPage() {
         body: JSON.stringify({
           query: currentInput,
           context: { goals, tasks },
-          mode,
         }),
       });
 
@@ -62,7 +58,7 @@ export default function AgentPage() {
           throw new Error("A resposta da API não foi bem-sucedida.");
       }
 
-      const data = await response.json();
+      const data: AgentOutput = await response.json();
       
       if (!data || !data.message) {
         throw new Error("Resposta da API inválida.");
@@ -71,8 +67,6 @@ export default function AgentPage() {
       const agentMessage: Message = {
         role: 'assistant',
         content: data.message,
-        suggestions: data.suggestions,
-        action: data.action,
       };
 
       setMessages(prev => [...prev, agentMessage]);
@@ -91,25 +85,6 @@ export default function AgentPage() {
     }
   };
 
-  const handleApplySuggestion = (suggestion: GoalSuggestion) => {
-    const newGoalId = crypto.randomUUID();
-    // Creates the goal
-    addGoal({
-      id: newGoalId,
-      name: suggestion.goalName,
-      kpiName: suggestion.kpiName,
-    });
-
-    // Creates the tasks
-    suggestion.tasks.forEach((task) => {
-      addTask(newGoalId, task.title, task.priority, task.recurrence || 'None', undefined, task.duration);
-    });
-
-    toast({
-        title: "Plano de Ação Criado!",
-        description: `A meta "${suggestion.goalName}" foi criada com ${suggestion.tasks.length} tarefas!`,
-    })
-  };
 
   return (
     <div className="container mx-auto max-w-3xl p-4 sm:p-6 md:p-8">
@@ -117,25 +92,7 @@ export default function AgentPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
                  <h1 className="text-3xl font-bold flex items-center gap-2"><Bot className='h-8 w-8 text-primary' /> Agente Flow</h1>
-                 <p className="text-muted-foreground mt-1">Converse ou deixe o Flow ser seu coach de metas.</p>
-            </div>
-            {/* Mode Toggle */}
-            <div className="flex gap-2 flex-shrink-0">
-            <Button
-                variant={mode === 'chat' ? 'default' : 'outline'}
-                onClick={() => setMode('chat')}
-                size="sm"
-            >
-                💬 Chat
-            </Button>
-            <Button
-                variant={mode === 'goal_coach' ? 'default' : 'outline'}
-                onClick={() => setMode('goal_coach')}
-                 size="sm"
-            >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Coach
-            </Button>
+                 <p className="text-muted-foreground mt-1">Converse com Flow, seu assistente de produtividade.</p>
             </div>
         </div>
       </header>
@@ -148,16 +105,13 @@ export default function AgentPage() {
                          {messages.length === 0 && !isLoading && (
                             <div className="flex h-full flex-col items-center justify-center p-4 sm:p-8 text-center min-h-[200px]">
                                 <div className="relative flex h-32 w-32 sm:h-40 sm:w-40 items-center justify-center rounded-full bg-primary/10 mb-4">
-                                    <Sparkles className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
+                                    <Bot className="h-12 w-12 sm:h-16 sm:w-16 text-primary" />
                                 </div>
                                 <h2 className="text-xl font-bold">
-                                     {mode === 'goal_coach' ? 'Modo Coach de Metas!' : 'Modo Chat'}
+                                     Converse com Flow
                                 </h2>
                                 <p className="mt-2 text-base sm:text-lg text-muted-foreground">
-                                    {mode === 'goal_coach' 
-                                        ? "Me diga um objetivo que você tem em mente. Ex: 'Quero aprender a programar' ou 'Quero ser mais saudável'."
-                                        : "Faça uma pergunta sobre suas metas ou produtividade."
-                                    }
+                                    Faça uma pergunta sobre suas metas, tarefas ou produtividade.
                                 </p>
                             </div>
                          )}
@@ -182,41 +136,6 @@ export default function AgentPage() {
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Render Suggestions */}
-                                {msg.suggestions?.map((suggestion, i) => (
-                                <Card key={i} className="p-4 mt-4 ml-12 border-2 border-dashed border-primary/30 bg-primary/5">
-                                    <h3 className="font-bold text-md flex items-center gap-2">
-                                        <Sparkles className='h-4 w-4 text-primary' /> Plano Sugerido
-                                    </h3>
-                                    <p className='mt-1 font-semibold text-primary'>{suggestion.goalName}</p>
-                                    {suggestion.kpiName && (
-                                    <p className="text-sm text-muted-foreground">📊 KPI: {suggestion.kpiName}</p>
-                                    )}
-                                    
-                                    <div className="mt-4 space-y-2">
-                                        <p className="font-semibold text-sm">Tarefas iniciais:</p>
-                                        <div className="space-y-2">
-                                            {suggestion.tasks.map((task, j) => (
-                                                <div key={j} className="text-sm pl-3 py-1 border-l-2 border-primary/20">
-                                                <p>✅ {task.title}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Prioridade: {task.priority} {task.duration ? `• Duração: ${task.duration}min` : ''}
-                                                </p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <Button
-                                    onClick={() => handleApplySuggestion(suggestion)}
-                                    className="mt-4 w-full"
-                                    size="sm"
-                                    >
-                                    ✨ Criar este Plano no GoalFlow
-                                    </Button>
-                                </Card>
-                                ))}
                             </div>
                         ))}
                          {isLoading && (
@@ -247,11 +166,7 @@ export default function AgentPage() {
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder={
-                                mode === 'goal_coach'
-                                ? "Ex: 'Me ajude a criar metas de saúde'"
-                                : "Faça uma pergunta..."
-                            }
+                            placeholder="Faça uma pergunta..."
                             disabled={isLoading}
                         />
                         
