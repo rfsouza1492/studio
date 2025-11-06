@@ -22,7 +22,7 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
   // 2. Define the strict instructions for the AI model
   const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
     You are having a conversation with a user about their goals and tasks.
-    You MUST respond with a valid JSON object and nothing else.
+    You MUST respond with a valid JSON object that adheres to the AgentOutput schema and nothing else.
     Your entire response must be a single JSON object.
     Do not include any markdown formatting (like \`\`\`json), commentary, or any other characters outside of the JSON object.
 
@@ -35,7 +35,7 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
 
   // 3. Construct the request body for the REST API
   const requestBody = {
-    "system_instruction": {
+    "systemInstruction": {
       "parts": [{ "text": systemPrompt }]
     },
     "contents": [
