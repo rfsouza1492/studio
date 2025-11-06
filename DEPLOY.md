@@ -130,4 +130,3 @@ cat package.json | grep -A 5 '"scripts"'
 2. ⏳ Aguardar deploy automático
 3. ⏳ Configurar domínio personalizado
 4. ⏳ Testar aplicação em produção
-
