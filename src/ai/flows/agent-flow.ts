@@ -4,9 +4,16 @@
  *
  * - talkToAgent - A função principal que processa a consulta do usuário.
  */
+import { GoogleGenerativeAI } from '@google/genai';
 import type { AgentInput, AgentOutput } from '@/app/types';
-import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+
+// Pega a chave da API das variáveis de ambiente. Falha se não estiver definida.
+if (!process.env.GEMINI_API_KEY) {
+  // Este erro será lançado durante a inicialização do servidor se a chave não estiver definida.
+  // Isso é importante para o ambiente de produção (deploy).
+  throw new Error('A variável de ambiente GEMINI_API_KEY não está definida.');
+}
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function talkToAgent({ query, context }: AgentInput): Promise<AgentOutput> {
   // 1. Define as instruções estritas para o modelo de IA
@@ -22,27 +29,26 @@ Here is the required JSON object structure:
 }`;
 
   try {
-    // 2. Faz a chamada da API usando Genkit, especificando o modelo corretamente.
-    const response = await ai.generate({
-      model: googleAI.model('gemini-1.5-pro-latest'),
-      system: systemPrompt,
-      prompt: `User message: "${query}"\n\nUSER'S CURRENT CONTEXT (Goals and Tasks):\n${JSON.stringify(context, null, 2)}`
+    // 2. Configura o modelo com a instrução do sistema e força a saída JSON
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro-latest',
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
     });
 
-    if (!response.output) {
-      throw new Error("A resposta da IA está vazia.");
-    }
+    // 3. Constrói o prompt do usuário
+    const prompt = `User message: "${query}"\n\nUSER'S CURRENT CONTEXT (Goals and Tasks):\n${JSON.stringify(context, null, 2)}`;
     
-    // 3. Extrai e analisa a resposta JSON da IA
-    // Limpa a formatação markdown potencial antes de analisar
-    const textResponse = response.text
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim();
+    // 4. Faz a chamada da API
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+    
+    const parsedJson: AgentOutput = JSON.parse(text);
 
-    const parsedJson: AgentOutput = JSON.parse(textResponse);
-
-    // Validação básica
+    // 5. Validação básica (o 'responseMimeType' já garante o formato JSON)
     if (!parsedJson || typeof parsedJson.message !== 'string') {
       throw new Error('Estrutura JSON inválida da IA: a propriedade "message" está faltando ou não é uma string.');
     }
@@ -51,10 +57,11 @@ Here is the required JSON object structure:
 
   } catch (error) {
     console.error('Erro em talkToAgent:', error);
-    // 4. Retorna um erro estruturado se algo der errado
+    // 6. Retorna um erro estruturado se algo der errado
     const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
+    // Retorna uma mensagem amigável para o usuário.
     return {
-      message: `Desculpe, tive um problema para processar sua solicitação. ${errorMessage}`,
+      message: `Desculpe, tive um problema para processar sua solicitação. O serviço de IA pode não estar configurado corretamente.`,
     };
   }
 }
