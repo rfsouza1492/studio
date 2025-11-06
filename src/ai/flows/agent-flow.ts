@@ -8,7 +8,7 @@ import { ai } from '@/ai/genkit';
 import type { AgentInput, AgentOutput } from '@/app/types';
 
 export async function talkToAgent({ query, context }: AgentInput): Promise<AgentOutput> {
-  const systemPrompt = `You are Flow, a helpful and friendly productivity assistant.
+  const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
 You are having a conversation with a user about their goals and tasks.
 You MUST respond with a valid JSON object.
 Do not include any markdown formatting or other characters outside of the JSON object.
