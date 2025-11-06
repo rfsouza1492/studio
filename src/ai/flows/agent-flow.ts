@@ -6,6 +6,7 @@
  */
 import type { AgentInput, AgentOutput } from '@/app/types';
 import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 export async function talkToAgent({ query, context }: AgentInput): Promise<AgentOutput> {
   // 1. Define as instruções estritas para o modelo de IA
@@ -25,6 +26,7 @@ Here is the required JSON object structure:
   try {
     // 2. Faz a chamada da API usando Genkit, especificando o modelo correto.
     const response = await ai.generate({
+      model: googleAI.model('gemini-pro'),
       system: systemPrompt,
       prompt: [
         { text: `User message: "${query}"` },
