@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview The AI flow for the GoalFlow conversational agent using the Gemini REST API.
@@ -6,9 +5,10 @@
  * - talkToAgent - The main function that processes the user's query.
  */
 import type { AgentInput, AgentOutput } from '@/app/types';
+import { AgentOutputSchema } from '@/app/types';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent';
 
 export async function talkToAgent({ query, context }: AgentInput): Promise<AgentOutput> {
   // 1. Check for API Key
@@ -23,6 +23,7 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
   const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
     You are having a conversation with a user about their goals and tasks.
     You MUST respond with a valid JSON object and nothing else.
+    Your entire response must be a single JSON object.
     Do not include any markdown formatting (like \`\`\`json), commentary, or any other characters outside of the JSON object.
 
     The JSON object must always include a "message" (string) property.
@@ -34,7 +35,7 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
 
   // 3. Construct the request body for the REST API
   const requestBody = {
-    "systemInstruction": {
+    "system_instruction": {
       "parts": [{ "text": systemPrompt }]
     },
     "contents": [
@@ -71,13 +72,15 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
     
     // 5. Extract and parse the JSON response from the AI
     const text = responseData.candidates[0].content.parts[0].text;
-    const parsedResponse: AgentOutput = JSON.parse(text);
     
-    if (typeof parsedResponse.message !== 'string') {
-        throw new Error('Invalid JSON structure from AI: "message" property is missing or not a string.');
+    const validationResult = AgentOutputSchema.safeParse(JSON.parse(text));
+
+    if (!validationResult.success) {
+        console.error("Invalid JSON structure from AI:", validationResult.error);
+        throw new Error('Invalid JSON structure from AI.');
     }
     
-    return parsedResponse;
+    return validationResult.data;
 
   } catch (error) {
     console.error('Error in talkToAgent:', error);
