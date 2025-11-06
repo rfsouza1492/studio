@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export const priorities = ["Low", "Medium", "High"] as const;
@@ -52,7 +53,7 @@ export const AgentInputSchema = z.object({
     goals: z.array(GoalSchema),
     tasks: z.array(TaskSchema),
   }).describe('O estado atual das metas e tarefas do usuário.'),
-   mode: z.enum(['chat', 'goal_coach']).default('chat'),
+  mode: z.enum(['chat', 'goal_coach']).default('chat'),
 });
 export type AgentInput = z.infer<typeof AgentInputSchema>;
 

@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview The AI flow for the GoalFlow conversational agent.
@@ -8,6 +9,23 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { AgentInputSchema, AgentOutputSchema } from '@/app/types';
 import type { AgentInput, AgentOutput } from '@/app/types';
+
+const PromptInputSchema = z.object({
+  systemPrompt: z.string(),
+  query: z.string(),
+});
+
+// Define a structured prompt using definePrompt for clarity and reusability
+const agentPrompt = ai.definePrompt(
+  {
+    name: 'agentPrompt',
+    input: { schema: PromptInputSchema },
+    output: { schema: AgentOutputSchema, format: 'json' },
+    prompt: `{{{systemPrompt}}}
+
+    Mensagem do usuário: {{{query}}}`,
+  },
+);
 
 
 // Helper function to format the complex context object into a simple string.
@@ -39,14 +57,14 @@ FORMATO DE RESPOSTA (JSON):
       "tasks": [
         {
           "title": "Tarefa específica",
-          "priority": "High" | "Medium" | "Low",
+          "priority": "High",
           "duration": 60,
-          "recurrence": "Daily" | "Weekly" | "None"
+          "recurrence": "Daily"
         }
       ]
     }
   ],
-  "action": "create_goals" | "clarify" | "answer"
+  "action": "create_goals"
 }
 
 - Use "create_goals" quando tiver sugestões concretas
@@ -89,16 +107,12 @@ const agentFlow = ai.defineFlow(
       ? getGoalCoachPrompt(context)
       : getChatPrompt(context);
     
-    const prompt = `${systemPrompt}\n\nMensagem do usuário: ${query}`;
-
-    const { output } = await ai.generate({
-      prompt: prompt,
-      output: { 
-          format: 'json',
-          schema: AgentOutputSchema,
-      },
+    // Call the structured prompt
+    const { output } = await agentPrompt({
+      systemPrompt,
+      query,
     });
-
+    
     if (!output) {
       return {
         message: 'Desculpe, não consegui processar sua solicitação.',
