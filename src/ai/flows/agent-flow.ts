@@ -8,10 +8,9 @@ import { ai } from '@/ai/genkit';
 import { AgentInputSchema, AgentOutputSchema } from '@/app/types';
 import type { AgentInput, AgentOutput } from '@/app/types';
 
-
 // Helper function to format the complex context object into a simple string.
 function getGoalCoachPrompt(context: AgentInput['context']): string {
-  return `You are Flow, a specialist coach in goal setting and productivity.
+  return `You are Flow, a specialist coach in goal setting and productivity. You MUST respond with a valid JSON object that conforms to this Zod schema: ${JSON.stringify(AgentOutputSchema.jsonSchema, null, 2)}. Do not include markdown or any other characters outside of the JSON object.
 
 USER CONTEXT:
 - Current goals: ${context.goals.length}
@@ -28,10 +27,7 @@ CONVERSATION FLOW:
 - If they already have a goal in mind: refine it using SMART and suggest tasks.
 - If they ask for general help: offer practical examples.
 
-RESPONSE FORMAT (JSON):
-You must respond with a JSON object that conforms to this Zod schema:
-${JSON.stringify(AgentOutputSchema.jsonSchema, null, 2)}
-
+RESPONSE ACTION:
 - Use "create_goals" when you have concrete suggestions.
 - Use "clarify" when you need more information.
 - Use "answer" for general questions.
@@ -45,15 +41,12 @@ RULES:
 }
 
 function getChatPrompt(context: AgentInput['context']): string {
-  return `You are Flow, the user's productivity assistant.
+  return `You are Flow, the user's productivity assistant. You MUST respond with a valid JSON object that conforms to this Zod schema: ${JSON.stringify(AgentOutputSchema.jsonSchema, null, 2)}. Do not include markdown or any other characters outside of the JSON object.
 
 CONTEXT:
 ${JSON.stringify(context, null, 2)}
 
-Answer questions about goals, tasks, and productivity in a friendly manner.
-You must respond with a JSON object that conforms to this Zod schema:
-${JSON.stringify(AgentOutputSchema.jsonSchema, null, 2)}
-Set the "action" field to "answer".`;
+Answer questions about goals, tasks, and productivity in a friendly manner. Set the "action" field to "answer".`;
 }
 
 // Wrapper function that will be called by the front-end
@@ -75,23 +68,19 @@ const agentFlow = ai.defineFlow(
       : getChatPrompt(context);
     
     try {
-      const { output } = await ai.generate({
-        prompt: [
-          {text: systemPrompt},
-          {text: `User message: "${query}"`}
-        ],
-        output: { 
-          format: 'json',
-          schema: AgentOutputSchema
-        },
+      const response = await ai.generate({
+        model: 'googleai/gemini-1.5-flash',
+        system: systemPrompt,
+        prompt: `User message: "${query}"`,
       });
 
-      if (output) {
-        // The output is already a validated JSON object because of the schema
-        return output;
-      }
+      const textResponse = response.text.replace(/```json|```/g, '').trim();
+      const parsedOutput = JSON.parse(textResponse);
+
+      // Validate the parsed output against the schema
+      const validatedOutput = AgentOutputSchema.parse(parsedOutput);
       
-      throw new Error("The AI returned an empty output.");
+      return validatedOutput;
 
     } catch (error) {
         console.error("Error generating or parsing agent output:", error);
