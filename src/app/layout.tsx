@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { GoalProvider } from '@/context/GoalContext';
 import { Toaster } from '@/components/ui/toaster';
 import { GoogleApiProvider } from '@/context/GoogleApiContext';
+import { GoalProvider } from '@/context/GoalContext';
 
 export const metadata: Metadata = {
   title: 'GoalFlow',

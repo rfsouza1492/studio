@@ -4,11 +4,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch, useCallback } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { addDays, addMonths, addWeeks } from 'date-fns';
-
-interface State {
-  goals: Goal[];
-  tasks: Task[];
-}
+import { initialState as defaultInitialState, type State } from './initialState';
 
 type Action =
   | { type: 'SET_STATE'; payload: State }
@@ -20,16 +16,11 @@ type Action =
   | { type: 'DELETE_TASK'; payload: { id: string } }
   | { type: 'TOGGLE_TASK'; payload: { id: string } };
 
-const initialState: State = {
-  goals: [],
-  tasks: [],
-};
-
 const goalReducer = (state: State, action: Action): State => {
   switch (action.type) {
     case 'SET_STATE':
         if (!action.payload || !action.payload.goals || !action.payload.tasks) {
-            return initialState;
+            return defaultInitialState;
         }
         return action.payload;
     case 'ADD_GOAL':
@@ -116,22 +107,26 @@ const goalReducer = (state: State, action: Action): State => {
 
 const GoalContext = createContext<{ state: State; dispatch: Dispatch<Action> } | undefined>(undefined);
 
-export const GoalProvider = ({ children }: { children: ReactNode }) => {
-  const [state, dispatch] = useReducer(goalReducer, initialState);
-
-  useEffect(() => {
+export const GoalProvider = ({ children, initialState: providedInitialState }: { children: ReactNode, initialState?: State }) => {
+  
+  const initializer = () => {
+    if (typeof window === 'undefined') {
+        return providedInitialState || defaultInitialState;
+    }
     try {
       const storedState = localStorage.getItem('goalFlowState');
       if (storedState) {
-        const parsedState = JSON.parse(storedState);
-        dispatch({ type: 'SET_STATE', payload: parsedState });
+        return JSON.parse(storedState);
       }
     } catch (error) {
       console.error("Could not load state from localStorage", error);
-      // If parsing fails, clear the corrupted state
       localStorage.removeItem('goalFlowState');
     }
-  }, []);
+    // If nothing is in localStorage, use the provided initial state (for demo data) or the default.
+    return providedInitialState || defaultInitialState;
+  };
+
+  const [state, dispatch] = useReducer(goalReducer, undefined, initializer);
 
   useEffect(() => {
     try {
