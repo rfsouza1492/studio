@@ -101,7 +101,7 @@ export default function FocoPage() {
                             Escolha uma tarefa, inicie o timer e concentre-se.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex flex-col items-center gap-8">
+                    <CardContent className="flex flex-col items-center gap-8 pt-6">
                         {/* Task Selector */}
                         <div className="w-full max-w-sm">
                              <Select onValueChange={setSelectedTaskId} value={selectedTaskId || ""}>

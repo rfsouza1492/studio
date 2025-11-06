@@ -9,7 +9,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { AgentInput, AgentOutput, AgentInputSchema, AgentOutputSchema } from '@/app/types';
-import wav from 'wav';
 
 // Função wrapper que será chamada pelo front-end
 export async function talkToAgent(input: AgentInput): Promise<AgentOutput> {
@@ -43,32 +42,6 @@ const promptTemplate = `
     `;
 
 
-async function toWav(
-  pcmData: Buffer,
-  channels = 1,
-  rate = 24000,
-  sampleWidth = 2
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels,
-      sampleRate: rate,
-      bitDepth: sampleWidth * 8,
-    });
-
-    let bufs: any[] = [];
-    writer.on('error', reject);
-    writer.on('data', function (d) {
-      bufs.push(d);
-    });
-    writer.on('end', function () {
-      resolve(Buffer.concat(bufs).toString('base64'));
-    });
-
-    writer.write(pcmData);
-    writer.end();
-  });
-}
 
 // Definição do fluxo
 const agentFlow = ai.defineFlow(
@@ -82,7 +55,7 @@ const agentFlow = ai.defineFlow(
     const textResponseGeneration = await ai.generate({
       prompt: promptTemplate,
       input: input,
-      model: 'googleai/gemini-2.5-flash',
+      model: 'googleai/gemini-1.5-flash',
     });
     const textResponse = textResponseGeneration.text ?? "Não consegui entender, pode repetir?";
     
@@ -91,7 +64,7 @@ const agentFlow = ai.defineFlow(
     try {
       // Etapa 2: Gerar a resposta em áudio (TTS) a partir do texto gerado
       const audioResponseGeneration = await ai.generate({
-          model: 'googleai/gemini-2.5-flash-preview-tts',
+          model: 'googleai/gemini-1.5-flash',
           prompt: textResponse,
           config: {
               responseModalities: ['AUDIO'],
@@ -105,10 +78,7 @@ const agentFlow = ai.defineFlow(
 
       const audioPart = audioResponseGeneration.media;
       if (audioPart?.url) {
-          const base64PcmData = audioPart.url.substring(audioPart.url.indexOf(',') + 1);
-          const audioBuffer = Buffer.from(base64PcmData, 'base64');
-          const wavBase64 = await toWav(audioBuffer);
-          audioResponse = `data:audio/wav;base64,${wavBase64}`;
+          audioResponse = audioPart.url;
       }
     } catch (error) {
         console.error("Erro ao gerar ou converter áudio:", error);

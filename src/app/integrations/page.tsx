@@ -19,7 +19,7 @@ export default function IntegrationsPage() {
                             Conecte o GoalFlow a outras ferramentas para automatizar seu fluxo de trabalho.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                        <div className="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-primary/20 bg-card p-12 text-center shadow-sm">
                             <h2 className="text-xl font-semibold text-card-foreground">
                                 Em breve

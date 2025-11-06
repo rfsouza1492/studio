@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Bot, User, Loader2, Send, TriangleAlert } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -31,11 +31,9 @@ export default function AgentPage() {
   const [isSpeechRecognitionSupported, setIsSpeechRecognitionSupported] = useState(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
-  const [isApiKeyConfigured, setIsApiKeyConfigured] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    setIsApiKeyConfigured(!!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
     
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognitionAPI) {
@@ -46,12 +44,12 @@ export default function AgentPage() {
       recognition.interimResults = false;
       recognitionRef.current = recognition;
     } else {
-        console.warn("Speech Recognition não é suportado neste navegador.");
+        console.warn("Reconhecimento de fala não é suportado neste navegador.");
     }
   }, []);
 
   const handleSendToAgent = async (text: string) => {
-    if (!text.trim() || !isApiKeyConfigured) {
+    if (!text.trim()) {
         setIsProcessing(false);
         return;
     }
@@ -81,10 +79,10 @@ export default function AgentPage() {
       }
 
     } catch (error) {
-      console.error('Error talking to agent:', error);
+      console.error('Erro ao falar com o agente:', error);
       let errorMessage = "Desculpe, não consegui processar sua solicitação.";
       if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('400 Bad Request'))) {
-        errorMessage = "A chave da API do Gemini não é válida ou não foi configurada corretamente. Verifique o arquivo .env.";
+        errorMessage = "A chave da API do Gemini não é válida ou não foi configurada corretamente. Verifique o arquivo .env.local.";
       }
       setMessages((prev) => [...prev, { sender: 'agent', text: errorMessage }]);
       setIsProcessing(false);
@@ -117,7 +115,7 @@ export default function AgentPage() {
       };
 
       recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
+        console.error('Erro no reconhecimento de fala:', event.error);
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           toast({
               variant: 'destructive',
@@ -137,7 +135,7 @@ export default function AgentPage() {
         recognition.start();
         setIsRecording(true);
       } catch (error) {
-        console.error("Could not start recognition:", error)
+        console.error("Não foi possível iniciar o reconhecimento:", error)
         setIsRecording(false);
       }
     }
@@ -163,20 +161,6 @@ export default function AgentPage() {
             <Skeleton className="mt-6 h-4 w-1/2" />
           </div>
       )
-    }
-
-    if (!isApiKeyConfigured) {
-        return (
-             <div className='p-4'>
-                <Alert variant="destructive">
-                    <TriangleAlert className="h-4 w-4" />
-                    <AlertTitle>Configuração Necessária</AlertTitle>
-                    <AlertDescription>
-                    A chave da API do Gemini não foi configurada. Por favor, adicione sua chave ao arquivo <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">.env</code> como <code className="font-mono bg-destructive-foreground/20 px-1 py-0.5 rounded text-destructive-foreground">NEXT_PUBLIC_GEMINI_API_KEY=SUA_CHAVE_AQUI</code> e reinicie o servidor.
-                    </AlertDescription>
-                </Alert>
-             </div>
-        );
     }
 
     return (
@@ -260,7 +244,7 @@ export default function AgentPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-3xl p-0 sm:p-4 md:p-6 lg:p-8">
+    <div className="container mx-auto max-w-3xl p-4 sm:p-6 md:p-8">
       <Header />
       <main className="mt-4 sm:mt-8">
         <Card className="flex h-[calc(100vh-180px)] sm:h-[75vh] flex-col">
