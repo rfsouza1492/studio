@@ -4,23 +4,19 @@ import { AgentInput } from '@/app/types';
 
 export async function POST(req: NextRequest) {
   try {
-    const { query, context, mode }: AgentInput = await req.json();
+    const { query, context }: AgentInput = await req.json();
 
     if (!query || !context) {
         return NextResponse.json({ message: 'Parâmetros inválidos.' }, { status: 400 });
     }
 
-    const result = await talkToAgent({
-      query,
-      context,
-      mode: mode || 'chat',
-    });
+    const result = await talkToAgent({ query, context });
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Erro no agente:', error);
+    console.error('Erro no endpoint do agente:', error);
     return NextResponse.json(
-      { message: 'Erro ao processar mensagem', details: error.message },
+      { message: 'Erro interno do servidor ao processar a mensagem.', details: error.message },
       { status: 500 }
     );
   }
