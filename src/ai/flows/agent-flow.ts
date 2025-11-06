@@ -1,49 +1,47 @@
 
 'use server';
 /**
- * @fileOverview O fluxo de IA para o agente de conversação do GoalFlow.
+ * @fileOverview The AI flow for the GoalFlow conversational agent.
  *
- * - talkToAgent - A função principal que processa a consulta do usuário.
+ * - talkToAgent - The main function that processes the user's query.
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'zod';
 import { AgentInput, AgentOutput, AgentInputSchema, AgentOutputSchema } from '@/app/types';
 
-// Função wrapper que será chamada pelo front-end
+// Helper function to format the complex context object into a simple string.
+function formatContext(context: AgentInput['context']): string {
+    let contextString = 'USER CONTEXT (if relevant to the question):\n';
+
+    contextString += 'Goals:\n';
+    if (context.goals && context.goals.length > 0) {
+        context.goals.forEach(goal => {
+            contextString += `- ${goal.name} (ID: ${goal.id})\n`;
+        });
+    } else {
+        contextString += 'No goals have been added yet.\n';
+    }
+
+    contextString += '\nTasks:\n';
+    if (context.tasks && context.tasks.length > 0) {
+        context.tasks.forEach(task => {
+            contextString += `- ${task.title} (ID: ${task.id}, Goal ID: ${task.goalId}, Completed: ${task.completed}, Deadline: ${task.deadline})\n`;
+        });
+    } else {
+        contextString += 'No tasks have been added yet.\n';
+    }
+
+    return contextString;
+}
+
+
+// Wrapper function that will be called by the front-end
 export async function talkToAgent(input: AgentInput): Promise<AgentOutput> {
+  // Directly call the flow, ensuring the input matches the schema.
   return agentFlow(input);
 }
 
-const promptTemplate = `
-        Você é Flow, um assistente de produtividade amigável e inteligente para o aplicativo GoalFlow.
-        Sua personalidade é concisa, prestativa e um pouco espirituosa.
-        Sua principal função é ajudar os usuários com suas metas e tarefas, mas você também pode responder a perguntas de conhecimento geral.
-
-        CONTEXTO DO USUÁRIO (se relevante para a pergunta):
-        Metas:
-        {{#each context.goals}}
-        - {{name}} (ID: {{id}})
-        {{else}}
-        Nenhuma meta cadastrada.
-        {{/each}}
-
-        Tarefas:
-        {{#each context.tasks}}
-        - {{title}} (ID: {{id}}, Meta ID: {{goalId}}, Concluída: {{completed}}, Prazo: {{deadline}})
-        {{else}}
-        Nenhuma tarefa cadastrada.
-        {{/each}}
-
-        PERGUNTA DO USUÁRIO:
-        "{{{query}}}"
-
-        Responda à pergunta do usuário de forma clara e direta.
-    `;
-
-
-
-// Definição do fluxo
+// Define the main AI flow
 const agentFlow = ai.defineFlow(
   {
     name: 'agentFlow',
@@ -51,44 +49,38 @@ const agentFlow = ai.defineFlow(
     outputSchema: AgentOutputSchema,
   },
   async (input) => {
-    // Etapa 1: Gerar a resposta em texto
-    const textResponseGeneration = await ai.generate({
-      prompt: promptTemplate,
-      input: input,
+    
+    // 1. Format the context from the input object into a string
+    const formattedContext = formatContext(input.context);
+
+    // 2. Construct the full prompt for the AI model
+    const finalPrompt = `
+        You are Flow, a friendly and intelligent productivity assistant for the GoalFlow app.
+        Your personality is concise, helpful, and a bit witty.
+        Your main function is to help users with their goals and tasks, but you can also answer general knowledge questions.
+
+        ${formattedContext}
+
+        USER'S QUESTION:
+        "${input.query}"
+
+        Answer the user's question clearly and directly.
+    `;
+
+    // 3. Generate the text response using the AI model
+    const llmResponse = await ai.generate({
+      prompt: finalPrompt,
       model: 'googleai/gemini-1.5-flash',
     });
-    const textResponse = textResponseGeneration.text ?? "Não consegui entender, pode repetir?";
     
-    let audioResponse: string | undefined = undefined;
+    const textResponse = llmResponse.text();
 
-    try {
-      // Etapa 2: Gerar a resposta em áudio (TTS) a partir do texto gerado
-      const audioResponseGeneration = await ai.generate({
-          model: 'googleai/gemini-1.5-flash',
-          prompt: textResponse,
-          config: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                  voiceConfig: {
-                      prebuiltVoiceConfig: { voiceName: 'Algenib' },
-                  },
-              },
-          },
-      });
-
-      const audioPart = audioResponseGeneration.media;
-      if (audioPart?.url) {
-          audioResponse = audioPart.url;
-      }
-    } catch (error) {
-        console.error("Erro ao gerar ou converter áudio:", error);
-        // Continua sem áudio se houver um erro
-    }
-
+    // The incorrect audio generation code has been removed.
+    // The application will gracefully handle the absence of an audio response.
 
     return {
-      textResponse,
-      audioResponse,
+      textResponse: textResponse ?? "I didn't quite catch that, could you say it again?",
+      audioResponse: undefined, // No audio is returned
     };
   }
 );

@@ -6,6 +6,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    lightningCss: false,
+  },
   async headers() {
     return [
       {
