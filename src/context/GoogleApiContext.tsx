@@ -54,7 +54,6 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
             }).then(() => {
                 const authInstance = gapi.auth2.getAuthInstance();
                 if(!authInstance) {
-                    console.error("Auth instance could not be retrieved after init.");
                     setIsGapiReady(false);
                     return;
                 }
