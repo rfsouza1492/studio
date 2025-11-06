@@ -10,7 +10,7 @@ import type { AgentInput, AgentOutput } from '@/app/types';
 
 // Helper function to format the complex context object into a simple string.
 function getGoalCoachPrompt(context: AgentInput['context']): string {
-  return `You are Flow, a specialist coach in goal setting and productivity. You MUST respond with a valid JSON object that conforms to this Zod schema: ${JSON.stringify(AgentOutputSchema.jsonSchema, null, 2)}. Do not include markdown or any other characters outside of the JSON object.
+  return `You are Flow, a specialist coach in goal setting and productivity. You MUST respond with a valid JSON object that conforms to the output schema. Do not include markdown or any other characters outside of the JSON object.
 
 USER CONTEXT:
 - Current goals: ${context.goals.length}
@@ -41,7 +41,7 @@ RULES:
 }
 
 function getChatPrompt(context: AgentInput['context']): string {
-  return `You are Flow, the user's productivity assistant. You MUST respond with a valid JSON object that conforms to this Zod schema: ${JSON.stringify(AgentOutputSchema.jsonSchema, null, 2)}. Do not include markdown or any other characters outside of the JSON object.
+  return `You are Flow, the user's productivity assistant. You MUST respond with a valid JSON object that conforms to the output schema. Do not include markdown or any other characters outside of the JSON object.
 
 CONTEXT:
 ${JSON.stringify(context, null, 2)}
@@ -72,15 +72,17 @@ const agentFlow = ai.defineFlow(
         model: 'googleai/gemini-1.5-flash',
         system: systemPrompt,
         prompt: `User message: "${query}"`,
+        output: {
+          schema: AgentOutputSchema,
+        }
       });
-
-      const textResponse = response.text.replace(/```json|```/g, '').trim();
-      const parsedOutput = JSON.parse(textResponse);
-
-      // Validate the parsed output against the schema
-      const validatedOutput = AgentOutputSchema.parse(parsedOutput);
       
-      return validatedOutput;
+      const output = response.output;
+      if (!output) {
+        throw new Error("Agent returned no output.");
+      }
+      
+      return output;
 
     } catch (error) {
         console.error("Error generating or parsing agent output:", error);
