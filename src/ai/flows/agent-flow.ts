@@ -8,7 +8,6 @@ import { ai } from '@/ai/genkit';
 import { AgentInputSchema, AgentOutputSchema } from '@/app/types';
 import type { AgentInput, AgentOutput } from '@/app/types';
 
-// Helper function to format the complex context object into a simple string.
 function getGoalCoachPrompt(context: AgentInput['context']): string {
   return `You are Flow, a specialist coach in goal setting and productivity. You MUST respond with a valid JSON object that conforms to the output schema. Do not include markdown or any other characters outside of the JSON object.
 
@@ -49,13 +48,10 @@ ${JSON.stringify(context, null, 2)}
 Answer questions about goals, tasks, and productivity in a friendly manner. Set the "action" field to "answer".`;
 }
 
-// Wrapper function that will be called by the front-end
 export async function talkToAgent(input: AgentInput): Promise<AgentOutput> {
-  // Directly call the flow, ensuring the input matches the schema.
   return agentFlow(input);
 }
 
-// Define the main AI flow
 const agentFlow = ai.defineFlow(
   {
     name: 'agentFlow',
@@ -71,7 +67,7 @@ const agentFlow = ai.defineFlow(
       const response = await ai.generate({
         model: 'googleai/gemini-1.5-flash',
         system: systemPrompt,
-        prompt: `User message: "${query}"`,
+        prompt: query,
         output: {
           schema: AgentOutputSchema,
         }
@@ -85,8 +81,7 @@ const agentFlow = ai.defineFlow(
       return output;
 
     } catch (error) {
-        console.error("Error generating or parsing agent output:", error);
-        // Return a valid error response that matches the output schema
+        console.error("Error in agentFlow:", error);
         return {
             message: "Desculpe, tive um problema para processar sua solicitação. Vamos tentar de novo.",
             action: 'answer'
