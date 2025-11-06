@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview The AI flow for the GoalFlow conversational agent.
@@ -30,24 +29,8 @@ CONVERSATION FLOW:
 - If they ask for general help: offer practical examples.
 
 RESPONSE FORMAT (JSON):
-{
-  "message": "Your conversational response",
-  "suggestions": [
-    {
-      "goalName": "Name of the SMART goal",
-      "kpiName": "Measurable metric (optional)",
-      "tasks": [
-        {
-          "title": "Specific task",
-          "priority": "High",
-          "duration": 60,
-          "recurrence": "Daily"
-        }
-      ]
-    }
-  ],
-  "action": "create_goals"
-}
+You must respond with a JSON object that conforms to this Zod schema:
+${JSON.stringify(AgentOutputSchema.jsonSchema, null, 2)}
 
 - Use "create_goals" when you have concrete suggestions.
 - Use "clarify" when you need more information.
@@ -68,7 +51,9 @@ CONTEXT:
 ${JSON.stringify(context, null, 2)}
 
 Answer questions about goals, tasks, and productivity in a friendly manner.
-Format the response as JSON: { "message": "your answer", "action": "answer" }`;
+You must respond with a JSON object that conforms to this Zod schema:
+${JSON.stringify(AgentOutputSchema.jsonSchema, null, 2)}
+Set the "action" field to "answer".`;
 }
 
 // Wrapper function that will be called by the front-end
@@ -89,36 +74,31 @@ const agentFlow = ai.defineFlow(
       ? getGoalCoachPrompt(context)
       : getChatPrompt(context);
     
-    const fullPrompt = `${systemPrompt}\n\nUser message: ${query}`;
-
-    // Call the structured prompt
-    const { text } = await ai.generate({
-      prompt: fullPrompt,
-      output: { 
-        format: 'json',
-        schema: AgentOutputSchema
-      },
-    });
+    const fullPrompt = `${systemPrompt}\n\nUser message: "${query}"`;
 
     try {
-        const parsedOutput = JSON.parse(text);
-        // Validate the parsed output against the schema
-        const validation = AgentOutputSchema.safeParse(parsedOutput);
-        if (validation.success) {
-            return validation.data;
-        } else {
-             console.error("Agent output validation error:", validation.error);
-             return {
-                message: "Sorry, I received an invalid response from the AI. Let's try again.",
-                action: 'answer'
-            }
-        }
+      const { output } = await ai.generate({
+        prompt: fullPrompt,
+        output: { 
+          format: 'json',
+          schema: AgentOutputSchema
+        },
+      });
+
+      if (output) {
+        // The output is already a validated JSON object because of the schema
+        return output;
+      }
+      
+      throw new Error("The AI returned an empty output.");
+
     } catch (error) {
-        console.error("Error parsing agent output:", error);
+        console.error("Error generating or parsing agent output:", error);
+        // Return a valid error response that matches the output schema
         return {
-            message: 'Sorry, I had trouble understanding the response. Could you rephrase?',
+            message: "Desculpe, tive um problema para processar sua solicitação. Vamos tentar de novo.",
             action: 'answer'
-        }
+        };
     }
   }
 );
