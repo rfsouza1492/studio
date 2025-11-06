@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview The AI flow for the GoalFlow conversational agent using the Gemini REST API.
@@ -48,11 +49,7 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
           { "text": `USER'S CURRENT CONTEXT (Goals and Tasks):\n ${JSON.stringify(context, null, 2)}` }
         ]
       }
-    ],
-    "generationConfig": {
-      // Use the correct property name for JSON output
-      "responseMimeType": "application/json",
-    }
+    ]
   };
 
   // 4. Make the API call using fetch
@@ -78,7 +75,10 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
     if (!responseData.candidates || !responseData.candidates[0].content.parts[0].text) {
         throw new Error("Invalid response structure from Gemini API.");
     }
-    const text = responseData.candidates[0].content.parts[0].text;
+    let text = responseData.candidates[0].content.parts[0].text;
+    
+    // Clean potential markdown formatting
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
     // Attempt to parse the text as JSON
     const parsedJson = JSON.parse(text);
