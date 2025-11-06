@@ -35,10 +35,13 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
 
   // 3. Construct the request body for the REST API
   const requestBody = {
-    "systemInstruction": {
-      "parts": [{ "text": systemPrompt }]
-    },
     "contents": [
+      // Correctly place system prompt first in contents array for v1 API
+      {
+        "role": "system",
+        "parts": [{ "text": systemPrompt }]
+      },
+      // Then the user content
       {
         "role": "user",
         "parts": [
@@ -48,7 +51,8 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
       }
     ],
     "generationConfig": {
-      "responseMimeType": "application/json",
+      // Use the correct property name for JSON output
+      "response_mime_type": "application/json",
     }
   };
 
