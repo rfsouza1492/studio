@@ -31,7 +31,7 @@ Here is the required JSON object structure:
   try {
     // 2. Configura o modelo com a instrução do sistema e força a saída JSON
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-pro-latest',
+      model: 'gemini-2.5-flash',
       systemInstruction: systemPrompt,
       generationConfig: {
         responseMimeType: "application/json",
