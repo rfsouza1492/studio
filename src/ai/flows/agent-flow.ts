@@ -7,7 +7,7 @@
 import { z } from 'zod';
 import { AgentInputSchema, AgentOutputSchema } from '@/lib/schemas';
 import { defineFlow, runFlow } from '@genkit-ai/flow';
-import { geminiPro } from '../../genkit.config';
+import { gemini15Flash } from '@/genkit.config';
 import { generate } from '@genkit-ai/ai';
 
 const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
@@ -35,7 +35,7 @@ export const talkToAgentFlow = defineFlow(
     )}`;
 
     const llmResponse = await generate({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt: prompt,
       config: {
         temperature: 0.5,

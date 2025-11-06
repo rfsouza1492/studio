@@ -1,182 +1,246 @@
 
 "use client";
 
-import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch, useCallback, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
+import { useAuth } from './AuthContext';
+import { db } from '@/lib/firebase';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  writeBatch,
+  serverTimestamp, // Optional: for timestamping
+} from 'firebase/firestore';
 import { addDays, addMonths, addWeeks } from 'date-fns';
-import { initialState as fallbackState, type State } from './initialState';
 
-type Action =
-  | { type: 'SET_STATE'; payload: State }
-  | { type: 'ADD_GOAL'; payload: Pick<Goal, 'id' | 'name'> & Partial<Omit<Goal, 'id' | 'name'>> }
-  | { type: 'EDIT_GOAL'; payload: Goal }
-  | { type: 'DELETE_GOAL'; payload: { id: string } }
-  | { type: 'ADD_TASK'; payload: Task }
-  | { type: 'EDIT_TASK'; payload: Task }
-  | { type: 'DELETE_TASK'; payload: { id: string } }
-  | { type: 'TOGGLE_TASK'; payload: { id: string } };
+// Define the shape of the context
+interface GoalContextType {
+  goals: Goal[];
+  tasks: Task[];
+  addGoal: (payload: Pick<Goal, 'name'> & Partial<Omit<Goal, 'name' | 'id' | 'userId'>>) => Promise<void>;
+  editGoal: (goalId: string, payload: Partial<Omit<Goal, 'id' | 'userId'>>) => Promise<void>;
+  deleteGoal: (goalId: string) => Promise<void>;
+  addTask: (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number) => Promise<void>;
+  editTask: (taskId: string, payload: Partial<Omit<Task, 'id' | 'userId'>>) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<void>;
+  toggleTask: (taskId: string) => Promise<void>;
+}
 
-const emptyState: State = { goals: [], tasks: [] };
+// Create the context
+const GoalContext = createContext<GoalContextType | undefined>(undefined);
 
-const goalReducer = (state: State, action: Action): State => {
-  switch (action.type) {
-    case 'SET_STATE':
-        if (!action.payload || !action.payload.goals || !action.payload.tasks) {
-            return fallbackState;
-        }
-        return action.payload;
-    case 'ADD_GOAL':
-      const newGoal: Goal = {
-        id: action.payload.id || crypto.randomUUID(), 
-        name: action.payload.name,
-        kpiName: action.payload.kpiName || undefined,
-        kpiCurrent: action.payload.kpiCurrent || undefined,
-        kpiTarget: action.payload.kpiTarget || undefined,
-      };
-      return { ...state, goals: [...state.goals, newGoal] };
-    case 'EDIT_GOAL':
-      return {
-        ...state,
-        goals: state.goals.map(g => g.id === action.payload.id ? action.payload : g),
-      };
-    case 'DELETE_GOAL':
-      return {
-        ...state,
-        goals: state.goals.filter(g => g.id !== action.payload.id),
-        tasks: state.tasks.filter(t => t.goalId !== action.payload.id),
-      };
-    case 'ADD_TASK':
-      // Avoid adding duplicate tasks if they are already there from a previous session
-      if (state.tasks.some(task => task.id === action.payload.id)) {
-        return state;
-      }
-      return { ...state, tasks: [...state.tasks, action.payload] };
-    case 'EDIT_TASK':
-      return {
-        ...state,
-        tasks: state.tasks.map(t => t.id === action.payload.id ? action.payload : t),
-      };
-    case 'DELETE_TASK':
-      return {
-        ...state,
-        tasks: state.tasks.filter(t => t.id !== action.payload.id),
-      };
-    case 'TOGGLE_TASK': {
-      const task = state.tasks.find(t => t.id === action.payload.id);
-      if (!task) return state;
-
-      const updatedTask = { ...task, completed: !task.completed };
-
-      // Handle recurring tasks: create a new one for the next period ONLY when completing
-      if (updatedTask.completed && task.recurrence !== 'None' && task.deadline) {
-          const currentDeadline = new Date(task.deadline);
-          let nextDeadline: Date;
-
-          switch (task.recurrence) {
-              case 'Daily':
-                  nextDeadline = addDays(currentDeadline, 1);
-                  break;
-              case 'Weekly':
-                  nextDeadline = addWeeks(currentDeadline, 1);
-                  break;
-              case 'Monthly':
-                  nextDeadline = addMonths(currentDeadline, 1);
-                  break;
-              default:
-                  nextDeadline = currentDeadline; 
-          }
-
-          const recurringTask: Task = { ...task, id: crypto.randomUUID(), deadline: nextDeadline.toISOString(), completed: false };
-          
-          return {
-              ...state,
-              tasks: [...state.tasks.map(t => t.id === action.payload.id ? updatedTask : t), recurringTask],
-          };
-      }
-      
-      // Handle non-recurring tasks or un-checking a task
-      return {
-          ...state,
-          tasks: state.tasks.map(t =>
-              t.id === action.payload.id ? updatedTask : t
-          ),
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-const GoalContext = createContext<{ state: State; dispatch: Dispatch<Action> } | undefined>(undefined);
-
+// Create the provider component
 export const GoalProvider = ({ children }: { children: ReactNode }) => {
-  const [state, dispatch] = useReducer(goalReducer, emptyState);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return; // Wait for authentication to resolve
+
+    if (!user) {
+      router.push('/login');
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+
+    // Set up real-time listeners for goals
+    const goalsQuery = query(collection(db, 'goals'), where('userId', '==', user.uid));
+    const goalsUnsubscribe = onSnapshot(goalsQuery, (snapshot) => {
+      const goalsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+      setGoals(goalsData);
+    }, (error) => {
+        console.error("Error fetching goals: ", error);
+    });
+
+    // Set up real-time listeners for tasks
+    const tasksQuery = query(collection(db, 'tasks'), where('userId', '==', user.uid));
+    const tasksUnsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+      const tasksData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+      setTasks(tasksData);
+      setIsLoading(false); // Considered loaded after tasks are fetched
+    }, (error) => {
+        console.error("Error fetching tasks: ", error);
+        setIsLoading(false);
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      goalsUnsubscribe();
+      tasksUnsubscribe();
+    };
+  }, [user, authLoading, router]);
+
+  // --- CRUD Functions --- //
+
+  const addGoal = async (payload: Pick<Goal, 'name'> & Partial<Omit<Goal, 'id' | 'userId'>>) => {
+    if (!user) throw new Error('User not authenticated');
     try {
-      const storedState = localStorage.getItem('goalFlowState');
-      if (storedState) {
-        dispatch({ type: 'SET_STATE', payload: JSON.parse(storedState) });
-      } else {
-        // If no state in localStorage, load the fallback example data
-        dispatch({ type: 'SET_STATE', payload: fallbackState });
-      }
+      await addDoc(collection(db, 'goals'), {
+        ...payload,
+        userId: user.uid,
+      });
     } catch (error) {
-      console.error("Could not load state from localStorage", error);
-      dispatch({ type: 'SET_STATE', payload: fallbackState });
-    } finally {
-        setIsHydrated(true);
+      console.error("Error adding goal: ", error);
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    // Only persist to localStorage if the state has been hydrated from the client
-    if (isHydrated) {
-        try {
-            localStorage.setItem('goalFlowState', JSON.stringify(state));
-        } catch (error) {
-            console.error("Could not save state to localStorage", error);
-        }
+  const editGoal = async (goalId: string, payload: Partial<Omit<Goal, 'id' | 'userId'>>) => {
+    if (!user) throw new Error('User not authenticated');
+    const goalRef = doc(db, 'goals', goalId);
+    try {
+      await updateDoc(goalRef, payload);
+    } catch (error) {
+      console.error("Error editing goal: ", error);
     }
-  }, [state, isHydrated]);
-  
-  // Render children only after hydration to ensure consistency
+  };
+
+  const deleteGoal = async (goalId: string) => {
+    if (!user) throw new Error('User not authenticated');
+    const goalRef = doc(db, 'goals', goalId);
+    try {
+      // Note: We also need to delete associated tasks. A batched write is good for this.
+      const batch = writeBatch(db);
+      batch.delete(goalRef);
+      
+      const tasksToDelete = tasks.filter(t => t.goalId === goalId);
+      tasksToDelete.forEach(task => {
+        const taskRef = doc(db, 'tasks', task.id);
+        batch.delete(taskRef);
+      });
+
+      await batch.commit();
+
+    } catch (error) {
+      console.error("Error deleting goal and its tasks: ", error);
+    }
+  };
+
+  const addTask = async (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number) => {
+    if (!user) throw new Error('User not authenticated');
+    try {
+      await addDoc(collection(db, 'tasks'), {
+        goalId,
+        title,
+        priority,
+        recurrence,
+        deadline: deadline?.toISOString() || null,
+        duration: duration || null,
+        completed: false,
+        userId: user.uid,
+      });
+    } catch (error) {
+      console.error("Error adding task: ", error);
+    }
+  };
+
+  const editTask = async (taskId: string, payload: Partial<Omit<Task, 'id' | 'userId'>>) => {
+    if (!user) throw new Error('User not authenticated');
+    const taskRef = doc(db, 'tasks', taskId);
+    try {
+      await updateDoc(taskRef, payload);
+    } catch (error) {
+      console.error("Error editing task: ", error);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!user) throw new Error('User not authenticated');
+    const taskRef = doc(db, 'tasks', taskId);
+    try {
+      await deleteDoc(taskRef);
+    } catch (error) {
+      console.error("Error deleting task: ", error);
+    }
+  };
+
+  const toggleTask = async (taskId: string) => {
+    if (!user) throw new Error("User not authenticated");
+
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) {
+        console.error("Task not found");
+        return;
+    }
+
+    const taskRef = doc(db, 'tasks', taskId);
+    const newCompletedState = !task.completed;
+
+    try {
+        const batch = writeBatch(db);
+
+        // Update the current task
+        batch.update(taskRef, { completed: newCompletedState });
+
+        // If completing a recurring task, create the next one
+        if (newCompletedState && task.recurrence !== 'None' && task.deadline) {
+            const currentDeadline = new Date(task.deadline);
+            let nextDeadline: Date;
+
+            switch (task.recurrence) {
+                case 'Daily': nextDeadline = addDays(currentDeadline, 1); break;
+                case 'Weekly': nextDeadline = addWeeks(currentDeadline, 1); break;
+                case 'Monthly': nextDeadline = addMonths(currentDeadline, 1); break;
+                default: nextDeadline = currentDeadline;
+            }
+            
+            // Create a new task document, no need for a random ID, Firestore will generate it.
+            const newTaskRef = doc(collection(db, 'tasks')); // Create a reference for the new document
+            batch.set(newTaskRef, {
+                ...task, // copy old properties
+                id: newTaskRef.id, // Set the id to the new document's ID
+                completed: false,
+                deadline: nextDeadline.toISOString(),
+                userId: user.uid, // ensure userId is set
+            });
+        }
+
+        await batch.commit();
+    } catch (error) {
+        console.error("Error toggling task: ", error);
+    }
+  };
+
+  const contextValue: GoalContextType = {
+    goals,
+    tasks,
+    addGoal,
+    editGoal,
+    deleteGoal,
+    addTask,
+    editTask,
+    deleteTask,
+    toggleTask,
+  };
+
+  // Render a loading state or null while auth is resolving or data is fetching
+  if (authLoading || isLoading) {
+    return <div>Loading...</div>; // Or a more sophisticated loading spinner
+  }
+
   return (
-    <GoalContext.Provider value={{ state, dispatch }}>
-      {isHydrated ? children : null}
+    <GoalContext.Provider value={contextValue}>
+      {children}
     </GoalContext.Provider>
   );
 };
 
+// Custom hook to use the context
 export const useGoals = () => {
   const context = useContext(GoalContext);
   if (context === undefined) {
     throw new Error('useGoals must be used within a GoalProvider');
   }
-  const { state, dispatch } = context;
-
-  const addGoal = useCallback((payload: Pick<Goal, 'id' | 'name'> & Partial<Omit<Goal, 'id' | 'name'>>) => dispatch({ type: 'ADD_GOAL', payload }), [dispatch]);
-  const editGoal = useCallback((goal: Goal) => dispatch({ type: 'EDIT_GOAL', payload: goal }), [dispatch]);
-  const deleteGoal = useCallback((id: string) => dispatch({ type: 'DELETE_GOAL', payload: { id } }), [dispatch]);
-
-  const addTask = useCallback((goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number, completed?: boolean) => {
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      goalId,
-      title,
-      completed: completed || false,
-      priority,
-      recurrence,
-      deadline: deadline?.toISOString(),
-      duration,
-    };
-    dispatch({ type: 'ADD_TASK', payload: newTask });
-  }, [dispatch]);
-
-  const editTask = useCallback((task: Task) => dispatch({ type: 'EDIT_TASK', payload: task }), [dispatch]);
-  const deleteTask = useCallback((id: string) => dispatch({ type: 'DELETE_TASK', payload: { id } }), [dispatch]);
-  const toggleTask = useCallback((id: string) => dispatch({ type: 'TOGGLE_TASK', payload: { id } }), [dispatch]);
-
-  return { ...state, dispatch, addGoal, editGoal, deleteGoal, addTask, editTask, deleteTask, toggleTask };
+  return context;
 };

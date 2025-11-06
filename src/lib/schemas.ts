@@ -9,6 +9,7 @@ export const taskSchema = z.object({
   time: z.string().optional(),
   recurrence: z.enum(recurrences),
   duration: z.union([z.coerce.number().min(0), z.literal('')]).optional(),
+  userId: z.string(),
 }).refine(data => {
     if (data.deadline && data.time) {
         const combined = new Date(data.deadline);
@@ -34,6 +35,7 @@ export const goalSchema = z.object({
   kpiName: z.string().optional(),
   kpiCurrent: z.coerce.number().min(0).optional(),
   kpiTarget: z.coerce.number().min(0).optional(),
+  userId: z.string(),
 }).refine(data => {
     if (data.kpiTarget !== undefined && data.kpiCurrent !== undefined) {
         return data.kpiCurrent <= data.kpiTarget;

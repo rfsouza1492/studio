@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { GoogleApiProvider } from '@/context/GoogleApiContext';
 import { GoalProvider } from '@/context/GoalContext';
+import { AuthProvider } from '@/context/AuthContext';
 
 export const metadata: Metadata = {
   title: 'GoalFlow',
@@ -25,12 +26,14 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased" suppressHydrationWarning>
-        <GoogleApiProvider>
-          <GoalProvider>
-            {children}
-            <Toaster />
-          </GoalProvider>
-        </GoogleApiProvider>
+        <AuthProvider>
+          <GoogleApiProvider>
+            <GoalProvider>
+              {children}
+              <Toaster />
+            </GoalProvider>
+          </GoogleApiProvider>
+        </AuthProvider>
       </body>
     </html>
   );

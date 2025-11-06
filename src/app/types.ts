@@ -15,6 +15,7 @@ export interface Task {
   deadline?: string;
   recurrence: Recurrence;
   duration?: number; // in minutes
+  userId: string;
 }
 
 export interface Goal {
@@ -23,6 +24,7 @@ export interface Goal {
   kpiName?: string;
   kpiTarget?: number;
   kpiCurrent?: number;
+  userId: string;
 }
 
 
