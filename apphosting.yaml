@@ -9,9 +9,9 @@ runConfig:
 # Environment variables
 env:
   - variable: GEMINI_API_KEY
-    value: AIzaSyC4FnBeAjs5hOVolceXdJ1oMFxjeQ66DP0
+    secret: GEMINI_API_KEY
   - variable: NEXT_PUBLIC_GEMINI_API_KEY
-    value: AIzaSyC4FnBeAjs5hOVolceXdJ1oMFxjeQ66DP0
+    secret: NEXT_PUBLIC_GEMINI_API_KEY
   - variable: NEXT_PUBLIC_API_URL
     value: https://goflow-210739580533.us-east4.run.app
 
