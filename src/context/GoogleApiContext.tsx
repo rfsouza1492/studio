@@ -131,9 +131,7 @@ export const GoogleApiProvider: React.FC<{ children: ReactNode }> = ({ children 
         resource: event,
       });
 
-      request.execute((event: any) => {
-        console.log('Event created: ' + event.htmlLink);
-      });
+      request.execute(() => {});
     } catch (error) {
         console.error("Error creating event:", error);
     }
