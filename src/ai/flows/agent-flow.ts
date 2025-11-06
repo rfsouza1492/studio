@@ -11,6 +11,8 @@ import type { AgentInput, AgentOutput } from '@/app/types';
 function getGoalCoachPrompt(context: AgentInput['context']): string {
   return `You are Flow, a specialist coach in goal setting and productivity. You MUST respond with a valid JSON object that conforms to the output schema. Do not include markdown or any other characters outside of the JSON object.
 
+The JSON object must always include "message" (string), "action" (string, one of 'create_goals', 'clarify', 'answer'), and "suggestions" (an array of GoalSuggestion objects, which can be empty []).
+
 USER CONTEXT:
 - Current goals: ${context.goals.length}
 - Pending tasks: ${context.tasks.filter((t: any) => !t.completed).length}
@@ -27,9 +29,9 @@ CONVERSATION FLOW:
 - If they ask for general help: offer practical examples.
 
 RESPONSE ACTION:
-- Use "create_goals" when you have concrete suggestions.
-- Use "clarify" when you need more information.
-- Use "answer" for general questions.
+- Use "create_goals" when you have concrete suggestions for goals and tasks.
+- Use "clarify" when you need more information from the user.
+- Use "answer" for general questions or conversation.
 
 RULES:
 - Be concise and practical.
@@ -40,12 +42,14 @@ RULES:
 }
 
 function getChatPrompt(context: AgentInput['context']): string {
-  return `You are Flow, the user's productivity assistant. You MUST respond with a valid JSON object that conforms to the output schema. Do not include markdown or any other characters outside of the JSON object.
+  return `You are Flow, the user's friendly productivity assistant. You MUST respond with a valid JSON object that conforms to the output schema. Do not include markdown or any other characters outside of the JSON object.
 
-CONTEXT:
+The JSON object must always include "message" (string), "action" (string, set to 'answer'), and "suggestions" (an empty array []).
+
+USER CONTEXT:
 ${JSON.stringify(context, null, 2)}
 
-Answer questions about goals, tasks, and productivity in a friendly manner. Set the "action" field to "answer".`;
+Answer questions about goals, tasks, and productivity in a friendly manner.`;
 }
 
 export async function talkToAgent(input: AgentInput): Promise<AgentOutput> {
@@ -59,26 +63,31 @@ const agentFlow = ai.defineFlow(
     outputSchema: AgentOutputSchema,
   },
   async ({ query, context, mode }) => {
-    const systemPrompt = mode === 'goal_coach' 
-      ? getGoalCoachPrompt(context)
-      : getChatPrompt(context);
-    
+    const systemPrompt =
+      mode === 'goal_coach'
+        ? getGoalCoachPrompt(context)
+        : getChatPrompt(context);
+
     try {
       const response = await ai.generate({
         model: 'googleai/gemini-1.5-flash',
         system: systemPrompt,
         prompt: query,
-        output: {
-          schema: AgentOutputSchema,
-        }
       });
-      
-      const output = response.output;
-      if (!output) {
-        throw new Error("Agent returned no output.");
+
+      let responseText = response.text;
+      // Clean the response from markdown code blocks
+      responseText = responseText.replace(/^```json\s*|```$/g, '').trim();
+
+      const parsedJson = JSON.parse(responseText);
+      const validationResult = AgentOutputSchema.safeParse(parsedJson);
+
+      if (!validationResult.success) {
+        console.error("Agent response validation error:", validationResult.error);
+        throw new Error("Invalid JSON structure from AI.");
       }
       
-      return output;
+      return validationResult.data;
 
     } catch (error) {
         console.error("Error in agentFlow:", error);
