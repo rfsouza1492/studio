@@ -6,26 +6,8 @@
  * - talkToAgent - The main function that processes the user's query.
  */
 import { ai } from '@/ai/genkit';
-import { z } from 'zod';
 import { AgentInputSchema, AgentOutputSchema } from '@/app/types';
 import type { AgentInput, AgentOutput } from '@/app/types';
-
-const PromptInputSchema = z.object({
-  systemPrompt: z.string(),
-  query: z.string(),
-});
-
-// Define a structured prompt using definePrompt for clarity and reusability
-const agentPrompt = ai.definePrompt(
-  {
-    name: 'agentPrompt',
-    input: { schema: PromptInputSchema },
-    output: { schema: AgentOutputSchema },
-    prompt: `{{{systemPrompt}}}
-
-    User message: {{{query}}}`,
-  },
-);
 
 
 // Helper function to format the complex context object into a simple string.
@@ -107,19 +89,36 @@ const agentFlow = ai.defineFlow(
       ? getGoalCoachPrompt(context)
       : getChatPrompt(context);
     
-    // Call the structured prompt
-    const { output } = await agentPrompt({
-      systemPrompt,
-      query,
-    });
-    
-    if (!output) {
-      return {
-        message: 'Sorry, I could not process your request.',
-        action: 'answer'
-      }
-    }
+    const fullPrompt = `${systemPrompt}\n\nUser message: ${query}`;
 
-    return output;
+    // Call the structured prompt
+    const { text } = await ai.generate({
+      prompt: fullPrompt,
+      output: { 
+        format: 'json',
+        schema: AgentOutputSchema
+      },
+    });
+
+    try {
+        const parsedOutput = JSON.parse(text);
+        // Validate the parsed output against the schema
+        const validation = AgentOutputSchema.safeParse(parsedOutput);
+        if (validation.success) {
+            return validation.data;
+        } else {
+             console.error("Agent output validation error:", validation.error);
+             return {
+                message: "Sorry, I received an invalid response from the AI. Let's try again.",
+                action: 'answer'
+            }
+        }
+    } catch (error) {
+        console.error("Error parsing agent output:", error);
+        return {
+            message: 'Sorry, I had trouble understanding the response. Could you rephrase?',
+            action: 'answer'
+        }
+    }
   }
 );
