@@ -1,4 +1,3 @@
-
 'use client';
 import { GoalList } from '@/components/goals/GoalList';
 import { Header } from '@/components/layout/Header';
@@ -7,8 +6,6 @@ import { Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import React from 'react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
-import { GoalProvider } from '@/context/GoalContext';
-import { initialState } from '@/context/initialState';
 
 function HomePageContent() {
   const { goals } = useGoals();
@@ -25,9 +22,7 @@ function HomePageContent() {
 
 export default function Home() {
     return (
-        <GoalProvider initialState={initialState}>
-            <HomePageContent />
-        </GoalProvider>
+        <HomePageContent />
     )
 }
 

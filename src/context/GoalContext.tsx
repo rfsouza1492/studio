@@ -1,10 +1,10 @@
 
 "use client";
 
-import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, Dispatch, useCallback, useState } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { addDays, addMonths, addWeeks } from 'date-fns';
-import { initialState as defaultInitialState, type State } from './initialState';
+import { initialState as fallbackState, type State } from './initialState';
 
 type Action =
   | { type: 'SET_STATE'; payload: State }
@@ -16,11 +16,13 @@ type Action =
   | { type: 'DELETE_TASK'; payload: { id: string } }
   | { type: 'TOGGLE_TASK'; payload: { id: string } };
 
+const emptyState: State = { goals: [], tasks: [] };
+
 const goalReducer = (state: State, action: Action): State => {
   switch (action.type) {
     case 'SET_STATE':
         if (!action.payload || !action.payload.goals || !action.payload.tasks) {
-            return defaultInitialState;
+            return fallbackState;
         }
         return action.payload;
     case 'ADD_GOAL':
@@ -107,38 +109,42 @@ const goalReducer = (state: State, action: Action): State => {
 
 const GoalContext = createContext<{ state: State; dispatch: Dispatch<Action> } | undefined>(undefined);
 
-export const GoalProvider = ({ children, initialState: providedInitialState }: { children: ReactNode, initialState?: State }) => {
-  const [state, dispatch] = useReducer(goalReducer, providedInitialState || defaultInitialState);
+export const GoalProvider = ({ children }: { children: ReactNode }) => {
+  const [state, dispatch] = useReducer(goalReducer, emptyState);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  // Load state from localStorage on the client side after the initial render
   useEffect(() => {
     try {
       const storedState = localStorage.getItem('goalFlowState');
       if (storedState) {
         dispatch({ type: 'SET_STATE', payload: JSON.parse(storedState) });
+      } else {
+        // If no state in localStorage, load the fallback example data
+        dispatch({ type: 'SET_STATE', payload: fallbackState });
       }
     } catch (error) {
       console.error("Could not load state from localStorage", error);
-      // If parsing fails, it's safer to remove the corrupted item
-      localStorage.removeItem('goalFlowState');
+      dispatch({ type: 'SET_STATE', payload: fallbackState });
+    } finally {
+        setIsHydrated(true);
     }
-  }, []); // Empty dependency array ensures this runs only once on the client
+  }, []);
 
-  // Persist state to localStorage whenever it changes
   useEffect(() => {
-    try {
-      // Only save if there's something to save, and it's not the default state being saved on first load
-      if (state.goals.length > 0 || state.tasks.length > 0) {
-        localStorage.setItem('goalFlowState', JSON.stringify(state));
-      }
-    } catch (error) {
-      console.error("Could not save state to localStorage", error);
+    // Only persist to localStorage if the state has been hydrated from the client
+    if (isHydrated) {
+        try {
+            localStorage.setItem('goalFlowState', JSON.stringify(state));
+        } catch (error) {
+            console.error("Could not save state to localStorage", error);
+        }
     }
-  }, [state]);
-
+  }, [state, isHydrated]);
+  
+  // Render children only after hydration to ensure consistency
   return (
     <GoalContext.Provider value={{ state, dispatch }}>
-      {children}
+      {isHydrated ? children : null}
     </GoalContext.Provider>
   );
 };
