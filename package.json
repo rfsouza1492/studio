@@ -6,7 +6,7 @@
     "dev": "next dev",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "NODE_ENV=production next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
@@ -45,7 +45,7 @@
     "gapi-script": "^1.2.0",
     "genkit": "latest",
     "lucide-react": "^0.480.0",
-    "next": "^14.2.33",
+    "next": "^15.0.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
