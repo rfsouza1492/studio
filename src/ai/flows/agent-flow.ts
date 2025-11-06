@@ -25,7 +25,6 @@ Here is the required JSON object structure:
   try {
     // 2. Faz a chamada da API usando Genkit, especificando o modelo correto.
     const response = await ai.generate({
-      model: 'googleai/gemini-pro',
       system: systemPrompt,
       prompt: [
         { text: `User message: "${query}"` },
