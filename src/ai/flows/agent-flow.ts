@@ -12,22 +12,23 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
 You are having a conversation with a user about their goals and tasks.
 You MUST respond with a valid JSON object.
 Do not include any markdown formatting or other characters outside of the JSON object.
+
 The JSON object must always include a "message" (string) property.
 
 Here is the JSON object structure:
 {
   "message": "Your conversational response here."
-}
-
-USER'S CURRENT CONTEXT (Goals and Tasks):
-${JSON.stringify(context, null, 2)}
-`;
+}`;
 
   try {
     const response = await ai.generate({
       model: 'googleai/gemini-1.5-flash',
       system: systemPrompt,
-      prompt: `User message: "${query}"`,
+      prompt: [
+        `User message: "${query}"`,
+        `USER'S CURRENT CONTEXT (Goals and Tasks):
+         ${JSON.stringify(context, null, 2)}`
+      ],
     });
 
     let responseText = response.text;
