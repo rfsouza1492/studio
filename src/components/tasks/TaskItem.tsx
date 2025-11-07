@@ -12,7 +12,6 @@ import { AddOrEditTaskDialog } from '../dialogs/AddOrEditTaskDialog';
 import { DeleteConfirmationDialog } from '../dialogs/DeleteConfirmationDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { format } from 'date-fns';
-import { useGoogleApi } from '@/context/GoogleApiContext';
 import { useToast } from '@/hooks/use-toast';
 
 const priorityConfig = {
@@ -31,7 +30,6 @@ const deadlineIcons = {
 
 export function TaskItem({ task }: { task: Task }) {
   const { toggleTask, deleteTask } = useGoals();
-  const { isSignedIn, createEvent } = useGoogleApi();
   const { toast } = useToast();
   const [editTaskOpen, setEditTaskOpen] = React.useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = React.useState(false);
@@ -43,27 +41,11 @@ export function TaskItem({ task }: { task: Task }) {
   const DeadlineIcon = deadlineIcons[deadlineStatus.icon];
 
   const handleCreateEvent = () => {
-    if (!isSignedIn) {
-        toast({
-            variant: "destructive",
-            title: 'Não conectado',
-            description: `Você precisa conectar sua conta do Google para criar um evento.`,
-        });
-        return;
-    }
-    if(!task.deadline || !task.duration) {
-         toast({
-            variant: "destructive",
-            title: 'Dados Incompletos',
-            description: `A tarefa precisa de uma data de entrega e duração para ser adicionada à agenda.`,
-        });
-        return;
-    }
-
-    createEvent(task.title, new Date(task.deadline), task.duration);
+    // This functionality is temporarily disabled as it depends on the removed GoogleApiContext.
     toast({
-      title: 'Evento Criado no Google Calendar',
-      description: `O evento "${task.title}" foi adicionado à sua agenda.`,
+        variant: "destructive",
+        title: 'Funcionalidade Indisponível',
+        description: `A criação de eventos no Google Calendar está temporariamente desativada.`,
     });
   };
 
