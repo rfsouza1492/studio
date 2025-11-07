@@ -25,7 +25,7 @@ import { Separator } from '../ui/separator';
 export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
+  const { user, signOut, signInWithGoogle } = useAuth();
 
   const navLinks = [
     { href: '/', label: 'Metas', icon: Home },
@@ -96,7 +96,7 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={() => setDialogOpen(true)} size="sm">
+          <Button onClick={() => setDialogOpen(true)} size="sm" disabled={!user}>
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Nova Meta</span>
           </Button>
@@ -127,12 +127,10 @@ export function Header() {
                 </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-             <Link href="/login" passHref>
-                <Button variant="outline" size="sm">
-                  <LogIn className="h-4 w-4 sm:mr-2" />
-                  <span className='hidden sm:inline'>Entrar</span>
-                </Button>
-             </Link>
+             <Button variant="outline" size="sm" onClick={signInWithGoogle}>
+               <LogIn className="h-4 w-4 sm:mr-2" />
+               <span className='hidden sm:inline'>Entrar</span>
+             </Button>
           )}
 
         </div>

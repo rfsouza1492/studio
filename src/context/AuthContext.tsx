@@ -2,19 +2,18 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { 
-  onAuthStateChanged, 
-  User, 
-  GoogleAuthProvider, 
-  signInWithRedirect, 
-  signOut as firebaseSignOut,
-  getRedirectResult
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
+// Simulação de um objeto de usuário do Firebase
+interface SimulatedUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: SimulatedUser | null;
   loading: boolean;
   signInWithGoogle: () => void;
   signOut: () => void;
@@ -22,55 +21,41 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Cria um usuário simulado
+const mockUser: SimulatedUser = {
+    uid: 'mock-user-123',
+    email: 'user@example.com',
+    displayName: 'Usuário de Teste',
+    photoURL: 'https://i.pravatar.cc/150?u=a042581f4e29026704d'
+};
+
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SimulatedUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
-
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          // This is the signed-in user
-          setUser(result.user);
-          router.push('/'); // Redirect to home page after login
-        }
-      })
-      .catch((error) => {
-        console.error("Error from redirect result:", error);
-      })
-      .finally(() => {
+    // Simula o carregamento e, em seguida, define o usuário como logado.
+    setTimeout(() => {
+        setUser(mockUser);
         setLoading(false);
-      });
+    }, 1000);
+  }, []);
 
-
-    return () => unsubscribe();
-  }, [router]);
-
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      setLoading(true);
-      await signInWithRedirect(auth, provider);
-    } catch (error) {
-      console.error("Error signing in with Google redirect:", error);
-      setLoading(false);
-    }
+  const signInWithGoogle = () => {
+    setLoading(true);
+    setTimeout(() => {
+        setUser(mockUser);
+        setLoading(false);
+    }, 500)
   };
 
-  const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-      // O onAuthStateChanged tratará a atualização do usuário para null
-      router.push('/login');
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
+  const signOut = () => {
+    setLoading(true);
+    setTimeout(() => {
+        setUser(null);
+        setLoading(false);
+    }, 500)
   };
 
   const value = { user, loading, signInWithGoogle, signOut };

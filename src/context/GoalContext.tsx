@@ -49,9 +49,10 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   
   useEffect(() => {
     if (!user) {
-      setGoals([]);
-      setTasks([]);
-      setLoading(false);
+      // Se não houver usuário (mesmo simulado), não faz nada.
+      // Em um cenário real, você pode querer limpar os dados.
+      // Aqui, com o usuário simulado, este bloco não deve ser executado após o carregamento inicial.
+       setLoading(false);
       return;
     }
 
@@ -61,6 +62,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const goalsUnsubscribe = onSnapshot(goalsQuery, (snapshot) => {
       const goalsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
       setGoals(goalsData);
+    }, (error) => {
+        console.error("Error fetching goals:", error);
+        setLoading(false);
     });
 
     const tasksQuery = query(collection(db, 'tasks'), where('userId', '==', user.uid));
@@ -68,6 +72,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       const tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
       setTasks(tasksData);
       setLoading(false);
+    }, (error) => {
+        console.error("Error fetching tasks:", error);
+        setLoading(false);
     });
 
     return () => {
@@ -92,11 +99,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     
     const batch = writeBatch(db);
     
-    // Delete the goal
     const goalRef = doc(db, 'goals', goalId);
     batch.delete(goalRef);
     
-    // Delete all tasks associated with the goal
     const goalTasks = tasks.filter(task => task.goalId === goalId);
     goalTasks.forEach(task => {
         const taskRef = doc(db, 'tasks', task.id);
@@ -151,7 +156,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const taskRef = doc(db, 'tasks', taskId);
     batch.update(taskRef, { completed: newCompletedState });
     
-    // If the task is being marked as complete and it's a recurring task
     if (newCompletedState && task.recurrence !== 'None' && task.deadline) {
       const currentDeadline = new Date(task.deadline);
       let nextDeadline: Date;
@@ -167,12 +171,11 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
           nextDeadline = addMonths(currentDeadline, 1);
           break;
         default:
-            nextDeadline = currentDeadline; // Should not happen
+            nextDeadline = currentDeadline;
             break;
       }
       
       const newTaskPayload = { ...task };
-      // Omit 'id' for the new document
       delete (newTaskPayload as any).id;
       
       const newTaskRef = doc(collection(db, "tasks"));

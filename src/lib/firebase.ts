@@ -1,8 +1,8 @@
+
 // Firebase SDK Configuration
 // Using the modular SDK (v9+) for better tree-shaking and smaller bundle size
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, getRedirectResult } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
@@ -26,7 +26,6 @@ if (getApps().length === 0) {
 }
 
 // Initialize Firebase services
-export const auth: Auth = getAuth(app);
 export const db: Firestore = getFirestore(app);
 export const storage: FirebaseStorage = getStorage(app);
 

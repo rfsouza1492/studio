@@ -1,23 +1,13 @@
+
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, ReactNode } from "react";
+import { ReactNode } from "react";
 import { Target } from "lucide-react";
 
-const publicRoutes = ["/login"];
-
 const PrivateRoute = ({ children }: { children: ReactNode }) => {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (!loading && !user && !publicRoutes.includes(pathname)) {
-      router.push("/login");
-    }
-  }, [user, loading, router, pathname]);
-
+  const { loading } = useAuth();
+  
   if (loading) {
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -27,10 +17,6 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
             </div>
         </div>
     );
-  }
-
-  if (!user && !publicRoutes.includes(pathname)) {
-    return null; // ou um spinner, enquanto redireciona
   }
 
   return <>{children}</>;
