@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview O fluxo de IA para o agente de conversação GoalFlow.
@@ -7,8 +8,8 @@
 import { z } from 'zod';
 import { AgentInputSchema, AgentOutputSchema } from '@/lib/schemas';
 import { defineFlow, runFlow } from '@genkit-ai/flow';
-import { gemini15Flash } from '@/genkit.config';
 import { generate } from '@genkit-ai/ai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
 You are having a conversation with a user about their goals and tasks.
@@ -35,24 +36,28 @@ export const talkToAgentFlow = defineFlow(
     )}`;
 
     const llmResponse = await generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-pro'),
       prompt: prompt,
       config: {
         temperature: 0.5,
       },
       system: systemPrompt,
-      output: {
-        format: 'json',
-        schema: AgentOutputSchema,
-      },
     });
 
-    const agentOutput = llmResponse.output();
-    if (!agentOutput) {
-      throw new Error('A resposta da IA está vazia ou em um formato inválido.');
+    const agentOutputText = llmResponse.text();
+    
+    try {
+        // A IA pode, às vezes, envolver a resposta em ```json ... ```
+        const cleanJson = agentOutputText.replace(/^```json/, '').replace(/```$/, '');
+        const agentOutput = AgentOutputSchema.parse(JSON.parse(cleanJson));
+        return agentOutput;
+    } catch (error) {
+        console.error("Falha ao analisar a resposta da IA como JSON:", error);
+        // Tenta retornar uma mensagem de erro, se a análise falhar.
+        return {
+            message: "Desculpe, a resposta do assistente não pôde ser processada. Tente novamente."
+        }
     }
-
-    return agentOutput;
   }
 );
 

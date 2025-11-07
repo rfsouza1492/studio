@@ -2,6 +2,27 @@
 import { z } from "zod";
 import { priorities, recurrences } from "@/app/types";
 
+export const goalBaseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  kpiName: z.string().optional(),
+  kpiTarget: z.coerce.number().optional(),
+  kpiCurrent: z.coerce.number().optional(),
+  userId: z.string(),
+});
+
+export const taskBaseSchema = z.object({
+  id: z.string(),
+  goalId: z.string(),
+  title: z.string(),
+  completed: z.boolean(),
+  priority: z.enum(priorities),
+  deadline: z.string().optional(),
+  recurrence: z.enum(recurrences),
+  duration: z.coerce.number().optional(),
+  userId: z.string(),
+});
+
 export const taskSchema = z.object({
   title: z.string().min(1, { message: "Task title cannot be empty." }),
   priority: z.enum(priorities),
@@ -9,7 +30,6 @@ export const taskSchema = z.object({
   time: z.string().optional(),
   recurrence: z.enum(recurrences),
   duration: z.union([z.coerce.number().min(0), z.literal('')]).optional(),
-  userId: z.string(),
 }).refine(data => {
     if (data.deadline && data.time) {
         const combined = new Date(data.deadline);
@@ -35,7 +55,6 @@ export const goalSchema = z.object({
   kpiName: z.string().optional(),
   kpiCurrent: z.coerce.number().min(0).optional(),
   kpiTarget: z.coerce.number().min(0).optional(),
-  userId: z.string(),
 }).refine(data => {
     if (data.kpiTarget !== undefined && data.kpiCurrent !== undefined) {
         return data.kpiCurrent <= data.kpiTarget;
@@ -44,4 +63,18 @@ export const goalSchema = z.object({
 }, {
     message: "Current value cannot be greater than target value.",
     path: ["kpiCurrent"],
+});
+
+
+// Agent related schemas
+export const AgentInputSchema = z.object({
+  query: z.string(),
+  context: z.object({
+    goals: z.array(goalBaseSchema),
+    tasks: z.array(taskBaseSchema),
+  }),
+});
+
+export const AgentOutputSchema = z.object({
+  message: z.string(),
 });
