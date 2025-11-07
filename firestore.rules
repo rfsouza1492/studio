@@ -2,21 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Regras para a coleção 'goals'
-    match /goals/{goalId} {
-      // Permite ler, atualizar e deletar se o usuário for o dono
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
-      // Permite criar se o usuário for o dono do novo documento
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-    }
-
-    // Regras para a coleção 'tasks'
-    match /tasks/{taskId} {
-       // Permite ler, atualizar e deletar se o usuário for o dono
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
-      // Permite criar se o usuário for o dono do novo documento
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    match /{document=**} {
+      // Allow all reads and writes for development purposes.
+      // WARNING: This is insecure for a production environment.
+      allow read, write: if true;
     }
   }
 }
