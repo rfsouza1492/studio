@@ -1,14 +1,11 @@
 'use client';
-import { CalendarEvent } from '@/context/GoogleApiContext';
+import { CalendarEvent } from '@/app/calendar/page';
 import React, { useState, useCallback, useMemo } from 'react';
 import { CalendarEventItem } from './CalendarEventItem';
 import { CalendarX, PlusCircle } from 'lucide-react';
-import { useGoals } from '@/context/GoalContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
-import { format } from 'date-fns';
-import { Goal } from '@/app/types';
 
 interface CalendarEventListProps {
     events: CalendarEvent[];
@@ -16,7 +13,6 @@ interface CalendarEventListProps {
 
 export function CalendarEventList({ events }: CalendarEventListProps) {
     const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
-    const { goals, addGoal, addTask } = useGoals();
     const { toast } = useToast();
 
     const handleSelectionChange = useCallback((eventId: string, isSelected: boolean) => {
@@ -38,65 +34,16 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
             setSelectedEventIds(new Set());
         }
     };
-
-    const selectedEvents = useMemo(() => {
-        return events.filter(event => selectedEventIds.has(event.id));
-    }, [events, selectedEventIds]);
     
-    const getOrCreateAgendaGoal = (): Goal => {
-        const goalName = "Tarefas da Agenda";
-        let targetGoal = goals.find(g => g.name === goalName);
-
-        if (!targetGoal) {
-            const newGoal: Goal = {
-                id: crypto.randomUUID(),
-                name: goalName,
-            };
-            addGoal(newGoal);
-            toast({
-                title: `Meta "${goalName}" criada`,
-                description: "As tarefas de eventos da agenda serão adicionadas aqui.",
-            });
-            // Since context updates might not be immediate, we'll return the new goal object
-            // so the calling function can use it right away.
-            return newGoal;
-        }
-        return targetGoal;
-    };
-
-
     const handleBulkCreateTasks = () => {
-        if (selectedEvents.length === 0) return;
+        if (selectedEventIds.size === 0) return;
 
-        const targetGoal = getOrCreateAgendaGoal();
-
-        let tasksCreatedCount = 0;
-        selectedEvents.forEach(event => {
-            const deadline = event.start.dateTime ? new Date(event.start.dateTime) : undefined;
-            let duration;
-            if (event.start.dateTime && event.end.dateTime) {
-                duration = (new Date(event.end.dateTime).getTime() - new Date(event.start.dateTime).getTime()) / (1000 * 60);
-            }
-
-            addTask(
-                targetGoal!.id,
-                event.summary,
-                'Medium',
-                'None',
-                deadline,
-                duration
-            );
-            tasksCreatedCount++;
+        // A funcionalidade está desativada, pois o GoogleApiContext foi removido.
+        toast({
+            variant: 'destructive',
+            title: "Função Indisponível",
+            description: "A criação de tarefas a partir de eventos do calendário está temporariamente desativada.",
         });
-
-        if (tasksCreatedCount > 0) {
-            toast({
-                title: "Tarefas Criadas em Massa!",
-                description: `${tasksCreatedCount} novas tarefas foram adicionadas à meta "${targetGoal.name}".`,
-            });
-        }
-        
-        setSelectedEventIds(new Set());
     };
 
     if (events.length === 0) {
@@ -116,7 +63,6 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
     }
     
     const allSelected = selectedEventIds.size > 0 && selectedEventIds.size === events.length;
-    const isIndeterminate = selectedEventIds.size > 0 && !allSelected;
 
     return (
         <div className="space-y-3">

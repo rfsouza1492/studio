@@ -1,7 +1,6 @@
 'use client';
 
-import { CalendarEvent } from "@/context/GoogleApiContext";
-import { useGoals } from "@/context/GoalContext";
+import { CalendarEvent } from "@/app/calendar/page";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { PlusCircle } from "lucide-react";
@@ -9,7 +8,6 @@ import React from "react";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "@/lib/utils";
-import { Goal } from "@/app/types";
 
 interface CalendarEventItemProps {
     event: CalendarEvent;
@@ -18,7 +16,6 @@ interface CalendarEventItemProps {
 }
 
 export function CalendarEventItem({ event, isSelected, onSelectionChange }: CalendarEventItemProps) {
-    const { goals, addGoal, addTask } = useGoals();
     const { toast } = useToast();
 
     const getEventTime = (event: CalendarEvent): string => {
@@ -37,49 +34,12 @@ export function CalendarEventItem({ event, isSelected, onSelectionChange }: Cale
         return "Horário não especificado";
     };
 
-    const getOrCreateAgendaGoal = (): Goal => {
-        const goalName = "Tarefas da Agenda";
-        let targetGoal = goals.find(g => g.name === goalName);
-
-        if (!targetGoal) {
-            const newGoal: Goal = {
-                id: crypto.randomUUID(),
-                name: goalName,
-            };
-            addGoal(newGoal);
-            toast({
-                title: `Meta "${goalName}" criada`,
-                description: "As tarefas de eventos da agenda serão adicionadas aqui.",
-            });
-            // Since context updates might not be immediate, we'll return the new goal object
-            // so the calling function can use it right away.
-            return newGoal;
-        }
-        return targetGoal;
-    };
-
-
     const handleCreateTask = () => {
-        const targetGoal = getOrCreateAgendaGoal();
-        
-        const deadline = event.start.dateTime ? new Date(event.start.dateTime) : undefined;
-        let duration;
-        if (event.start.dateTime && event.end.dateTime) {
-            duration = (new Date(event.end.dateTime).getTime() - new Date(event.start.dateTime).getTime()) / (1000 * 60);
-        }
-
-        addTask(
-            targetGoal.id,
-            event.summary,
-            'Medium',
-            'None',
-            deadline,
-            duration
-        );
-
+        // A funcionalidade está desativada, pois o GoogleApiContext foi removido.
         toast({
-            title: "Tarefa Criada!",
-            description: `A tarefa "${event.summary}" foi adicionada à sua meta "${targetGoal.name}".`,
+            variant: 'destructive',
+            title: "Função Indisponível",
+            description: "A criação de tarefas a partir de eventos do calendário está temporariamente desativada.",
         });
     };
 
