@@ -2,9 +2,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 
-// Simulação de um objeto de usuário do Firebase
+// Simulação de um objeto de usuário
 interface SimulatedUser {
   uid: string;
   email: string | null;
@@ -21,7 +20,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Cria um usuário simulado
+// Cria um usuário simulado com um UID estático
 const mockUser: SimulatedUser = {
     uid: 'mock-user-123',
     email: 'user@example.com',
@@ -36,10 +35,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Simula o carregamento e, em seguida, define o usuário como logado.
-    setTimeout(() => {
+    const timer = setTimeout(() => {
         setUser(mockUser);
         setLoading(false);
     }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const signInWithGoogle = () => {

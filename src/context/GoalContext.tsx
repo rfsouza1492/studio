@@ -49,10 +49,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   
   useEffect(() => {
     if (!user) {
-      // Se não houver usuário (mesmo simulado), não faz nada.
-      // Em um cenário real, você pode querer limpar os dados.
-      // Aqui, com o usuário simulado, este bloco não deve ser executado após o carregamento inicial.
-       setLoading(false);
+       setLoading(true);
       return;
     }
 
