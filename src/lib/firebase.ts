@@ -2,7 +2,7 @@
 // Using the modular SDK (v9+) for better tree-shaking and smaller bundle size
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
+import { getAuth, Auth, getRedirectResult } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
@@ -32,4 +32,3 @@ export const storage: FirebaseStorage = getStorage(app);
 
 // Export the app instance for advanced use cases
 export default app;
-
