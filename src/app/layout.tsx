@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { GoogleApiProvider } from '@/context/GoogleApiContext';
 import { GoalProvider } from '@/context/GoalContext';
 import { AuthProvider } from '@/context/AuthContext';
+import PrivateRoute from '@/components/auth/PrivateRoute';
 
 export const metadata: Metadata = {
   title: 'GoalFlow',
@@ -27,12 +27,12 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning>
         <AuthProvider>
-          <GoogleApiProvider>
-            <GoalProvider>
+          <GoalProvider>
+            <PrivateRoute>
               {children}
-              <Toaster />
-            </GoalProvider>
-          </GoogleApiProvider>
+            </PrivateRoute>
+            <Toaster />
+          </GoalProvider>
         </AuthProvider>
       </body>
     </html>

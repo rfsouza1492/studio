@@ -3,12 +3,12 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ListTodo, Target, Home, User, LogIn, CalendarDays, BrainCircuit, LayoutDashboard, Menu, Plug, Mic } from 'lucide-react';
+import { Plus, ListTodo, Target, Home, User, LogIn, CalendarDays, BrainCircuit, LayoutDashboard, Menu, Plug, Mic, LogOut } from 'lucide-react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useGoogleApi } from '@/context/GoogleApiContext';
+import { useAuth } from '@/context/AuthContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import {
   DropdownMenu,
@@ -25,7 +25,7 @@ import { Separator } from '../ui/separator';
 export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const pathname = usePathname();
-  const { isSignedIn, signIn, signOut, user, isGapiReady } = useGoogleApi();
+  const { user, signOut } = useAuth();
 
   const navLinks = [
     { href: '/', label: 'Metas', icon: Home },
@@ -100,37 +100,39 @@ export function Header() {
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Nova Meta</span>
           </Button>
-           {isSignedIn ? (
+           {user ? (
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                         <Avatar className="h-9 w-9">
-                            <AvatarImage src={(user as any)?.picture} alt={user?.name} />
-                            <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'Usuário'} />
+                            <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
                         </Avatar>
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user?.name}</p>
+                        <p className="text-sm font-medium leading-none">{user.displayName}</p>
                         <p className="text-xs leading-none text-muted-foreground">
-                        {user?.email}
+                        {user.email}
                         </p>
                     </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut}>
-                        <LogIn className="mr-2 h-4 w-4" />
+                        <LogOut className="mr-2 h-4 w-4" />
                         <span>Sair</span>
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={signIn} variant="outline" size="sm" disabled={!isGapiReady}>
-              <LogIn className="h-4 w-4 sm:mr-2" />
-              <span className='hidden sm:inline'>Conectar</span>
-            </Button>
+             <Link href="/login" passHref>
+                <Button variant="outline" size="sm">
+                  <LogIn className="h-4 w-4 sm:mr-2" />
+                  <span className='hidden sm:inline'>Entrar</span>
+                </Button>
+             </Link>
           )}
 
         </div>

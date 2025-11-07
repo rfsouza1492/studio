@@ -1,45 +1,45 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
-import { GoogleAuthProvider, signInWithRedirect } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Target, LogIn } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { signInWithGoogle, user, loading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    // If user is logged in, redirect to dashboard
+  // Se o usuário já estiver logado, redirecione para a página inicial.
+  React.useEffect(() => {
     if (!loading && user) {
       router.push('/');
     }
   }, [user, loading, router]);
-
-  const handleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithRedirect(auth, provider);
-    } catch (error) {
-      console.error("Error signing in with Google: ", error);
-      // Optionally, show an error message to the user
-    }
-  };
   
-  // Don't render anything while checking auth state
+  // Renderiza um estado de carregamento enquanto verifica a autenticação
   if (loading || user) {
-    return <div>Loading...</div>; // Or a spinner component
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-4">
+                <Target className="h-12 w-12 animate-pulse text-primary" />
+                <p className="text-muted-foreground">Carregando...</p>
+            </div>
+        </div>
+    );
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="p-8 bg-white rounded-lg shadow-md text-center">
-        <h1 className="text-2xl font-bold mb-4">Welcome to GoalFlow</h1>
-        <p className="mb-6">Please sign in to continue</p>
-        <Button onClick={handleSignIn}>
-          Sign in with Google
+    <div className="flex min-h-screen items-center justify-center bg-secondary/50 p-4">
+      <div className="w-full max-w-sm rounded-lg bg-card p-8 text-center shadow-lg">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-6">
+            <Target className="h-8 w-8 text-primary" />
+        </div>
+        <h1 className="text-2xl font-bold text-card-foreground">Bem-vindo ao GoalFlow</h1>
+        <p className="mb-6 mt-2 text-muted-foreground">Faça login para começar a gerenciar suas metas.</p>
+        <Button onClick={signInWithGoogle} className='w-full' size='lg'>
+          <LogIn className="mr-2 h-4 w-4" />
+          Entrar com Google
         </Button>
       </div>
     </div>

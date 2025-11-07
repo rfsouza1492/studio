@@ -2,7 +2,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { useAuth } from './AuthContext';
 import { db } from '@/lib/firebase';
@@ -24,11 +23,11 @@ import { addDays, addMonths, addWeeks } from 'date-fns';
 interface GoalContextType {
   goals: Goal[];
   tasks: Task[];
-  addGoal: (payload: Pick<Goal, 'name'> & Partial<Omit<Goal, 'name' | 'id' | 'userId'>>) => Promise<void>;
+  addGoal: (payload: Omit<Goal, 'id' | 'userId'>) => Promise<void>;
   editGoal: (goalId: string, payload: Partial<Omit<Goal, 'id' | 'userId'>>) => Promise<void>;
   deleteGoal: (goalId: string) => Promise<void>;
   addTask: (goalId: string, title: string, priority: Priority, recurrence: Recurrence, deadline?: Date, duration?: number) => Promise<void>;
-  editTask: (taskId: string, payload: Partial<Omit<Task, 'id' | 'userId'>>) => Promise<void>;
+  editTask: (taskId: string, payload: Partial<Omit<Task, 'id' | 'userId' | 'goalId'>>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   toggleTask: (taskId: string) => Promise<void>;
 }
@@ -38,22 +37,20 @@ const GoalContext = createContext<GoalContextType | undefined>(undefined);
 
 // Create the provider component
 export const GoalProvider = ({ children }: { children: ReactNode }) => {
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return; // Wait for authentication to resolve
-
     if (!user) {
-      router.push('/login');
-      setIsLoading(false);
+      setGoals([]);
+      setTasks([]);
+      setLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    setLoading(true);
 
     // Set up real-time listeners for goals
     const goalsQuery = query(collection(db, 'goals'), where('userId', '==', user.uid));
@@ -69,10 +66,10 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const tasksUnsubscribe = onSnapshot(tasksQuery, (snapshot) => {
       const tasksData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
       setTasks(tasksData);
-      setIsLoading(false); // Considered loaded after tasks are fetched
+      setLoading(false); // Considered loaded after tasks are fetched
     }, (error) => {
         console.error("Error fetching tasks: ", error);
-        setIsLoading(false);
+        setLoading(false);
     });
 
     // Cleanup listeners on unmount
@@ -80,11 +77,11 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       goalsUnsubscribe();
       tasksUnsubscribe();
     };
-  }, [user, authLoading, router]);
+  }, [user]);
 
   // --- CRUD Functions --- //
 
-  const addGoal = async (payload: Pick<Goal, 'name'> & Partial<Omit<Goal, 'id' | 'userId'>>) => {
+  const addGoal = async (payload: Omit<Goal, 'id' | 'userId'>) => {
     if (!user) throw new Error('User not authenticated');
     try {
       await addDoc(collection(db, 'goals'), {
@@ -110,7 +107,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user) throw new Error('User not authenticated');
     const goalRef = doc(db, 'goals', goalId);
     try {
-      // Note: We also need to delete associated tasks. A batched write is good for this.
       const batch = writeBatch(db);
       batch.delete(goalRef);
       
@@ -145,11 +141,13 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const editTask = async (taskId: string, payload: Partial<Omit<Task, 'id' | 'userId'>>) => {
+  const editTask = async (taskId: string, payload: Partial<Omit<Task, 'id' | 'userId' | 'goalId'>>) => {
     if (!user) throw new Error('User not authenticated');
     const taskRef = doc(db, 'tasks', taskId);
     try {
-      await updateDoc(taskRef, payload);
+      // Ensure goalId and userId are not accidentally overwritten
+      const { goalId, userId, ...updatePayload } = payload as any;
+      await updateDoc(taskRef, updatePayload);
     } catch (error) {
       console.error("Error editing task: ", error);
     }
@@ -180,10 +178,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     try {
         const batch = writeBatch(db);
 
-        // Update the current task
         batch.update(taskRef, { completed: newCompletedState });
 
-        // If completing a recurring task, create the next one
         if (newCompletedState && task.recurrence !== 'None' && task.deadline) {
             const currentDeadline = new Date(task.deadline);
             let nextDeadline: Date;
@@ -195,14 +191,15 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
                 default: nextDeadline = currentDeadline;
             }
             
-            // Create a new task document, no need for a random ID, Firestore will generate it.
-            const newTaskRef = doc(collection(db, 'tasks')); // Create a reference for the new document
+            const newTaskData = { ...task };
+            delete (newTaskData as any).id; // Remove the old ID
+            
+            const newTaskRef = doc(collection(db, 'tasks'));
             batch.set(newTaskRef, {
-                ...task, // copy old properties
-                id: newTaskRef.id, // Set the id to the new document's ID
+                ...newTaskData,
                 completed: false,
                 deadline: nextDeadline.toISOString(),
-                userId: user.uid, // ensure userId is set
+                userId: user.uid,
             });
         }
 
@@ -215,7 +212,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const contextValue: GoalContextType = {
     goals,
     tasks,
-    addGoal,
+    addGoal: addGoal as any, // Cast to avoid complex type issues with pick/omit
     editGoal,
     deleteGoal,
     addTask,
@@ -224,9 +221,15 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     toggleTask,
   };
 
-  // Render a loading state or null while auth is resolving or data is fetching
-  if (authLoading || isLoading) {
-    return <div>Loading...</div>; // Or a more sophisticated loading spinner
+  if (loading) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-4">
+                <Target className="h-12 w-12 animate-pulse text-primary" />
+                <p className="text-muted-foreground">Carregando dados...</p>
+            </div>
+        </div>
+    );
   }
 
   return (
@@ -236,7 +239,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Custom hook to use the context
 export const useGoals = () => {
   const context = useContext(GoalContext);
   if (context === undefined) {

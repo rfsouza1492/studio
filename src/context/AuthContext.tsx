@@ -2,56 +2,86 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { onAuthStateChanged, User, getRedirectResult } from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  User, 
+  GoogleAuthProvider, 
+  signInWithRedirect, 
+  signOut as firebaseSignOut,
+  getRedirectResult
+} from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
 
-// Define the shape of the context data
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  signInWithGoogle: () => void;
+  signOut: () => void;
 }
 
-// Create the context with a default undefined value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Create the provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
     });
-    
+
     getRedirectResult(auth)
       .then((result) => {
         if (result) {
+          // This is the signed-in user
           setUser(result.user);
+          router.push('/'); // Redirect to home page after login
         }
       })
       .catch((error) => {
-        console.error("Error getting redirect result: ", error);
+        console.error("Error from redirect result:", error);
       })
       .finally(() => {
         setLoading(false);
       });
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, []);
 
-  const value = { user, loading };
+    return () => unsubscribe();
+  }, [router]);
+
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      setLoading(true);
+      await signInWithRedirect(auth, provider);
+    } catch (error) {
+      console.error("Error signing in with Google redirect:", error);
+      setLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      await firebaseSignOut(auth);
+      // O onAuthStateChanged tratará a atualização do usuário para null
+      router.push('/login');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  const value = { user, loading, signInWithGoogle, signOut };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
 
-// Create a custom hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
