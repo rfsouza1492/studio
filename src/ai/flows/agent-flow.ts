@@ -69,7 +69,23 @@ export async function talkToAgent({ query, context }: AgentInput): Promise<Agent
     const responseData = await response.json();
     
     // 5. Extract and parse the JSON response from the AI
-    const text = responseData.candidates[0].content.parts[0].text;
+    if (!responseData.candidates || responseData.candidates.length === 0) {
+      console.error('No candidates in response:', JSON.stringify(responseData));
+      throw new Error('No response candidates from Gemini API');
+    }
+
+    const candidate = responseData.candidates[0];
+    if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
+      console.error('Invalid candidate structure:', JSON.stringify(candidate));
+      throw new Error('Invalid response structure from Gemini API');
+    }
+
+    const text = candidate.content.parts[0].text;
+    if (!text) {
+      console.error('No text in response:', JSON.stringify(candidate));
+      throw new Error('No text content in Gemini API response');
+    }
+
     const parsedResponse: AgentOutput = JSON.parse(text);
     
     if (typeof parsedResponse.message !== 'string') {
