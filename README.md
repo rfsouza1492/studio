@@ -18,6 +18,7 @@ Bem-vindo ao **GoalFlow**, seu novo assistente pessoal de produtividade. Este ap
 3.  [Configurações Essenciais](#3-configurações-essenciais)
     *   [Conectar Conta Google](#conectar-conta-google)
     *   [Permissão de Microfone](#permissão-de-microfone)
+4.  [Deploy da Aplicação](#4-deploy-da-aplicação)
 
 ---
 
@@ -123,5 +124,9 @@ Para usar o comando de voz na página do **Agente IA**, você precisará concede
 -   Ao clicar no ícone do microfone pela primeira vez, seu navegador solicitará a permissão. Clique em **"Permitir"**.
 
 ---
+
+## 4. Deploy da Aplicação
+
+Para fazer o deploy da sua aplicação e torná-la acessível publicamente, siga as instruções detalhadas no arquivo `VERIFICAR_DEPLOY.md`.
 
 Aproveite o GoalFlow para alcançar suas metas e organizar seu dia!
