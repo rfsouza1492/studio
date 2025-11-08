@@ -6,8 +6,8 @@
  */
 import * as schemas from '@/lib/schemas';
 import { generate } from '@genkit-ai/ai';
-import { defineFlow } from '@genkit-ai/next/server';
-import { geminiPro } from '@genkit-ai/google-genai';
+import { defineFlow } from '@genkit-ai/flow';
+import { gemini15Flash } from '@genkit-ai/googleai';
 import z from 'zod';
 
 const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
@@ -73,22 +73,20 @@ export const talkToAgentFlow = defineFlow(
     name: 'talkToAgentFlow',
     inputSchema: schemas.AgentInputSchema,
     outputSchema: z.string(),
-    stream: true,
   },
   async ({ query, context }) => {
     const formattedContext = formatContextForPrompt(context);
     const prompt = `User message: \"${query}\"\n\n# USER'S CURRENT CONTEXT\n${formattedContext}`;
 
     const llmResponse = await generate({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt: prompt,
+      system: systemPrompt,
       config: {
         temperature: 0.5,
       },
-      system: systemPrompt,
-      stream: true,
     });
 
-    return llmResponse.stream().map((chunk) => chunk.text());
+    return llmResponse.text;
   }
 );
