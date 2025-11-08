@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, useReducer, ReactNode, useState } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { collection, doc, query, writeBatch, getDocs, where, collectionGroup } from 'firebase/firestore';
 import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase, useCollection } from '@/firebase';
@@ -23,8 +23,6 @@ const initialState: State = {
 
 type Action =
   | { type: 'SET_LOADING', payload: boolean }
-  | { type: 'SET_GOALS', payload: Goal[] }
-  | { type: 'SET_TASKS', payload: Task[] }
   | { type: 'SET_DATA', payload: { goals: Goal[], tasks: Task[] } }
   | { type: 'SET_ERROR', payload: Error }
   | { type: 'ADD_GOAL'; payload: Goal }
@@ -38,10 +36,6 @@ const goalReducer = (state: State, action: Action): State => {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
-    case 'SET_GOALS':
-        return { ...state, goals: action.payload };
-    case 'SET_TASKS':
-        return { ...state, tasks: action.payload };
     case 'SET_DATA':
       return { ...state, loading: false, goals: action.payload.goals, tasks: action.payload.tasks, error: null };
     case 'SET_ERROR':
@@ -100,7 +94,7 @@ interface GoalContextType {
 const GoalContext = createContext<GoalContextType | undefined>(undefined);
 
 export const GoalProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [state, dispatch] = useReducer(goalReducer, initialState);
 
@@ -118,27 +112,31 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
 
   const { data: goalsData, isLoading: goalsLoading, error: goalsError } = useCollection<Goal>(goalsCollectionRef);
   const { data: tasksData, isLoading: tasksLoading, error: tasksError } = useCollection<Task>(tasksCollectionGroupRef);
-
+  
   useEffect(() => {
-    const isLoading = goalsLoading || tasksLoading;
+    // We are loading if the user is loading OR if the data is loading
+    const isLoading = isUserLoading || goalsLoading || tasksLoading;
     dispatch({ type: 'SET_LOADING', payload: isLoading });
 
-    if (!user) {
+    // If user is done loading and is logged out, clear data
+    if (!isUserLoading && !user) {
         dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] }});
         return;
     }
     
-    if (goalsError || tasksError) {
-        dispatch({ type: 'SET_ERROR', payload: (goalsError || tasksError) as Error });
+    // If we have an error from any query
+    const anyError = goalsError || tasksError;
+    if (anyError) {
+        dispatch({ type: 'SET_ERROR', payload: anyError as Error });
         return;
     }
-
-    if (!isLoading) {
-        dispatch({ type: 'SET_GOALS', payload: goalsData || [] });
-        dispatch({ type: 'SET_TASKS', payload: tasksData || [] });
+    
+    // If not loading and we have data, set it
+    if (!isLoading && user) {
+        dispatch({ type: 'SET_DATA', payload: { goals: goalsData || [], tasks: tasksData || [] } });
     }
 
-  }, [user, goalsData, tasksData, goalsLoading, tasksLoading, goalsError, tasksError]);
+  }, [user, isUserLoading, goalsData, tasksData, goalsLoading, tasksLoading, goalsError, tasksError]);
   
 
   const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>) => {
@@ -225,11 +223,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     updateDocumentNonBlocking(taskRef, { completed: newCompletedStatus });
     dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
-
-  if (state.loading && !user) {
-     return <>{children}</>;
-  }
-
+  
   if (state.loading) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -266,3 +260,5 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
+
+    
