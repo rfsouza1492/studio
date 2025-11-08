@@ -114,25 +114,33 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     
     dispatch({ type: 'SET_LOADING', payload: true });
 
-    let goalsData: Goal[] = [];
-    let tasksData: Task[] = [];
-    let goalsLoaded = false;
-    let tasksLoaded = false;
-    let goalsUnsub: Unsubscribe | null = null;
-    let tasksUnsub: Unsubscribe | null = null;
-
-    const updateCombinedData = () => {
-      if (goalsLoaded && tasksLoaded) {
-        dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
-      }
-    };
-    
     const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
-    goalsUnsub = onSnapshot(goalsQuery, 
-      (snapshot) => {
-        goalsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
-        goalsLoaded = true;
-        updateCombinedData();
+    
+    const goalsUnsub = onSnapshot(goalsQuery, 
+      (goalsSnapshot) => {
+        const goalsData = goalsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
+
+        if (goalsData.length === 0) {
+            // If there are no goals, there are no tasks to fetch.
+            dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] } });
+            return;
+        }
+
+        const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
+        
+        const tasksUnsub = onSnapshot(tasksQuery, (tasksSnapshot) => {
+            const tasksData = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+            dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
+        }, (error) => {
+             console.error("Error fetching tasks:", error);
+             const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks collection group` });
+             dispatch({ type: 'SET_ERROR', payload: contextualError });
+             errorEmitter.emit('permission-error', contextualError);
+        });
+
+        // Return a cleanup function for the tasks listener
+        return () => tasksUnsub();
+
       }, 
       (error) => {
         console.error("Error fetching goals:", error);
@@ -142,24 +150,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
-    tasksUnsub = onSnapshot(tasksQuery, 
-      (snapshot) => {
-        tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
-        tasksLoaded = true;
-        updateCombinedData();
-      },
-      (error) => {
-        console.error("Error fetching tasks:", error);
-        const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks where userId == ${user.uid}` });
-        dispatch({ type: 'SET_ERROR', payload: contextualError });
-        errorEmitter.emit('permission-error', contextualError);
-      }
-    );
-  
     return () => {
-      if (goalsUnsub) goalsUnsub();
-      if (tasksUnsub) tasksUnsub();
+      goalsUnsub();
     };
   
   }, [user, isUserLoading, firestore]);
@@ -170,6 +162,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
     const finalGoal = { ...newGoalData, id: goalRef.id, userId: user.uid };
     addDocumentNonBlocking(goalRef, finalGoal);
+    // Optimistic update
     dispatch({ type: 'ADD_GOAL', payload: finalGoal });
   };
 
@@ -178,6 +171,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const { id, ...goalData } = updatedGoalData;
     const goalRef = doc(firestore, 'users', user.uid, 'goals', id);
     updateDocumentNonBlocking(goalRef, goalData);
+     // Optimistic update
     dispatch({ type: 'EDIT_GOAL', payload: { ...updatedGoalData, userId: user.uid } });
   };
 
@@ -191,12 +185,18 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       tasksSnapshot.forEach(doc => {
           batch.delete(doc.ref);
       });
-      await batch.commit();
+      // Non-blocking commit
+      batch.commit().catch(error => {
+          console.error("Error deleting tasks in batch:", error);
+          const contextualError = new FirestorePermissionError({ operation: 'delete', path: `tasks in goal ${goalId}` });
+          errorEmitter.emit('permission-error', contextualError);
+      });
     }
     
     const goalRef = doc(firestore, 'users', user.uid, 'goals', goalId);
     deleteDocumentNonBlocking(goalRef);
 
+    // Optimistic update
     dispatch({ type: 'DELETE_GOAL', payload: goalId });
   };
 
@@ -221,6 +221,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       userId: user.uid,
     };
     addDocumentNonBlocking(taskRef, newTask);
+     // Optimistic update
     dispatch({ type: 'ADD_TASK', payload: { id: taskRef.id, ...newTask } });
   };
 
@@ -229,6 +230,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const { id, goalId, ...taskData } = updatedTaskData;
     const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', id);
     updateDocumentNonBlocking(taskRef, taskData);
+     // Optimistic update
     dispatch({ type: 'EDIT_TASK', payload: { ...updatedTaskData, userId: user.uid } });
   };
 
@@ -236,6 +238,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', taskId);
     deleteDocumentNonBlocking(taskRef);
+     // Optimistic update
     dispatch({ type: 'DELETE_TASK', payload: taskId });
   };
 
@@ -244,6 +247,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const taskRef = doc(firestore, 'users', user.uid, 'goals', task.goalId, 'tasks', task.id);
     const newCompletedStatus = !task.completed;
     updateDocumentNonBlocking(taskRef, { completed: newCompletedStatus });
+     // Optimistic update
     dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
   
