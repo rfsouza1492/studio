@@ -81,7 +81,7 @@ service cloud.firestore {
       // Allow a user to read their own task
       allow get: if isOwner(userId);
 
-      // Allow a user to list their own tasks
+      // Allow a user to list their own tasks for a specific goal
       allow list: if isOwner(userId);
 
       // Allow a user to create a new task with the correct user ID and goal ID
@@ -92,6 +92,17 @@ service cloud.firestore {
 
       // Allow a user to delete their own existing task
       allow delete: if isExistingOwner(userId);
+    }
+    
+    /**
+     * @description Allows a collection group query on 'tasks'.
+     * This is necessary for fetching all tasks for a user across all their goals in one query.
+     * @path /{path=**}/tasks/{taskId}
+     * @allow (list) - A user can list tasks from the 'tasks' collection group if the query filters by their 'userId'.
+     * @principle Enables efficient, user-scoped data fetching across nested collections.
+     */
+    match /{path=**}/tasks/{taskId} {
+       allow list: if request.auth != null && request.auth.uid == request.query.filters.userId;
     }
   }
 }
