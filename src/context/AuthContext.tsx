@@ -1,13 +1,19 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, User, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { GoogleAuthProvider } from 'firebase/auth';
+import { useUser, useFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
+import {
+  initiateEmailSignIn,
+  initiateEmailSignUp,
+  initiateAnonymousSignIn,
+} from '@/firebase';
+import { signInWithPopup } from 'firebase/auth';
 
 interface AuthContextType {
-  user: User | null;
+  user: any | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -16,50 +22,32 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, isUserLoading } = useUser();
+  const { auth } = useFirebase();
   const router = useRouter();
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-      if (user) {
-        router.push('/');
-      } else {
-        router.push('/login');
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router]);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      setLoading(true);
       await signInWithPopup(auth, provider);
-      // onAuthStateChanged will handle the redirect
+      router.push('/');
     } catch (error) {
       console.error("Error signing in with Google:", error);
-      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
-      setLoading(true);
-      await firebaseSignOut(auth);
-      // onAuthStateChanged will handle the redirect
+      await auth.signOut();
+      router.push('/login');
     } catch (error) {
       console.error("Error signing out:", error);
-      setLoading(false);
     }
   };
 
-  const value = { user, loading, signInWithGoogle, signOut };
+  const value = { user, loading: isUserLoading, signInWithGoogle, signOut };
 
-  if (loading) {
+  if (isUserLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
