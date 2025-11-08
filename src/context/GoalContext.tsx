@@ -1,9 +1,9 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, useReducer, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, ReactNode, useState } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
-import { collection, doc, query, writeBatch, collectionGroup, getDocs } from 'firebase/firestore';
+import { collection, doc, query, writeBatch, getDocs } from 'firebase/firestore';
 import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase, useCollection } from '@/firebase';
 import { Target } from 'lucide-react';
 
@@ -23,6 +23,8 @@ const initialState: State = {
 
 type Action =
   | { type: 'SET_LOADING', payload: boolean }
+  | { type: 'SET_GOALS', payload: Goal[] }
+  | { type: 'SET_TASKS', payload: Task[] }
   | { type: 'SET_DATA', payload: { goals: Goal[], tasks: Task[] } }
   | { type: 'SET_ERROR', payload: Error }
   | { type: 'ADD_GOAL'; payload: Goal }
@@ -36,6 +38,10 @@ const goalReducer = (state: State, action: Action): State => {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
+    case 'SET_GOALS':
+        return { ...state, goals: action.payload, loading: false };
+    case 'SET_TASKS':
+        return { ...state, tasks: action.payload };
     case 'SET_DATA':
       return { ...state, loading: false, goals: action.payload.goals, tasks: action.payload.tasks, error: null };
     case 'SET_ERROR':
@@ -101,39 +107,51 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const goalsCollectionRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'goals') : null, [user, firestore]);
   const { data: goalsData, isLoading: goalsLoading, error: goalsError } = useCollection<Goal>(goalsCollectionRef);
 
-  const tasksCollectionGroupRef = useMemoFirebase(() => (user && user.uid) ? query(collectionGroup(firestore, 'tasks')) : null, [user, firestore]);
-  const { data: tasksData, isLoading: tasksLoading, error: tasksError } = useCollection<Task>(tasksCollectionGroupRef);
-
+  // Effect to load goals
   useEffect(() => {
-    if (!user) {
-      dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] } });
-      dispatch({ type: 'SET_LOADING', payload: false });
+    dispatch({ type: 'SET_LOADING', payload: goalsLoading });
+    if (goalsError) {
+      dispatch({ type: 'SET_ERROR', payload: goalsError as Error });
       return;
     }
-    
-    const isLoading = goalsLoading || tasksLoading;
-    const error = goalsError || tasksError;
+    if (!goalsLoading && goalsData !== null) {
+      dispatch({ type: 'SET_GOALS', payload: goalsData });
+    }
+     if (!user) {
+      dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] }});
+    }
+  }, [user, goalsData, goalsLoading, goalsError]);
 
-    dispatch({ type: 'SET_LOADING', payload: isLoading });
-
-    if(error){
-      dispatch({ type: 'SET_ERROR', payload: error as Error });
-      return;
+  // Effect to load tasks based on loaded goals
+  useEffect(() => {
+    if (!user || !firestore || state.goals.length === 0) {
+        // If there are no goals, there are no tasks to fetch.
+        if (state.goals.length === 0) {
+            dispatch({ type: 'SET_TASKS', payload: [] });
+        }
+        return;
     }
 
-    if (!isLoading && goalsData !== null && tasksData !== null) {
-      const userTasks = tasksData.filter(task => {
-        // The path of a doc from a collectionGroup query is `users/{userId}/goals/{goalId}/tasks/{taskId}`
-        // So we can check if the user id is in the path.
-        // This is a client-side filter, security rules must enforce this on the backend.
-        const pathSegments = (task as any)._document?.key.path.segments || [];
-        return pathSegments.length > 1 && pathSegments[1] === user.uid;
-      });
-      dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: userTasks } });
-    }
+    const fetchAllTasks = async () => {
+        try {
+            const allTasks: Task[] = [];
+            for (const goal of state.goals) {
+                const tasksQuery = query(collection(firestore, 'users', user.uid, 'goals', goal.id, 'tasks'));
+                const tasksSnapshot = await getDocs(tasksQuery);
+                tasksSnapshot.forEach(doc => {
+                    allTasks.push({ id: doc.id, ...doc.data() } as Task);
+                });
+            }
+            dispatch({ type: 'SET_TASKS', payload: allTasks });
+        } catch (error) {
+            dispatch({ type: 'SET_ERROR', payload: error as Error });
+        }
+    };
 
-  }, [user, goalsData, tasksData, goalsLoading, tasksLoading, goalsError, tasksError]);
-
+    fetchAllTasks();
+    // This effect should re-run if the user changes or the list of goals changes.
+  }, [user, firestore, state.goals]);
+  
 
   const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>) => {
     if (!user || !firestore) return;
@@ -158,8 +176,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
 
     // First delete sub-tasks in a batch
     const tasksQuery = query(collection(firestore, 'users', user.uid, 'goals', goalId, 'tasks'));
-    // We don't use useCollection here because we need to perform an action (delete)
-    // and we want the latest data at the time of deletion.
     const tasksSnapshot = await getDocs(tasksQuery);
     if(!tasksSnapshot.empty){
       const batch = writeBatch(firestore);
@@ -262,3 +278,5 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
+
+    
