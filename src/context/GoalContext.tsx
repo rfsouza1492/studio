@@ -25,6 +25,7 @@ type Action =
   | { type: 'SET_LOADING', payload: boolean }
   | { type: 'SET_DATA', payload: { goals: Goal[], tasks: Task[] } }
   | { type: 'SET_ERROR', payload: Error }
+  | { type: 'CLEAR_DATA' }
   | { type: 'ADD_GOAL'; payload: Goal }
   | { type: 'EDIT_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: string }
@@ -40,6 +41,8 @@ const goalReducer = (state: State, action: Action): State => {
       return { ...state, loading: false, goals: action.payload.goals, tasks: action.payload.tasks, error: null };
     case 'SET_ERROR':
       return { ...state, loading: false, error: action.payload };
+    case 'CLEAR_DATA':
+      return initialState;
     case 'ADD_GOAL':
       return { ...state, goals: [...state.goals, action.payload] };
     case 'EDIT_GOAL':
@@ -99,50 +102,66 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(goalReducer, initialState);
   
   useEffect(() => {
-    dispatch({ type: 'SET_LOADING', payload: isUserLoading });
+    // While authentication is loading, we show a loading state and do nothing.
     if (isUserLoading) {
-        return; // Wait until user loading is complete
-    }
-
-    if (!user) {
-        // User is logged out, clear data and stop listening
-        dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] } });
+        dispatch({ type: 'SET_LOADING', payload: true });
         return;
     }
 
-    // User is logged in, set up listeners
+    // If there is no user, we clear any existing data and stop.
+    // This happens on logout or if the user is not authenticated.
+    if (!user) {
+        dispatch({ type: 'CLEAR_DATA' });
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return;
+    }
+
+    // At this point, we have a valid, authenticated user.
+    // Set up Firestore listeners.
+    dispatch({ type: 'SET_LOADING', payload: true });
+
     const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
     const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
     
-    const unsubscribers: Unsubscribe[] = [];
+    let goalsData: Goal[] = [];
+    let tasksData: Task[] = [];
+    let goalsLoaded = false;
+    let tasksLoaded = false;
+
+    const updateCombinedData = () => {
+        if (goalsLoaded && tasksLoaded) {
+            dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
+        }
+    }
 
     const goalsUnsub = onSnapshot(goalsQuery, 
         (snapshot) => {
-            const goals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
-            dispatch({ type: 'SET_DATA', payload: { goals, tasks: state.tasks } });
+            goalsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
+            goalsLoaded = true;
+            updateCombinedData();
         }, 
         (error) => {
             console.error("Error fetching goals:", error);
             dispatch({ type: 'SET_ERROR', payload: error });
         }
     );
-    unsubscribers.push(goalsUnsub);
     
     const tasksUnsub = onSnapshot(tasksQuery, 
         (snapshot) => {
-            const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-            dispatch({ type: 'SET_DATA', payload: { goals: state.goals, tasks } });
+            tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+            tasksLoaded = true;
+            updateCombinedData();
         },
         (error) => {
             console.error("Error fetching tasks:", error);
             dispatch({ type: 'SET_ERROR', payload: error });
         }
     );
-    unsubscribers.push(tasksUnsub);
 
-    // Cleanup function to unsubscribe from all listeners
+    // Cleanup function to unsubscribe when the component unmounts or the user changes.
     return () => {
-        unsubscribers.forEach(unsub => unsub());
+        goalsUnsub();
+        tasksUnsub();
     };
 
   }, [user, isUserLoading, firestore]);
@@ -269,3 +288,6 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
+
+
+    
