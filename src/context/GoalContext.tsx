@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
-import { collection, doc, query, writeBatch, getDocs, where, collectionGroup, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { collection, doc, query, writeBatch, getDocs, where, onSnapshot, Unsubscribe, collectionGroup } from 'firebase/firestore';
 import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { Target } from 'lucide-react';
 
@@ -42,7 +42,7 @@ const goalReducer = (state: State, action: Action): State => {
     case 'SET_ERROR':
       return { ...state, loading: false, error: action.payload };
     case 'CLEAR_DATA':
-      return initialState;
+      return { ...initialState, loading: false };
     case 'ADD_GOAL':
       return { ...state, goals: [...state.goals, action.payload] };
     case 'EDIT_GOAL':
@@ -102,38 +102,33 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(goalReducer, initialState);
   
   useEffect(() => {
-    // While authentication is loading, do nothing and show loading screen.
+    // If auth is loading, we are loading.
     if (isUserLoading) {
       dispatch({ type: 'SET_LOADING', payload: true });
       return;
     }
-  
-    // If auth has loaded and there's no user, clear data and stop showing loading screen.
+
+    // If there is no user, clear data and stop loading.
     if (!user) {
       dispatch({ type: 'CLEAR_DATA' });
-      dispatch({ type: 'SET_LOADING', payload: false });
       return;
     }
-  
-    // At this point, auth has loaded and we have a valid, authenticated user.
-    // Set up Firestore listeners.
+
+    // If we reach here, we have a user. Set up the listeners.
     dispatch({ type: 'SET_LOADING', payload: true });
-  
-    const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
-    const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
-  
+
     let goalsData: Goal[] = [];
     let tasksData: Task[] = [];
     let goalsLoaded = false;
     let tasksLoaded = false;
-  
+
     const updateCombinedData = () => {
-      // Only dispatch the final data when both listeners have fired at least once.
       if (goalsLoaded && tasksLoaded) {
         dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
       }
     };
-  
+    
+    const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
     const goalsUnsub: Unsubscribe = onSnapshot(goalsQuery, 
       (snapshot) => {
         goalsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
@@ -145,7 +140,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
         dispatch({ type: 'SET_ERROR', payload: error });
       }
     );
-  
+
+    const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
     const tasksUnsub: Unsubscribe = onSnapshot(tasksQuery, 
       (snapshot) => {
         tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
