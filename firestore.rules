@@ -102,7 +102,7 @@ service cloud.firestore {
      * @principle Enables efficient, user-scoped data fetching across nested collections.
      */
     match /{path=**}/tasks/{taskId} {
-       allow list: if request.auth != null && request.auth.uid == request.query.filters.userId;
+      allow list: if request.auth != null && request.auth.uid == request.query.filters.userId;
     }
   }
 }
