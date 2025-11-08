@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@/genkit.config": ["./genkit.config.ts"]
+      "@/genkit.config": ["./genkit.config.ts"],
+      "@/ai/genkit": ["./src/ai/genkit.ts"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

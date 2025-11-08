@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { collection, doc, query, writeBatch, getDocs, where, onSnapshot, Unsubscribe, collectionGroup } from 'firebase/firestore';
-import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { Target } from 'lucide-react';
 
 interface State {
@@ -102,25 +102,24 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(goalReducer, initialState);
   
   useEffect(() => {
-    // If auth is loading, we are loading.
     if (isUserLoading) {
       dispatch({ type: 'SET_LOADING', payload: true });
       return;
     }
 
-    // If there is no user, clear data and stop loading.
     if (!user) {
       dispatch({ type: 'CLEAR_DATA' });
       return;
     }
-
-    // If we reach here, we have a user. Set up the listeners.
+    
     dispatch({ type: 'SET_LOADING', payload: true });
 
     let goalsData: Goal[] = [];
     let tasksData: Task[] = [];
     let goalsLoaded = false;
     let tasksLoaded = false;
+    let goalsUnsub: Unsubscribe | null = null;
+    let tasksUnsub: Unsubscribe | null = null;
 
     const updateCombinedData = () => {
       if (goalsLoaded && tasksLoaded) {
@@ -129,7 +128,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     };
     
     const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
-    const goalsUnsub: Unsubscribe = onSnapshot(goalsQuery, 
+    goalsUnsub = onSnapshot(goalsQuery, 
       (snapshot) => {
         goalsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
         goalsLoaded = true;
@@ -137,12 +136,14 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       }, 
       (error) => {
         console.error("Error fetching goals:", error);
-        dispatch({ type: 'SET_ERROR', payload: error });
+        const contextualError = new FirestorePermissionError({ operation: 'list', path: `users/${user.uid}/goals` });
+        dispatch({ type: 'SET_ERROR', payload: contextualError });
+        errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
-    const tasksUnsub: Unsubscribe = onSnapshot(tasksQuery, 
+    tasksUnsub = onSnapshot(tasksQuery, 
       (snapshot) => {
         tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
         tasksLoaded = true;
@@ -150,14 +151,15 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       },
       (error) => {
         console.error("Error fetching tasks:", error);
-        dispatch({ type: 'SET_ERROR', payload: error });
+        const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks where userId == ${user.uid}` });
+        dispatch({ type: 'SET_ERROR', payload: contextualError });
+        errorEmitter.emit('permission-error', contextualError);
       }
     );
   
-    // Cleanup function to unsubscribe when the component unmounts or the user changes.
     return () => {
-      goalsUnsub();
-      tasksUnsub();
+      if (goalsUnsub) goalsUnsub();
+      if (tasksUnsub) tasksUnsub();
     };
   
   }, [user, isUserLoading, firestore]);
@@ -168,7 +170,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
     const finalGoal = { ...newGoalData, id: goalRef.id, userId: user.uid };
     addDocumentNonBlocking(goalRef, finalGoal);
-    // Optimistic update
     dispatch({ type: 'ADD_GOAL', payload: finalGoal });
   };
 
@@ -183,7 +184,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const deleteGoal = async (goalId: string) => {
     if (!user || !firestore) return;
 
-    // First delete sub-tasks in a batch
     const tasksQuery = query(collection(firestore, 'users', user.uid, 'goals', goalId, 'tasks'));
     const tasksSnapshot = await getDocs(tasksQuery);
     if(!tasksSnapshot.empty){
@@ -194,7 +194,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       await batch.commit();
     }
     
-    // Then delete the goal
     const goalRef = doc(firestore, 'users', user.uid, 'goals', goalId);
     deleteDocumentNonBlocking(goalRef);
 
@@ -284,5 +283,3 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
-
-    

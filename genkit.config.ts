@@ -1,14 +1,12 @@
-import { gemini15Flash, vertexAI } from '@genkit-ai/googleai';
-import { configureGenkit } from 'genkit';
+import { configureGenkit } from '@genkit-ai/core';
+import { firebase } from '@genkit-ai/firebase';
+import { googleAI } from '@genkit-ai/google-genai';
 
-export default configureGenkit({
+configureGenkit({
   plugins: [
-    vertexAI({
-      location: 'us-central1',
-    }),
+    firebase(),
+    googleAI(),
   ],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });
-
-export { gemini15Flash };

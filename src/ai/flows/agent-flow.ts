@@ -7,8 +7,8 @@
  */
 import { z } from 'zod';
 import { AgentInputSchema, AgentOutputSchema } from '@/lib/schemas';
-import {ai} from '@/ai/genkit';
-import { gemini15Flash } from '@genkit-ai/googleai';
+import { ai } from '@genkit-ai/ai';
+import { geminiPro } from '@genkit-ai/google-genai';
 
 const systemPrompt = `You are Flow, a helpful and friendly productivity assistant for the GoalFlow app.
 You are having a conversation with a user about their goals and tasks.
@@ -28,7 +28,7 @@ export const talkToAgentFlow = ai.defineFlow(
     )}`;
 
     const llmResponse = await ai.generate({
-      model: gemini15Flash,
+      model: geminiPro,
       prompt: prompt,
       config: {
         temperature: 0.5,
@@ -36,7 +36,7 @@ export const talkToAgentFlow = ai.defineFlow(
       system: systemPrompt,
     });
 
-    const message = llmResponse.text;
+    const message = llmResponse.text();
     if (!message) {
       throw new Error('A resposta da IA está vazia.');
     }
@@ -44,16 +44,3 @@ export const talkToAgentFlow = ai.defineFlow(
     return { message };
   }
 );
-
-export async function talkToAgent(input: z.infer<typeof AgentInputSchema>): Promise<z.infer<typeof AgentOutputSchema>> {
-  try {
-    return await talkToAgentFlow(input);
-  } catch (error) {
-    console.error('Error in talkToAgent:', error);
-    // Return a structured error if anything goes wrong
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return {
-      message: `Sorry, I ran into a problem. ${errorMessage}`,
-    };
-  }
-}
