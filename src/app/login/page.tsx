@@ -5,19 +5,18 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Target, LogIn } from 'lucide-react';
+import { useEffect } from 'react';
 
 const LoginPage: React.FC = () => {
   const { signInWithGoogle, user, loading } = useAuth();
   const router = useRouter();
 
-  // Se o usuário já estiver logado, redirecione para a página inicial.
-  React.useEffect(() => {
+  useEffect(() => {
     if (!loading && user) {
       router.push('/');
     }
   }, [user, loading, router]);
   
-  // Renderiza um estado de carregamento enquanto verifica a autenticação
   if (loading || user) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -37,9 +36,8 @@ const LoginPage: React.FC = () => {
         </div>
         <h1 className="text-2xl font-bold text-card-foreground">Bem-vindo ao GoalFlow</h1>
         <p className="mb-6 mt-2 text-muted-foreground">Faça login para começar a gerenciar suas metas.</p>
-        <Button onClick={signInWithGoogle} className='w-full' size='lg'>
-          <LogIn className="mr-2 h-4 w-4" />
-          Entrar com Google
+        <Button onClick={signInWithGoogle} className='w-full' size='lg' disabled={loading}>
+          {loading ? 'Carregando...' : <><LogIn className="mr-2 h-4 w-4" /> Entrar com Google</>}
         </Button>
       </div>
     </div>

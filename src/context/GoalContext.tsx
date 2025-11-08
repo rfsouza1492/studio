@@ -1,44 +1,45 @@
-
 "use client";
 
-import React, { createContext, useContext, useReducer, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, ReactNode, useCallback } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
-import { initialState, State } from './initialState';
+import { useAuth } from './AuthContext';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, doc, updateDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore';
+import { Target } from 'lucide-react';
 
-// Define action types for the reducer
+interface State {
+  goals: Goal[];
+  tasks: Task[];
+  loading: boolean;
+  error: Error | null;
+}
+
+const initialState: State = {
+  goals: [],
+  tasks: [],
+  loading: true,
+  error: null,
+};
+
 type Action =
+  | { type: 'SET_LOADING', payload: boolean }
+  | { type: 'SET_DATA', payload: { goals: Goal[], tasks: Task[] } }
+  | { type: 'SET_ERROR', payload: Error }
   | { type: 'ADD_GOAL'; payload: Goal }
   | { type: 'EDIT_GOAL'; payload: Goal }
   | { type: 'DELETE_GOAL'; payload: string }
   | { type: 'ADD_TASK'; payload: Task }
   | { type: 'EDIT_TASK'; payload: Task }
-  | { type: 'DELETE_TASK'; payload: string }
-  | { type: 'TOGGLE_TASK'; payload: string };
+  | { type: 'DELETE_TASK'; payload: string };
 
-interface GoalContextType {
-  goals: Goal[];
-  tasks: Task[];
-  addGoal: (newGoal: Omit<Goal, 'id' | 'userId'>) => void;
-  editGoal: (updatedGoal: Omit<Goal, 'userId'>) => void;
-  deleteGoal: (goalId: string) => void;
-  addTask: (
-    goalId: string,
-    title: string,
-    priority: Priority,
-    recurrence: Recurrence,
-    deadline?: Date,
-    duration?: number
-  ) => void;
-  editTask: (updatedTask: Task) => void;
-  deleteTask: (taskId: string) => void;
-  toggleTask: (taskId: string) => void;
-}
-
-const GoalContext = createContext<GoalContextType | undefined>(undefined);
-
-// Reducer function to manage state changes
 const goalReducer = (state: State, action: Action): State => {
   switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_DATA':
+      return { ...state, loading: false, goals: action.payload.goals, tasks: action.payload.tasks, error: null };
+    case 'SET_ERROR':
+      return { ...state, loading: false, error: action.payload };
     case 'ADD_GOAL':
       return { ...state, goals: [...state.goals, action.payload] };
     case 'EDIT_GOAL':
@@ -64,43 +65,90 @@ const goalReducer = (state: State, action: Action): State => {
         ...state,
         tasks: state.tasks.filter(t => t.id !== action.payload),
       };
-    case 'TOGGLE_TASK':
-        const task = state.tasks.find(t => t.id === action.payload);
-        if (!task) return state;
-
-        // Simple toggle without recurrence for local state
-        const updatedTasks = state.tasks.map(t =>
-            t.id === action.payload ? { ...t, completed: !t.completed } : t
-        );
-        return { ...state, tasks: updatedTasks };
     default:
       return state;
   }
 };
 
+interface GoalContextType {
+  goals: Goal[];
+  tasks: Task[];
+  loading: boolean;
+  addGoal: (newGoal: Omit<Goal, 'id' | 'userId'>) => Promise<void>;
+  editGoal: (updatedGoal: Omit<Goal, 'userId'>) => Promise<void>;
+  deleteGoal: (goalId: string) => Promise<void>;
+  addTask: (
+    goalId: string,
+    title: string,
+    priority: Priority,
+    recurrence: Recurrence,
+    deadline?: Date,
+    duration?: number,
+    completed?: boolean
+  ) => Promise<void>;
+  editTask: (updatedTask: Task) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<void>;
+  toggleTask: (taskId: string) => Promise<void>;
+}
+
+const GoalContext = createContext<GoalContextType | undefined>(undefined);
 
 export const GoalProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
   const [state, dispatch] = useReducer(goalReducer, initialState);
 
-  const addGoal = (newGoal: Omit<Goal, 'id' | 'userId'>) => {
-    const goalWithId: Goal = { 
-        ...newGoal, 
-        id: crypto.randomUUID(), 
-        userId: 'mock-user-123' 
-    };
-    dispatch({ type: 'ADD_GOAL', payload: goalWithId });
+  useEffect(() => {
+    if (user) {
+      const fetchData = async () => {
+        try {
+          dispatch({ type: 'SET_LOADING', payload: true });
+          const goalsQuery = query(collection(db, 'goals'), where('userId', '==', user.uid));
+          const tasksQuery = query(collection(db, 'tasks'), where('userId', '==', user.uid));
+
+          const [goalsSnapshot, tasksSnapshot] = await Promise.all([
+            getDocs(goalsQuery),
+            getDocs(tasksQuery),
+          ]);
+
+          const goals = goalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+          const tasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+          
+          dispatch({ type: 'SET_DATA', payload: { goals, tasks } });
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          dispatch({ type: 'SET_ERROR', payload: error as Error });
+        }
+      };
+      fetchData();
+    } else {
+      dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] } });
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [user]);
+
+  const addGoal = async (newGoal: Omit<Goal, 'id' | 'userId'>) => {
+    if (!user) return;
+    const goalWithUser = { ...newGoal, userId: user.uid };
+    const docRef = await addDoc(collection(db, 'goals'), goalWithUser);
+    dispatch({ type: 'ADD_GOAL', payload: { id: docRef.id, ...goalWithUser } });
   };
 
-  const editGoal = (updatedGoal: Omit<Goal, 'userId'>) => {
-    const goalWithUser: Goal = { ...updatedGoal, userId: 'mock-user-123'};
-    dispatch({ type: 'EDIT_GOAL', payload: goalWithUser });
+  const editGoal = async (updatedGoal: Omit<Goal, 'userId'>) => {
+    if (!user) return;
+    const goalRef = doc(db, 'goals', updatedGoal.id);
+    await updateDoc(goalRef, updatedGoal);
+    dispatch({ type: 'EDIT_GOAL', payload: { ...updatedGoal, userId: user.uid } });
   };
 
-  const deleteGoal = (goalId: string) => {
+  const deleteGoal = async (goalId: string) => {
+    if (!user) return;
+    const goalRef = doc(db, 'goals', goalId);
+    await deleteDoc(goalRef);
+    // You might want to delete sub-tasks in a batch or using a cloud function
     dispatch({ type: 'DELETE_GOAL', payload: goalId });
   };
 
-  const addTask = (
+  const addTask = async (
     goalId: string,
     title: string,
     priority: Priority,
@@ -108,8 +156,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     deadline?: Date,
     duration?: number
   ) => {
-    const newTask: Task = {
-      id: crypto.randomUUID(),
+    if (!user) return;
+    const newTask: Omit<Task, 'id'> = {
       goalId,
       title,
       completed: false,
@@ -117,26 +165,49 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       deadline: deadline?.toISOString(),
       recurrence,
       duration,
-      userId: 'mock-user-123'
+      userId: user.uid
     };
-    dispatch({ type: 'ADD_TASK', payload: newTask });
+    const docRef = await addDoc(collection(db, 'tasks'), newTask);
+    dispatch({ type: 'ADD_TASK', payload: { id: docRef.id, ...newTask } });
   };
 
-  const editTask = (updatedTask: Task) => {
+  const editTask = async (updatedTask: Task) => {
+    if (!user) return;
+    const taskRef = doc(db, 'tasks', updatedTask.id);
+    await updateDoc(taskRef, updatedTask);
     dispatch({ type: 'EDIT_TASK', payload: updatedTask });
   };
 
-  const deleteTask = (taskId: string) => {
+  const deleteTask = async (taskId: string) => {
+    if (!user) return;
+    const taskRef = doc(db, 'tasks', taskId);
+    await deleteDoc(taskRef);
     dispatch({ type: 'DELETE_TASK', payload: taskId });
   };
 
-  const toggleTask = (taskId: string) => {
-    dispatch({ type: 'TOGGLE_TASK', payload: taskId });
+  const toggleTask = async (taskId: string) => {
+    if (!user) return;
+    const task = state.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const taskRef = doc(db, 'tasks', taskId);
+    const newCompletedStatus = !task.completed;
+    await updateDoc(taskRef, { completed: newCompletedStatus });
+    dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
 
+  if (state.loading) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-4">
+                <Target className="h-12 w-12 animate-pulse text-primary" />
+                <p className="text-muted-foreground">Carregando dados...</p>
+            </div>
+        </div>
+    );
+  }
+
   const value: GoalContextType = {
-    goals: state.goals,
-    tasks: state.tasks,
+    ...state,
     addGoal,
     editGoal,
     deleteGoal,

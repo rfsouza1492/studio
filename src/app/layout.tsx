@@ -3,7 +3,6 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { GoalProvider } from '@/context/GoalContext';
 import { AuthProvider } from '@/context/AuthContext';
-import PrivateRoute from '@/components/auth/PrivateRoute';
 
 export const metadata: Metadata = {
   title: 'GoalFlow',
@@ -28,9 +27,7 @@ export default function RootLayout({
       <body className="font-body antialiased" suppressHydrationWarning>
         <AuthProvider>
           <GoalProvider>
-            <PrivateRoute>
-              {children}
-            </PrivateRoute>
+            {children}
             <Toaster />
           </GoalProvider>
         </AuthProvider>

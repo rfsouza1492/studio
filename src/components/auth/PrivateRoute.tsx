@@ -1,22 +1,23 @@
-
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
 import { ReactNode } from "react";
-import { Target } from "lucide-react";
+import { usePathname } from 'next/navigation';
 
 const PrivateRoute = ({ children }: { children: ReactNode }) => {
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
+  const pathname = usePathname();
   
   if (loading) {
-     return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <div className="flex flex-col items-center gap-4">
-                <Target className="h-12 w-12 animate-pulse text-primary" />
-                <p className="text-muted-foreground">Verificando autenticação...</p>
-            </div>
-        </div>
-    );
+     return null; // O layout principal já exibe um loader global
+  }
+
+  if (!user && pathname !== '/login') {
+    return null; // O AuthProvider fará o redirecionamento
+  }
+
+  if (user && pathname === '/login') {
+    return null; // O AuthProvider fará o redirecionamento para a home
   }
 
   return <>{children}</>;
