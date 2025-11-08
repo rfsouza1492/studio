@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useState } from 'react';
 import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo } from 'firebase/auth';
-import { useUser, useFirebase } from '@/firebase';
+import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
 
@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
-  const { auth } = useFirebase();
+  const auth = useFirebaseAuth();
   const router = useRouter();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
 
@@ -35,7 +35,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setGoogleApiToken(credential.accessToken || null);
       }
       router.push('/');
-    } catch (error) {
+    } catch (error: any) {
+      // Don't log an error if the user simply closes the popup.
+      if (error.code === 'auth/popup-closed-by-user') {
+        return;
+      }
       console.error("Error signing in with Google:", error);
     }
   };
