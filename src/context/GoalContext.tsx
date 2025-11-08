@@ -1,10 +1,10 @@
+
 "use client";
 
-import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, ReactNode, useCallback } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
-import { useAuth } from './AuthContext';
-import { collection, doc, query, where, getDocs } from 'firebase/firestore';
-import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase, useCollection } from '@/firebase';
 import { Target } from 'lucide-react';
 
 interface State {
@@ -23,7 +23,8 @@ const initialState: State = {
 
 type Action =
   | { type: 'SET_LOADING', payload: boolean }
-  | { type: 'SET_DATA', payload: { goals: Goal[], tasks: Task[] } }
+  | { type: 'SET_GOALS', payload: Goal[] }
+  | { type: 'SET_TASKS', payload: Task[] }
   | { type: 'SET_ERROR', payload: Error }
   | { type: 'ADD_GOAL'; payload: Goal }
   | { type: 'EDIT_GOAL'; payload: Goal }
@@ -36,8 +37,10 @@ const goalReducer = (state: State, action: Action): State => {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
-    case 'SET_DATA':
-      return { ...state, loading: false, goals: action.payload.goals, tasks: action.payload.tasks, error: null };
+    case 'SET_GOALS':
+      return { ...state, loading: state.loading && state.tasks.length === 0, goals: action.payload, error: null };
+    case 'SET_TASKS':
+        return { ...state, loading: state.loading && state.goals.length === 0, tasks: action.payload, error: null };
     case 'SET_ERROR':
       return { ...state, loading: false, error: action.payload };
     case 'ADD_GOAL':
@@ -86,9 +89,9 @@ interface GoalContextType {
     duration?: number,
     completed?: boolean
   ) => Promise<void>;
-  editTask: (updatedTask: Task) => Promise<void>;
-  deleteTask: (taskId: string) => Promise<void>;
-  toggleTask: (taskId: string) => Promise<void>;
+  editTask: (updatedTask: Omit<Task, 'userId'>) => Promise<void>;
+  deleteTask: (taskId: string, goalId: string) => Promise<void>;
+  toggleTask: (task: Task) => Promise<void>;
 }
 
 const GoalContext = createContext<GoalContextType | undefined>(undefined);
@@ -98,54 +101,82 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const firestore = useFirestore();
   const [state, dispatch] = useReducer(goalReducer, initialState);
 
+  const goalsCollectionRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'goals') : null, [user, firestore]);
+  const { data: goalsData, isLoading: goalsLoading, error: goalsError } = useCollection<Goal>(goalsCollectionRef);
+  
   useEffect(() => {
-    if (user) {
-      const fetchData = async () => {
-        try {
-          dispatch({ type: 'SET_LOADING', payload: true });
-          const goalsQuery = query(collection(firestore, 'goals'), where('userId', '==', user.uid));
-          const tasksQuery = query(collection(firestore, 'tasks'), where('userId', '==', user.uid));
-
-          const [goalsSnapshot, tasksSnapshot] = await Promise.all([
-            getDocs(goalsQuery),
-            getDocs(tasksQuery),
-          ]);
-
-          const goals = goalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
-          const tasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-          
-          dispatch({ type: 'SET_DATA', payload: { goals, tasks } });
-        } catch (error) {
-          console.error("Error fetching data:", error);
-          dispatch({ type: 'SET_ERROR', payload: error as Error });
-        }
-      };
-      fetchData();
-    } else {
-      dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] } });
-      dispatch({ type: 'SET_LOADING', payload: false });
+    if (goalsData !== null) {
+      dispatch({ type: 'SET_GOALS', payload: goalsData.map(g => ({...g, userId: user!.uid})) });
     }
-  }, [user, firestore]);
+    if (goalsError) {
+      dispatch({ type: 'SET_ERROR', payload: goalsError as Error });
+    }
+    dispatch({ type: 'SET_LOADING', payload: goalsLoading });
+  }, [goalsData, goalsLoading, goalsError, user]);
 
-  const addGoal = async (newGoal: Omit<Goal, 'id' | 'userId'>) => {
-    if (!user) return;
-    const goalWithUser = { ...newGoal, userId: user.uid };
-    const docRef = await addDocumentNonBlocking(collection(firestore, 'goals'), goalWithUser);
-    dispatch({ type: 'ADD_GOAL', payload: { id: docRef.id, ...goalWithUser } });
+  useEffect(() => {
+    if (!user || state.goals.length === 0) {
+      dispatch({ type: 'SET_TASKS', payload: [] });
+      return;
+    };
+    
+    const fetchAllTasks = async () => {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        try {
+            const allTasks: Task[] = [];
+            for (const goal of state.goals) {
+                const tasksQuery = query(collection(firestore, 'users', user.uid, 'goals', goal.id, 'tasks'));
+                const tasksSnapshot = await getDocs(tasksQuery);
+                const tasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), goalId: goal.id, userId: user.uid } as Task));
+                allTasks.push(...tasks);
+            }
+            dispatch({ type: 'SET_TASKS', payload: allTasks });
+        } catch (error) {
+            dispatch({ type: 'SET_ERROR', payload: error as Error });
+        } finally {
+            dispatch({ type: 'SET_LOADING', payload: false });
+        }
+    }
+    
+    if(state.goals.length > 0 && user) {
+        fetchAllTasks();
+    }
+  }, [state.goals, user, firestore]);
+
+
+  const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>) => {
+    if (!user || !firestore) return;
+    const { userId, ...goalData } = { ...newGoalData, userId: user.uid };
+    const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
+    const finalGoal = { ...goalData, id: goalRef.id };
+    addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'goals'), finalGoal);
+    dispatch({ type: 'ADD_GOAL', payload: {...finalGoal, userId: user.uid} });
   };
 
-  const editGoal = async (updatedGoal: Omit<Goal, 'userId'>) => {
-    if (!user) return;
-    const goalRef = doc(firestore, 'goals', updatedGoal.id);
-    updateDocumentNonBlocking(goalRef, updatedGoal);
-    dispatch({ type: 'EDIT_GOAL', payload: { ...updatedGoal, userId: user.uid } });
+  const editGoal = async (updatedGoalData: Omit<Goal, 'userId'>) => {
+    if (!user || !firestore) return;
+    const { id, userId, ...goalData } = { ...updatedGoalData, userId: user.uid };
+    const goalRef = doc(firestore, 'users', user.uid, 'goals', id);
+    updateDocumentNonBlocking(goalRef, goalData);
+    dispatch({ type: 'EDIT_GOAL', payload: { ...updatedGoalData, userId: user.uid } });
   };
 
   const deleteGoal = async (goalId: string) => {
-    if (!user) return;
-    const goalRef = doc(firestore, 'goals', goalId);
+    if (!user || !firestore) return;
+
+    // First delete sub-tasks in a batch
+    const tasksQuery = query(collection(firestore, 'users', user.uid, 'goals', goalId, 'tasks'));
+    const tasksSnapshot = await getDocs(tasksQuery);
+    const batch = writeBatch(firestore);
+    tasksSnapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+    
+    // Then delete the goal
+    const goalRef = doc(firestore, 'users', user.uid, 'goals', goalId);
     deleteDocumentNonBlocking(goalRef);
-    // You might want to delete sub-tasks in a batch or using a cloud function
+
     dispatch({ type: 'DELETE_GOAL', payload: goalId });
   };
 
@@ -157,8 +188,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     deadline?: Date,
     duration?: number
   ) => {
-    if (!user) return;
-    const newTask: Omit<Task, 'id'> = {
+    if (!user || !firestore) return;
+    const taskRef = doc(collection(firestore, 'users', user.uid, 'goals', goalId, 'tasks'));
+    const newTask: Omit<Task, 'id'| 'userId'> = {
       goalId,
       title,
       completed: false,
@@ -166,37 +198,37 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       deadline: deadline?.toISOString(),
       recurrence,
       duration,
-      userId: user.uid
     };
-    const docRef = await addDocumentNonBlocking(collection(firestore, 'tasks'), newTask);
-    dispatch({ type: 'ADD_TASK', payload: { id: docRef.id, ...newTask } });
+    addDocumentNonBlocking(taskRef, newTask);
+    dispatch({ type: 'ADD_TASK', payload: { id: taskRef.id, ...newTask, userId: user.uid } });
   };
 
-  const editTask = async (updatedTask: Task) => {
-    if (!user) return;
-    const taskRef = doc(firestore, 'tasks', updatedTask.id);
-    updateDocumentNonBlocking(taskRef, updatedTask);
-    dispatch({ type: 'EDIT_TASK', payload: updatedTask });
+  const editTask = async (updatedTaskData: Omit<Task, 'userId'>) => {
+    if (!user || !firestore) return;
+    const { id, goalId, userId, ...taskData } = { ...updatedTaskData, userId: user.uid };
+    const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', id);
+    updateDocumentNonBlocking(taskRef, taskData);
+    dispatch({ type: 'EDIT_TASK', payload: { ...updatedTaskData, userId: user.uid } });
   };
 
-  const deleteTask = async (taskId: string) => {
-    if (!user) return;
-    const taskRef = doc(firestore, 'tasks', taskId);
+  const deleteTask = async (taskId: string, goalId: string) => {
+    if (!user || !firestore) return;
+    const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', taskId);
     deleteDocumentNonBlocking(taskRef);
     dispatch({ type: 'DELETE_TASK', payload: taskId });
   };
 
-  const toggleTask = async (taskId: string) => {
-    if (!user) return;
-    const task = state.tasks.find(t => t.id === taskId);
-    if (!task) return;
-    const taskRef = doc(firestore, 'tasks', taskId);
+  const toggleTask = async (task: Task) => {
+    if (!user || !firestore) return;
+    const taskRef = doc(firestore, 'users', user.uid, 'goals', task.goalId, 'tasks', task.id);
     const newCompletedStatus = !task.completed;
     updateDocumentNonBlocking(taskRef, { completed: newCompletedStatus });
     dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
 
-  if (state.loading) {
+  const isLoading = state.loading || (user && !goalsData);
+
+  if (isLoading) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
@@ -209,6 +241,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
 
   const value: GoalContextType = {
     ...state,
+    loading: isLoading,
     addGoal,
     editGoal,
     deleteGoal,
@@ -232,3 +265,5 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
+
+    

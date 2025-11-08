@@ -56,7 +56,7 @@ export function TaskItem({ task }: { task: Task }) {
           <Checkbox
             id={`task-${task.id}`}
             checked={task.completed}
-            onCheckedChange={() => toggleTask(task.id)}
+            onCheckedChange={() => toggleTask(task)}
             aria-label={`Marcar tarefa ${task.title} como ${task.completed ? 'incompleta' : 'completa'}`}
           />
            <div className="flex items-center gap-2">
@@ -163,10 +163,12 @@ export function TaskItem({ task }: { task: Task }) {
       <DeleteConfirmationDialog
         open={deleteTaskOpen}
         onOpenChange={setDeleteTaskOpen}
-        onConfirm={() => deleteTask(task.id)}
+        onConfirm={() => deleteTask(task.id, task.goalId)}
         title="Deletar Tarefa"
         description={`Você tem certeza que quer deletar a tarefa "${task.title}"? Esta ação não pode ser desfeita.`}
       />
     </>
   );
 }
+
+    
