@@ -25,8 +25,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/calendar.events');
-    provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
+    // TODO: Re-add calendar scopes after configuring test users in GCP OAuth Consent Screen
+    // provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    // provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
     
     try {
       const result = await signInWithPopup(auth, provider);
