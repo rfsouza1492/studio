@@ -5,7 +5,7 @@ import { useGoals } from '@/context/GoalContext';
 import { TaskItem } from '@/components/tasks/TaskItem';
 import { Header } from '@/components/layout/Header';
 import { ListTodo } from 'lucide-react';
-import { isToday, isPast, startOfToday } from 'date-fns';
+import { isToday, isPast, startOfToday, addDays } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -17,15 +17,14 @@ export default function TodayPage() {
 
   const handleRecurringTasks = useCallback(() => {
     const today = startOfToday();
-    const tasksToUpdate: Task[] = [];
-    const tasksToAdd: Parameters<typeof addTask>[] = [];
-
+    
     tasks.forEach(task => {
+        // Only process tasks with a daily recurrence and a past deadline
         if (task.recurrence === 'Daily' && task.deadline && isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline))) {
            
-            const newDeadline = new Date(task.deadline);
-            newDeadline.setFullYear(today.getFullYear(), today.getMonth(), today.getDate());
-
+            const newDeadline = addDays(new Date(task.deadline), 1);
+            
+            // Check if a task with the same title already exists for the newly calculated day
             const taskAlreadyExistsForToday = tasks.some(t => 
                 t.title === task.title && 
                 t.deadline && 
@@ -33,37 +32,35 @@ export default function TodayPage() {
             );
 
             if (!taskAlreadyExistsForToday) {
-                tasksToAdd.push([
+                // Create a new task for today
+                 addTask(
                     task.goalId,
                     task.title,
                     task.priority,
-                    task.recurrence,
+                    task.recurrence, // Keep it recurring
                     newDeadline,
                     task.duration,
                     false
-                ]);
-            }
-            
-            if (task.recurrence !== 'None') {
-              tasksToUpdate.push({ ...task, recurrence: 'None' });
+                );
             }
         }
     });
 
-    if (tasksToUpdate.length > 0 || tasksToAdd.length > 0) {
-        tasksToUpdate.forEach(editTask);
-        tasksToAdd.forEach(args => addTask(...args));
-    }
-  }, [tasks, addTask, editTask]);
+  }, [tasks, addTask]);
 
   useEffect(() => {
+    // This effect runs once on mount to check for and create recurring tasks.
+    // It is not perfect, as it depends on the user visiting this page, but it's a simple implementation.
     handleRecurringTasks();
-  }, [handleRecurringTasks]);
+  }, []); // Empty dependency array means it runs once on mount.
 
   const todayTasks = useMemo(() => {
     return tasks
         .filter(task => task.deadline && isToday(new Date(task.deadline)))
-        .sort((a,b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime());
+        .sort((a,b) => {
+            if (!a.deadline || !b.deadline) return 0;
+            return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+        });
   }, [tasks]);
 
   return (
@@ -112,3 +109,5 @@ export default function TodayPage() {
     </div>
   );
 }
+
+    

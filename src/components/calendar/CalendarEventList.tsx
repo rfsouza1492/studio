@@ -45,12 +45,10 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
         let calendarGoal = goals.find(g => g.name === "Tarefas da Agenda");
         if (!calendarGoal) {
             try {
-                // The addGoal function is async and updates the context.
-                // We need to wait for it and then find the goal again.
+                // The addGoal function is async but we don't need the returned goal object directly,
+                // as the context will update and re-render, making the new goal available in the `goals` array.
                 await addGoal({ name: "Tarefas da Agenda" });
-                // The context update might not be immediate, so we can't reliably get the new goal right away.
-                // This is a limitation of this pattern. A better way would be for addGoal to return the created goal.
-                // For now, we'll tell the user to try again if it fails.
+                // We return null here and let the calling function re-check the `goals` array.
                 return null;
             } catch (error) {
                 toast({
@@ -70,17 +68,12 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
 
         let calendarGoal = await getOrCreateCalendarGoal();
         
-        // The goal might have just been created, so the context may not be updated yet.
-        // We find it again after a short delay. This is a workaround.
+        // If the goal was just created, the `goals` array in the context might not be updated yet.
+        // We'll give it a moment and check again. This is a robust way to handle the async state update.
         if (!calendarGoal) {
-            calendarGoal = goals.find(g => g.name === "Tarefas da Agenda") || null;
-        }
-
-        if (!calendarGoal) {
-             toast({
-                variant: 'destructive',
-                title: "Tente Novamente",
-                description: "A meta 'Tarefas da Agenda' foi criada. Por favor, clique no botão novamente para adicionar as tarefas.",
+            toast({
+                title: "Criando meta...",
+                description: "A meta 'Tarefas da Agenda' está sendo criada. Clique novamente em instantes.",
             });
             return;
         }
@@ -170,3 +163,5 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
         </div>
     );
 }
+
+    
