@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useReducer, ReactNode, useCallback } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
-import { collection, doc, query, writeBatch, collectionGroup } from 'firebase/firestore';
+import { collection, doc, query, writeBatch, collectionGroup, getDocs } from 'firebase/firestore';
 import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase, useCollection } from '@/firebase';
 import { Target } from 'lucide-react';
 
@@ -101,7 +101,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const goalsCollectionRef = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'goals') : null, [user, firestore]);
   const { data: goalsData, isLoading: goalsLoading, error: goalsError } = useCollection<Goal>(goalsCollectionRef);
 
-  const tasksCollectionGroupRef = useMemoFirebase(() => user ? query(collectionGroup(firestore, 'tasks')) : null, [user, firestore]);
+  const tasksCollectionGroupRef = useMemoFirebase(() => (user && user.uid) ? query(collectionGroup(firestore, 'tasks')) : null, [user, firestore]);
   const { data: tasksData, isLoading: tasksLoading, error: tasksError } = useCollection<Task>(tasksCollectionGroupRef);
 
   useEffect(() => {
@@ -262,5 +262,3 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
-
-    
