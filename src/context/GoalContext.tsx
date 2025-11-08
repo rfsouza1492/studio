@@ -3,8 +3,8 @@
 
 import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
-import { collection, doc, query, writeBatch, getDocs, where, collectionGroup } from 'firebase/firestore';
-import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase, useCollection } from '@/firebase';
+import { collection, doc, query, writeBatch, getDocs, where, collectionGroup, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { Target } from 'lucide-react';
 
 interface State {
@@ -97,46 +97,55 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [state, dispatch] = useReducer(goalReducer, initialState);
-
-  // Memoized query for goals
-  const goalsCollectionRef = useMemoFirebase(
-    () => (user ? collection(firestore, 'users', user.uid, 'goals') : null),
-    [user, firestore]
-  );
-  
-  // Memoized query for all tasks belonging to the user
-  const tasksCollectionGroupRef = useMemoFirebase(
-    () => (user ? query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid)) : null),
-    [user, firestore]
-  );
-
-  const { data: goalsData, isLoading: goalsLoading, error: goalsError } = useCollection<Goal>(goalsCollectionRef);
-  const { data: tasksData, isLoading: tasksLoading, error: tasksError } = useCollection<Task>(tasksCollectionGroupRef);
   
   useEffect(() => {
-    // We are loading if the user is loading OR if the data is loading
-    const isLoading = isUserLoading || goalsLoading || tasksLoading;
-    dispatch({ type: 'SET_LOADING', payload: isLoading });
-
-    // If user is done loading and is logged out, clear data
-    if (!isUserLoading && !user) {
-        dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] }});
-        return;
-    }
-    
-    // If we have an error from any query
-    const anyError = goalsError || tasksError;
-    if (anyError) {
-        dispatch({ type: 'SET_ERROR', payload: anyError as Error });
-        return;
-    }
-    
-    // If not loading and we have data, set it
-    if (!isLoading && user) {
-        dispatch({ type: 'SET_DATA', payload: { goals: goalsData || [], tasks: tasksData || [] } });
+    dispatch({ type: 'SET_LOADING', payload: isUserLoading });
+    if (isUserLoading) {
+        return; // Wait until user loading is complete
     }
 
-  }, [user, isUserLoading, goalsData, tasksData, goalsLoading, tasksLoading, goalsError, tasksError]);
+    if (!user) {
+        // User is logged out, clear data and stop listening
+        dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] } });
+        return;
+    }
+
+    // User is logged in, set up listeners
+    const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
+    const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
+    
+    const unsubscribers: Unsubscribe[] = [];
+
+    const goalsUnsub = onSnapshot(goalsQuery, 
+        (snapshot) => {
+            const goals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
+            dispatch({ type: 'SET_DATA', payload: { goals, tasks: state.tasks } });
+        }, 
+        (error) => {
+            console.error("Error fetching goals:", error);
+            dispatch({ type: 'SET_ERROR', payload: error });
+        }
+    );
+    unsubscribers.push(goalsUnsub);
+    
+    const tasksUnsub = onSnapshot(tasksQuery, 
+        (snapshot) => {
+            const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+            dispatch({ type: 'SET_DATA', payload: { goals: state.goals, tasks } });
+        },
+        (error) => {
+            console.error("Error fetching tasks:", error);
+            dispatch({ type: 'SET_ERROR', payload: error });
+        }
+    );
+    unsubscribers.push(tasksUnsub);
+
+    // Cleanup function to unsubscribe from all listeners
+    return () => {
+        unsubscribers.forEach(unsub => unsub());
+    };
+
+  }, [user, isUserLoading, firestore]);
   
 
   const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>) => {
@@ -260,5 +269,3 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
-
-    
