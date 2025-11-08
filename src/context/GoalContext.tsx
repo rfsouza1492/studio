@@ -102,20 +102,20 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(goalReducer, initialState);
   
   useEffect(() => {
-    // Don't do anything until we know for sure if a user is logged in or not.
+    // While authentication is loading, do nothing and show loading screen.
     if (isUserLoading) {
       dispatch({ type: 'SET_LOADING', payload: true });
       return;
     }
   
-    // If there is no user, clear the data and stop.
+    // If auth has loaded and there's no user, clear data and stop showing loading screen.
     if (!user) {
       dispatch({ type: 'CLEAR_DATA' });
       dispatch({ type: 'SET_LOADING', payload: false });
       return;
     }
   
-    // At this point, we have a valid, authenticated user.
+    // At this point, auth has loaded and we have a valid, authenticated user.
     // Set up Firestore listeners.
     dispatch({ type: 'SET_LOADING', payload: true });
   
@@ -128,6 +128,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     let tasksLoaded = false;
   
     const updateCombinedData = () => {
+      // Only dispatch the final data when both listeners have fired at least once.
       if (goalsLoaded && tasksLoaded) {
         dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
       }
