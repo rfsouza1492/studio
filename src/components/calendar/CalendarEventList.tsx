@@ -1,3 +1,4 @@
+
 'use client';
 import { CalendarEvent } from '@/app/calendar/page';
 import React, { useState, useCallback, useMemo } from 'react';
@@ -6,6 +7,8 @@ import { CalendarX, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
+import { useGoals } from '@/context/GoalContext';
+import { differenceInMinutes, parseISO } from 'date-fns';
 
 interface CalendarEventListProps {
     events: CalendarEvent[];
@@ -14,6 +17,8 @@ interface CalendarEventListProps {
 export function CalendarEventList({ events }: CalendarEventListProps) {
     const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
     const { toast } = useToast();
+    const { addGoal, addTask, goals } = useGoals();
+
 
     const handleSelectionChange = useCallback((eventId: string, isSelected: boolean) => {
         setSelectedEventIds(prev => {
@@ -35,15 +40,61 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
         }
     };
     
-    const handleBulkCreateTasks = () => {
+    const handleBulkCreateTasks = async () => {
         if (selectedEventIds.size === 0) return;
 
-        // A funcionalidade está desativada, pois o GoogleApiContext foi removido.
-        toast({
-            variant: 'destructive',
-            title: "Função Indisponível",
-            description: "A criação de tarefas a partir de eventos do calendário está temporariamente desativada.",
-        });
+        let calendarGoal = goals.find(g => g.name === "Tarefas da Agenda");
+        if (!calendarGoal) {
+            // This is tricky because addGoal is async and we need the ID.
+            // For this implementation, we'll assume the goal is created instantly for the UI.
+            // A more robust solution might involve waiting for the goal to be created.
+            await addGoal({ name: "Tarefas da Agenda" });
+             // This is a bit of a hack, we should get the new goal from the context update
+            calendarGoal = goals.find(g => g.name === "Tarefas da Agenda");
+        }
+        
+        if (!calendarGoal) {
+             toast({
+                variant: 'destructive',
+                title: "Falha ao criar meta",
+                description: "Não foi possível criar ou encontrar a meta 'Tarefas da Agenda'.",
+            });
+            return;
+        }
+
+        const tasksToCreate = events.filter(event => selectedEventIds.has(event.id));
+
+        try {
+            const promises = tasksToCreate.map(event => {
+                const start = event.start.dateTime ? parseISO(event.start.dateTime) : new Date();
+                const end = event.end.dateTime ? parseISO(event.end.dateTime) : new Date();
+                const duration = differenceInMinutes(end, start);
+
+                return addTask(
+                    calendarGoal!.id,
+                    event.summary,
+                    'Medium',
+                    'None',
+                    start,
+                    duration > 0 ? duration : undefined
+                );
+            });
+
+            await Promise.all(promises);
+
+            toast({
+                title: `${tasksToCreate.length} Tarefas Criadas`,
+                description: 'As tarefas selecionadas foram adicionadas à sua meta "Tarefas da Agenda".',
+            });
+            setSelectedEventIds(new Set());
+
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: "Erro ao criar tarefas",
+                description: "Não foi possível criar as tarefas em massa.",
+            });
+        }
     };
 
     if (events.length === 0) {

@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -7,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { CalendarDays, LogIn } from 'lucide-react';
 import { CalendarEventList } from '@/components/calendar/CalendarEventList';
 import { Skeleton } from '@/components/ui/skeleton';
+import { startOfToday, endOfToday } from 'date-fns';
 
-// Definindo o tipo de evento diretamente aqui, já que o contexto foi removido
 export interface CalendarEvent {
     id: string;
     summary: string;
@@ -22,45 +23,38 @@ export interface CalendarEvent {
     };
 }
 
-// Dados simulados para eventos do calendário
-const mockEvents: CalendarEvent[] = [
-    {
-        id: 'event-1',
-        summary: 'Reunião de Alinhamento Semanal',
-        start: { dateTime: new Date(new Date().setHours(10, 0, 0, 0)).toISOString() },
-        end: { dateTime: new Date(new Date().setHours(11, 0, 0, 0)).toISOString() },
-    },
-    {
-        id: 'event-2',
-        summary: 'Apresentação do Projeto',
-        start: { dateTime: new Date(new Date().setHours(14, 0, 0, 0)).toISOString() },
-        end: { dateTime: new Date(new Date().setHours(15, 30, 0, 0)).toISOString() },
-    },
-    {
-        id: 'event-3',
-        summary: 'Consulta Médica',
-        start: { dateTime: new Date(new Date().setHours(17, 0, 0, 0)).toISOString() },
-        end: { dateTime: new Date(new Date().setHours(17, 45, 0, 0)).toISOString() },
+async function getCalendarEvents(accessToken: string): Promise<CalendarEvent[]> {
+    const timeMin = startOfToday().toISOString();
+    const timeMax = endOfToday().toISOString();
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+        },
+    });
+    if (!response.ok) {
+        console.error('Failed to fetch calendar events', response);
+        return [];
     }
-];
+    const data = await response.json();
+    return data.items || [];
+}
 
 export default function CalendarPage() {
-    const { user, signInWithGoogle } = useAuth();
+    const { user, signInWithGoogle, googleApiToken } = useAuth();
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (user) {
+        if (user && googleApiToken) {
             setLoading(true);
-            // Simula uma chamada de API para buscar os eventos
-            setTimeout(() => {
-                setEvents(mockEvents);
-                setLoading(false);
-            }, 500);
+            getCalendarEvents(googleApiToken)
+                .then(setEvents)
+                .catch(console.error)
+                .finally(() => setLoading(false));
         } else {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, googleApiToken]);
 
     return (
         <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">

@@ -1,13 +1,15 @@
+
 'use client';
 
 import { CalendarEvent } from "@/app/calendar/page";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, differenceInMinutes, parseISO } from "date-fns";
 import { PlusCircle } from "lucide-react";
 import React from "react";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "@/lib/utils";
+import { useGoals } from "@/context/GoalContext";
 
 interface CalendarEventItemProps {
     event: CalendarEvent;
@@ -17,6 +19,8 @@ interface CalendarEventItemProps {
 
 export function CalendarEventItem({ event, isSelected, onSelectionChange }: CalendarEventItemProps) {
     const { toast } = useToast();
+    const { addTask } = useGoals();
+    const { goals } = useGoals(); // To find a goal to add the task to
 
     const getEventTime = (event: CalendarEvent): string => {
         if (event.start.dateTime) {
@@ -34,13 +38,35 @@ export function CalendarEventItem({ event, isSelected, onSelectionChange }: Cale
         return "Horário não especificado";
     };
 
-    const handleCreateTask = () => {
-        // A funcionalidade está desativada, pois o GoogleApiContext foi removido.
-        toast({
-            variant: 'destructive',
-            title: "Função Indisponível",
-            description: "A criação de tarefas a partir de eventos do calendário está temporariamente desativada.",
-        });
+    const handleCreateTask = async () => {
+        let calendarGoal = goals.find(g => g.name === "Tarefas da Agenda");
+
+        const start = event.start.dateTime ? parseISO(event.start.dateTime) : new Date();
+        const end = event.end.dateTime ? parseISO(event.end.dateTime) : new Date();
+        const duration = differenceInMinutes(end, start);
+        
+        try {
+            await addTask(
+                calendarGoal!.id,
+                event.summary,
+                'Medium',
+                'None',
+                start,
+                duration > 0 ? duration : undefined
+            );
+
+             toast({
+                title: "Tarefa Criada",
+                description: `A tarefa "${event.summary}" foi criada a partir do evento da agenda.`,
+            });
+
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: "Função Indisponível",
+                description: "Não foi possível criar a tarefa a partir do evento.",
+            });
+        }
     };
 
     const handleCheckboxChange = (checked: boolean | 'indeterminate') => {

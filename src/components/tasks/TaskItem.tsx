@@ -11,8 +11,9 @@ import { cn, getDeadlineStatus } from '@/lib/utils';
 import { AddOrEditTaskDialog } from '../dialogs/AddOrEditTaskDialog';
 import { DeleteConfirmationDialog } from '../dialogs/DeleteConfirmationDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { format } from 'date-fns';
+import { format, addMinutes } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 const priorityConfig = {
   High: { icon: ChevronsUp, color: 'text-red-500' },
@@ -33,6 +34,8 @@ export function TaskItem({ task }: { task: Task }) {
   const { toast } = useToast();
   const [editTaskOpen, setEditTaskOpen] = React.useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = React.useState(false);
+  const { googleApiToken } = useAuth();
+
 
   const PriorityIcon = priorityConfig[task.priority]?.icon || ChevronDown;
   const priorityColor = priorityConfig[task.priority]?.color || 'text-muted-foreground';
@@ -40,13 +43,64 @@ export function TaskItem({ task }: { task: Task }) {
   const deadlineStatus = getDeadlineStatus(task.deadline);
   const DeadlineIcon = deadlineIcons[deadlineStatus.icon];
 
-  const handleCreateEvent = () => {
-    // This functionality is temporarily disabled as it depends on the removed GoogleApiContext.
-    toast({
-        variant: "destructive",
-        title: 'Funcionalidade Indisponível',
-        description: `A criação de eventos no Google Calendar está temporariamente desativada.`,
-    });
+  const handleCreateEvent = async () => {
+    if (!googleApiToken) {
+        toast({
+            variant: "destructive",
+            title: 'Autenticação Necessária',
+            description: `Você precisa estar conectado com o Google para criar eventos.`,
+        });
+        return;
+    }
+    if (!task.deadline || !task.duration) {
+         toast({
+            variant: "destructive",
+            title: 'Dados Incompletos',
+            description: `A tarefa precisa de uma data e duração para ser adicionada à agenda.`,
+        });
+        return;
+    }
+
+    const event = {
+        'summary': task.title,
+        'description': `Tarefa do GoalFlow: ${task.title}`,
+        'start': {
+            'dateTime': new Date(task.deadline).toISOString(),
+            'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+        'end': {
+            'dateTime': addMinutes(new Date(task.deadline), task.duration).toISOString(),
+            'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+    };
+
+    try {
+        const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${googleApiToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(event),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Google Calendar API error: ${response.statusText}`);
+        }
+        
+        await response.json();
+        toast({
+            title: 'Evento Criado!',
+            description: `A tarefa "${task.title}" foi adicionada ao seu Google Calendar.`,
+        });
+    } catch(error) {
+        console.error("Failed to create calendar event:", error);
+         toast({
+            variant: "destructive",
+            title: 'Falha ao criar evento',
+            description: error instanceof Error ? error.message : `Não foi possível adicionar o evento ao Google Calendar.`,
+        });
+    }
   };
 
   return (
@@ -170,5 +224,3 @@ export function TaskItem({ task }: { task: Task }) {
     </>
   );
 }
-
-    

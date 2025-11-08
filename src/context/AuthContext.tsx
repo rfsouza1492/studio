@@ -1,22 +1,18 @@
+
 "use client";
 
-import React, { createContext, useContext, ReactNode } from 'react';
-import { GoogleAuthProvider } from 'firebase/auth';
+import React, { createContext, useContext, ReactNode, useState } from 'react';
+import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo } from 'firebase/auth';
 import { useUser, useFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
-import {
-  initiateEmailSignIn,
-  initiateEmailSignUp,
-  initiateAnonymousSignIn,
-} from '@/firebase';
-import { signInWithPopup } from 'firebase/auth';
 
 interface AuthContextType {
   user: any | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  googleApiToken: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,11 +21,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const { auth } = useFirebase();
   const router = useRouter();
+  const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
+    
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential) {
+        setGoogleApiToken(credential.accessToken || null);
+      }
       router.push('/');
     } catch (error) {
       console.error("Error signing in with Google:", error);
@@ -39,13 +43,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       await auth.signOut();
+      setGoogleApiToken(null);
       router.push('/login');
     } catch (error) {
       console.error("Error signing out:", error);
     }
   };
 
-  const value = { user, loading: isUserLoading, signInWithGoogle, signOut };
+  const value = { user, loading: isUserLoading, signInWithGoogle, signOut, googleApiToken };
 
   if (isUserLoading) {
     return (
