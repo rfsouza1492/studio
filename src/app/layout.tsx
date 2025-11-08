@@ -4,6 +4,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { GoalProvider } from '@/context/GoalContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { FirebaseClientProvider } from '@/firebase';
+import PrivateRoute from '@/components/auth/PrivateRoute';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 export const metadata: Metadata = {
   title: 'GoalFlow',
@@ -29,8 +31,11 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AuthProvider>
             <GoalProvider>
-              {children}
+                <PrivateRoute>
+                    {children}
+                </PrivateRoute>
               <Toaster />
+              <FirebaseErrorListener />
             </GoalProvider>
           </AuthProvider>
         </FirebaseClientProvider>

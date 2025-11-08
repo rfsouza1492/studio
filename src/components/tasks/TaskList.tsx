@@ -49,7 +49,7 @@ export function TaskList({ goalId }: { goalId: string }) {
 
   if (goalTasks.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border-2 border-dashed border-primary/10 p-4 text-center">
+      <div className="flex h-full min-h-[48px] items-center justify-center rounded-lg border-2 border-dashed border-primary/10 p-4 text-center">
         <p className="text-sm text-muted-foreground">Adicione uma tarefa para começar.</p>
       </div>
     );

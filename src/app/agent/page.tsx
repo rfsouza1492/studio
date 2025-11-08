@@ -111,7 +111,7 @@ export default function AgentPage() {
                                      Converse com Flow
                                 </h2>
                                 <p className="mt-2 text-base sm:text-lg text-muted-foreground">
-                                    Faça uma pergunta sobre suas metas, tarefas ou produtividade.
+                                    Funcionalidade desabilitada no momento.
                                 </p>
                             </div>
                          )}
@@ -167,10 +167,10 @@ export default function AgentPage() {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Faça uma pergunta..."
-                            disabled={isLoading}
+                            disabled
                         />
                         
-                        <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+                        <Button type="submit" size="icon" disabled>
                             <Send />
                         </Button>
                     </form>

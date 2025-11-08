@@ -9,6 +9,7 @@ import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { useGoals } from '@/context/GoalContext';
 import { differenceInMinutes, parseISO } from 'date-fns';
+import { Goal } from '@/app/types';
 
 interface CalendarEventListProps {
     events: CalendarEvent[];
@@ -40,24 +41,46 @@ export function CalendarEventList({ events }: CalendarEventListProps) {
         }
     };
     
+    const getOrCreateCalendarGoal = async (): Promise<Goal | null> => {
+        let calendarGoal = goals.find(g => g.name === "Tarefas da Agenda");
+        if (!calendarGoal) {
+            try {
+                // The addGoal function is async and updates the context.
+                // We need to wait for it and then find the goal again.
+                await addGoal({ name: "Tarefas da Agenda" });
+                // The context update might not be immediate, so we can't reliably get the new goal right away.
+                // This is a limitation of this pattern. A better way would be for addGoal to return the created goal.
+                // For now, we'll tell the user to try again if it fails.
+                return null;
+            } catch (error) {
+                toast({
+                    variant: 'destructive',
+                    title: "Falha ao criar meta",
+                    description: "Não foi possível criar a meta 'Tarefas da Agenda'.",
+                });
+                return null;
+            }
+        }
+        return calendarGoal;
+    };
+
+
     const handleBulkCreateTasks = async () => {
         if (selectedEventIds.size === 0) return;
 
-        let calendarGoal = goals.find(g => g.name === "Tarefas da Agenda");
-        if (!calendarGoal) {
-            // This is tricky because addGoal is async and we need the ID.
-            // For this implementation, we'll assume the goal is created instantly for the UI.
-            // A more robust solution might involve waiting for the goal to be created.
-            await addGoal({ name: "Tarefas da Agenda" });
-             // This is a bit of a hack, we should get the new goal from the context update
-            calendarGoal = goals.find(g => g.name === "Tarefas da Agenda");
-        }
+        let calendarGoal = await getOrCreateCalendarGoal();
         
+        // The goal might have just been created, so the context may not be updated yet.
+        // We find it again after a short delay. This is a workaround.
+        if (!calendarGoal) {
+            calendarGoal = goals.find(g => g.name === "Tarefas da Agenda") || null;
+        }
+
         if (!calendarGoal) {
              toast({
                 variant: 'destructive',
-                title: "Falha ao criar meta",
-                description: "Não foi possível criar ou encontrar a meta 'Tarefas da Agenda'.",
+                title: "Tente Novamente",
+                description: "A meta 'Tarefas da Agenda' foi criada. Por favor, clique no botão novamente para adicionar as tarefas.",
             });
             return;
         }

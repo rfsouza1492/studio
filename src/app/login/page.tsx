@@ -13,7 +13,7 @@ const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/');
+      router.replace('/');
     }
   }, [user, loading, router]);
   
