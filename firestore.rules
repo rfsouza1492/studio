@@ -1,11 +1,97 @@
+/**
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for goals and tasks.
+ *
+ * Data Structure:
+ * All data is nested under /users/{userId}, with goals under /users/{userId}/goals/{goalId} and tasks under /users/{userId}/goals/{goalId}/tasks/{taskId}.
+ * This path-based ownership ensures that only the authenticated user can access their own goals and tasks.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own goals and tasks. Listing other users' goals or tasks is disallowed.
+ * - Data validation is limited to authorization-critical fields (e.g., userId consistency) and relational integrity (e.g., goalId in tasks).
+ * - Timestamps are not validated.
+ *
+ * Denormalization for Authorization:
+ *  The data structure itself denormalizes the user's ownership, eliminating the need for `get()` calls to check ownership.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // Allow all reads and writes for development purposes.
-      // WARNING: This is insecure for a production environment.
-      allow read, write: if true;
+
+    /**
+     * @description Enforces user-ownership for goal documents.
+     * @path /users/{userId}/goals/{goalId}
+     * @allow (create) - User A can create a goal with goal.id = 'goal_abc' under /users/user_a/goals/goal_abc.
+     * @allow (get, list, update, delete) - User A can get, list, update, or delete a goal under /users/user_a/goals/goal_abc.
+     * @deny (create) - User A cannot create a goal under /users/user_b/goals/goal_abc.
+     * @deny (get, list, update, delete) - User A cannot get, list, update, or delete a goal under /users/user_b/goals/goal_abc.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/goals/{goalId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isSignedIn() && isOwner(userId) && resource != null;
+      }
+
+      // Allow a user to read their own goal
+      allow get: if isOwner(userId);
+
+      // Allow a user to list their own goals
+      allow list: if isOwner(userId);
+
+      // Allow a user to create a new goal with the correct user ID
+      allow create: if isSignedIn() && request.resource.data.id == goalId;
+
+      // Allow a user to update their own existing goal, ensuring the user ID remains consistent
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+
+      // Allow a user to delete their own existing goal
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Enforces user-ownership for task documents nested under goal documents.
+     * @path /users/{userId}/goals/{goalId}/tasks/{taskId}
+     * @allow (create) - User A can create a task with task.goalId = 'goal_abc' under /users/user_a/goals/goal_abc/tasks/task_xyz.
+     * @allow (get, list, update, delete) - User A can get, list, update, or delete a task under /users/user_a/goals/goal_abc/tasks/task_xyz.
+     * @deny (create) - User A cannot create a task under /users/user_b/goals/goal_abc/tasks/task_xyz.
+     * @deny (get, list, update, delete) - User A cannot get, list, update, or delete a task under /users/user_b/goals/goal_abc/tasks/task_xyz.
+     * @principle Enforces document ownership for all operations within a nested data structure.
+     */
+    match /users/{userId}/goals/{goalId}/tasks/{taskId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isSignedIn() && isOwner(userId) && resource != null;
+      }
+
+      // Allow a user to read their own task
+      allow get: if isOwner(userId);
+
+      // Allow a user to list their own tasks
+      allow list: if isOwner(userId);
+
+      // Allow a user to create a new task with the correct user ID and goal ID
+      allow create: if isSignedIn() && request.resource.data.goalId == goalId;
+
+      // Allow a user to update their own existing task, ensuring the goal ID remains consistent
+      allow update: if isExistingOwner(userId) && request.resource.data.goalId == goalId;
+
+      // Allow a user to delete their own existing task
+      allow delete: if isExistingOwner(userId);
     }
   }
 }

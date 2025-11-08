@@ -1,0 +1,129 @@
+{
+  "entities": {
+    "Goal": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Goal",
+      "type": "object",
+      "description": "Represents a user-defined goal or objective.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Goal entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the goal."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the goal was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the goal was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Task": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Task",
+      "type": "object",
+      "description": "Represents a task associated with a specific goal.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Task entity."
+        },
+        "goalId": {
+          "type": "string",
+          "description": "Reference to Goal. (Relationship: Goal 1:N Task)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the task."
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Indicates whether the task is completed or not."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the task was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the task was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "goalId",
+        "title",
+        "completed"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}/goals/{goalId}",
+        "definition": {
+          "entityName": "Goal",
+          "schema": {
+            "$ref": "#/backend/entities/Goal"
+          },
+          "description": "Stores Goal entities owned by a specific user. Path-based ownership ensures that only the user can access these goals.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "goalId",
+              "description": "The unique identifier of the goal."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/goals/{goalId}/tasks/{taskId}",
+        "definition": {
+          "entityName": "Task",
+          "schema": {
+            "$ref": "#/backend/entities/Task"
+          },
+          "description": "Stores Task entities associated with a specific goal, owned by a specific user. Path-based ownership ensures that only the user can access these tasks.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "goalId",
+              "description": "The unique identifier of the goal."
+            },
+            {
+              "name": "taskId",
+              "description": "The unique identifier of the task."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "This design prioritizes Authorization Independence using path-based ownership. All Goal and Task data for a user are stored under their respective user ID, eliminating the need for `get()` calls in security rules. This ensures atomic operations and simplifies security rule logic.  It follows the hierarchical path structure `/users/{userId}/goals/{goalId}/tasks/{taskId}` to represent the `User 1:N Goal 1:N Task` relationship. This structure inherently supports secure `list` operations (QAPs) as access is always scoped to the user's own data. Segregation ensures that all documents within a given collection (e.g., `/users/{userId}/goals`) share the same access requirements.  Timestamps (`createdAt`, `updatedAt`) ensure data integrity."
+  }
+}
