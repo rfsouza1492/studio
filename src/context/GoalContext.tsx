@@ -102,68 +102,67 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(goalReducer, initialState);
   
   useEffect(() => {
-    // While authentication is loading, we show a loading state and do nothing.
+    // Don't do anything until we know for sure if a user is logged in or not.
     if (isUserLoading) {
-        dispatch({ type: 'SET_LOADING', payload: true });
-        return;
+      dispatch({ type: 'SET_LOADING', payload: true });
+      return;
     }
-
-    // If there is no user, we clear any existing data and stop.
-    // This happens on logout or if the user is not authenticated.
+  
+    // If there is no user, clear the data and stop.
     if (!user) {
-        dispatch({ type: 'CLEAR_DATA' });
-        dispatch({ type: 'SET_LOADING', payload: false });
-        return;
+      dispatch({ type: 'CLEAR_DATA' });
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return;
     }
-
+  
     // At this point, we have a valid, authenticated user.
     // Set up Firestore listeners.
     dispatch({ type: 'SET_LOADING', payload: true });
-
+  
     const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
     const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
-    
+  
     let goalsData: Goal[] = [];
     let tasksData: Task[] = [];
     let goalsLoaded = false;
     let tasksLoaded = false;
-
+  
     const updateCombinedData = () => {
-        if (goalsLoaded && tasksLoaded) {
-            dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
-        }
-    }
-
-    const goalsUnsub = onSnapshot(goalsQuery, 
-        (snapshot) => {
-            goalsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
-            goalsLoaded = true;
-            updateCombinedData();
-        }, 
-        (error) => {
-            console.error("Error fetching goals:", error);
-            dispatch({ type: 'SET_ERROR', payload: error });
-        }
+      if (goalsLoaded && tasksLoaded) {
+        dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
+      }
+    };
+  
+    const goalsUnsub: Unsubscribe = onSnapshot(goalsQuery, 
+      (snapshot) => {
+        goalsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
+        goalsLoaded = true;
+        updateCombinedData();
+      }, 
+      (error) => {
+        console.error("Error fetching goals:", error);
+        dispatch({ type: 'SET_ERROR', payload: error });
+      }
     );
-    
-    const tasksUnsub = onSnapshot(tasksQuery, 
-        (snapshot) => {
-            tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
-            tasksLoaded = true;
-            updateCombinedData();
-        },
-        (error) => {
-            console.error("Error fetching tasks:", error);
-            dispatch({ type: 'SET_ERROR', payload: error });
-        }
+  
+    const tasksUnsub: Unsubscribe = onSnapshot(tasksQuery, 
+      (snapshot) => {
+        tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+        tasksLoaded = true;
+        updateCombinedData();
+      },
+      (error) => {
+        console.error("Error fetching tasks:", error);
+        dispatch({ type: 'SET_ERROR', payload: error });
+      }
     );
-
+  
     // Cleanup function to unsubscribe when the component unmounts or the user changes.
     return () => {
-        goalsUnsub();
-        tasksUnsub();
+      goalsUnsub();
+      tasksUnsub();
     };
-
+  
   }, [user, isUserLoading, firestore]);
   
 
@@ -288,6 +287,5 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
-
 
     
