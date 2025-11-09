@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo, UserCredential } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, UserCredential } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
@@ -27,6 +27,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    // CORREÇÃO: Especifica o authDomain para garantir que o redirecionamento
+    // seja tratado pelo domínio de autenticação correto do Firebase.
+    provider.setCustomParameters({
+      'authDomain': 'magnetai-4h4a8.firebaseapp.com'
+    });
     
     try {
       const result: UserCredential = await signInWithPopup(auth, provider);
@@ -38,7 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // ou pela lógica na página de login, não precisa forçar aqui.
     } catch (error: any) {
       // Don't log an error if the user simply closes the popup.
-      if (error.code === 'auth/popup-closed-by-user') {
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
         return;
       }
       console.error("Error signing in with Google:", error);
