@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ListTodo, Target, Home, User, LogIn, CalendarDays, BrainCircuit, LayoutDashboard, Menu, Plug, Mic, LogOut } from 'lucide-react';
+import { Plus, ListTodo, Target, Home, LogIn, LayoutDashboard, Menu, LogOut } from 'lucide-react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -31,10 +31,6 @@ export function Header() {
     { href: '/', label: 'Metas', icon: Home },
     { href: '/today', label: "Checklist de Hoje", icon: ListTodo },
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/foco', label: 'Foco', icon: BrainCircuit },
-    { href: '/calendar', label: 'Agenda', icon: CalendarDays },
-    { href: '/agent', label: 'Agente IA', icon: Mic },
-    { href: '/integrations', label: 'Integrações', icon: Plug },
   ];
 
   const Logo = () => (

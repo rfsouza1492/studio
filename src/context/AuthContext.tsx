@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithPopup } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
@@ -23,36 +23,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
 
-  useEffect(() => {
-    const handleRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.accessToken) {
-            setGoogleApiToken(credential.accessToken);
-          }
-        }
-      } catch (error) {
-        console.error("Error handling redirect result", error);
-      }
-    };
-    handleRedirect();
-  }, [auth]);
-
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    // Adiciona os escopos necessários para ler e criar eventos no Google Calendar.
-    provider.addScope('https://www.googleapis.com/auth/calendar.events');
-    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-    
-    // Especifica o authDomain para garantir que o redirecionamento
-    // seja tratado pelo domínio de autenticação correto do Firebase.
-    provider.setCustomParameters({
-      'authDomain': 'magnetai-4h4a8.firebaseapp.com'
-    });
-    
-    await signInWithRedirect(auth, provider);
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleApiToken(credential.accessToken);
+      }
+    } catch (error: any) {
+      // Silently handle the case where the user closes the popup
+      if (error.code !== 'auth/popup-closed-by-user') {
+        console.error("Error signing in with Google:", error);
+      }
+    }
   };
 
   const signOut = async () => {

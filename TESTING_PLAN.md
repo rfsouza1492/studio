@@ -1,15 +1,15 @@
-# Plano de Testes (QA) - GoalFlow
+# Plano de Testes (QA) - GoalFlow (MVP)
 
-Este documento descreve o plano de testes para garantir a qualidade e o funcionamento correto da aplicação GoalFlow.
+Este documento descreve o plano de testes para garantir a qualidade e o funcionamento correto da versão MVP da aplicação GoalFlow.
 
 ## 1. Escopo do Teste
 
-O teste abrange todas as funcionalidades da aplicação, incluindo a interface do usuário, lógica de negócios, integração com APIs externas (Google Calendar) e persistência de dados (Firestore).
+O teste abrange as funcionalidades essenciais do MVP, incluindo a interface do usuário, lógica de negócios e persistência de dados (Firestore).
 
 ## 2. Tipos de Teste
 
 -   **Testes Funcionais:** Validar se cada funcionalidade se comporta conforme o esperado.
--   **Testes de Integração:** Verificar a comunicação entre os componentes e serviços (ex: Frontend <-> Firestore, Frontend <-> Google API).
+-   **Testes de Integração:** Verificar a comunicação entre os componentes e serviços (Frontend <-> Firestore).
 -   **Testes de Usabilidade:** Avaliar a facilidade de uso e a experiência do usuário.
 -   **Testes de Responsividade:** Garantir que a aplicação funcione bem em diferentes tamanhos de tela (desktop, tablet, mobile).
 
@@ -23,7 +23,7 @@ O teste abrange todas as funcionalidades da aplicação, incluindo a interface d
 | :---------- | :------ | :------------------- | :----------------- |
 | **AUTH-01** | Login com Google (Sucesso) | 1. Na página de login, clicar em "Entrar com Google". 2. Na janela popup, selecionar uma conta Google válida e autorizar. | O usuário é redirecionado para a página principal (`/`). O nome e avatar do usuário aparecem no cabeçalho. |
 | **AUTH-02** | Login com Google (Falha/Cancelamento) | 1. Na página de login, clicar em "Entrar com Google". 2. Fechar a janela popup ou negar a autorização. | O usuário permanece na página de login. Nenhuma autenticação ocorre. |
-| **AUTH-03** | Logout | 1. Com o usuário logado, clicar no avatar no cabeçalho. 2. Selecionar a opção "Sair". | O usuário é deslogado e redirecionado para a página de login. |
+| **AUTH-03** | Logout | 1. Com o usuário logado, clicar no avatar no cabeçalho. 2. Selecionar la opción "Sair". | O usuário é deslogado e redirecionado para a página de login. |
 | **AUTH-04** | Acesso a Rota Protegida (Não Autenticado) | 1. Sem estar logado, tentar acessar diretamente uma URL como `/` ou `/dashboard`. | O usuário é redirecionado para a página `/login`. |
 | **AUTH-05** | Persistência da Sessão | 1. Fazer login. 2. Fechar a aba do navegador e reabri-la na URL do app. 3. Recarregar a página. | O usuário deve permanecer logado. |
 
@@ -52,22 +52,11 @@ O teste abrange todas as funcionalidades da aplicação, incluindo a interface d
 
 | ID do Teste | Cenário | Passos para Execução | Resultado Esperado |
 | :---------- | :------ | :------------------- | :----------------- |
-| **GAPI-01** | Conectar conta Google | 1. Na página Agenda, clicar em "Conectar com o Google". 2. Autorizar o acesso à agenda. | A página exibe os eventos da agenda do Google para o dia atual. |
-| **GAPI-02** | Visualizar eventos | 1. Acessar a página Agenda com a conta conectada. | Os eventos do dia são listados corretamente, com nome e horário. |
-| **GAPI-03** | Criar tarefa a partir de um evento | 1. Ao lado de um evento, clicar em "Criar Tarefa". | Uma nova tarefa é criada na meta "Tarefas da Agenda" com o título do evento e o prazo correspondente. |
-| **GAPI-04** | Criar tarefas em massa | 1. Selecionar múltiplos eventos na página Agenda. 2. Clicar em "Criar Tarefas Selecionadas". | Múltiplas tarefas são criadas na meta "Tarefas da Agenda". |
-| **GAPI-05** | Criar evento a partir de uma tarefa | 1. Em uma tarefa que tenha data e duração, clicar no ícone `<CalendarPlus />`. | Um novo evento é criado no Google Calendar com os detalhes da tarefa. |
+| **GAPI-01** | Conectar conta Google | 1. Fazer login com o Google. | O token de acesso do Google deve ser armazenado para uso posterior. |
+| **GAPI-02** | Criar evento a partir de uma tarefa | 1. Em uma tarefa que tenha data e duração, clicar no ícone `<CalendarPlus />`. | Um novo evento é criado no Google Calendar com os detalhes da tarefa. Uma notificação de sucesso é exibida. |
+| **GAPI-03** | Tentativa de criar evento sem dados | 1. Em uma tarefa sem data ou duração, verificar se o ícone `<CalendarPlus />` está visível. 2. Se estiver, clicar nele. | O ícone não deve estar visível. Se estiver, ao clicar, uma notificação de erro deve informar que "A tarefa precisa de uma data e duração". |
 
-### 3.5. Página de Foco (Pomodoro)
-
-| ID do Teste | Cenário | Passos para Execução | Resultado Esperado |
-| :---------- | :------ | :------------------- | :----------------- |
-| **FOCO-01** | Iniciar e pausar timer | 1. Selecionar uma tarefa. 2. Clicar em "Iniciar". 3. Clicar em "Pausar". 4. Clicar em "Iniciar" novamente. | O timer inicia a contagem regressiva, pausa e continua de onde parou. |
-| **FOCO-02** | Conclusão de um ciclo de foco | 1. Selecionar uma tarefa e iniciar o timer. 2. Deixar o timer de 25 minutos terminar. | Um som de alarme toca. A tarefa selecionada é marcada como concluída. O timer muda para o modo "Pausa" (5 minutos). |
-| **FOCO-03** | Conclusão de um ciclo de pausa | 1. Iniciar um ciclo de pausa. 2. Deixar o timer de 5 minutos terminar. | Um som de alarme toca. O timer muda de volta para o modo "Foco". |
-| **FOCO-04** | Resetar o timer | 1. Clicar no botão de reset (`<RefreshCw />`). | O timer volta ao seu tempo inicial (25 ou 5 min) e para a contagem. |
-
-### 3.6. Dashboard
+### 3.5. Dashboard
 
 | ID do Teste | Cenário | Passos para Execução | Resultado Esperado |
 | :---------- | :------ | :------------------- | :----------------- |
@@ -75,14 +64,7 @@ O teste abrange todas as funcionalidades da aplicação, incluindo a interface d
 | **DASH-02** | Progresso Geral (Gráfico de Pizza) | 1. Concluir 1 de 4 tarefas totais no sistema. 2. Acessar o Dashboard. | O gráfico de pizza deve mostrar 25% "Concluídas" e 75% "Pendentes". |
 | **DASH-03** | Tarefas por Prioridade (Gráfico de Barras) | 1. Criar tarefas pendentes com prioridades variadas. 2. Acessar o Dashboard. | O gráfico de barras deve exibir a contagem correta de tarefas pendentes para cada nível de prioridade. |
 
-### 3.7. Agente IA
-
-| ID do Teste | Cenário | Passos para Execução | Resultado Esperado |
-| :---------- | :------ | :------------------- | :----------------- |
-| **AI-01** | Conversa por texto | 1. Na página Agente IA, digitar uma pergunta (ex: "Quais são minhas tarefas?"). 2. Pressionar Enter ou clicar em "Enviar". | O agente responde com uma mensagem de texto relevante, baseada no contexto das metas e tarefas. |
-| **AI-02** | Contexto da conversa | 1. Perguntar "Quais minhas metas?". 2. Em seguida, perguntar "Resuma a primeira delas". | O agente deve entender que "a primeira delas" se refere à primeira meta da resposta anterior. |
-
-### 3.8. Responsividade
+### 3.6. Responsividade
 
 | ID do Teste | Cenário | Passos para Execução | Resultado Esperado |
 | :---------- | :------ | :------------------- | :----------------- |

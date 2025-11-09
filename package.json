@@ -37,8 +37,6 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
-    "firebase-admin": "^13.6.0",
-    "gapi-script": "^1.2.0",
     "lucide-react": "^0.480.0",
     "next": "^14.2.5",
     "react": "^18.3.1",
@@ -51,8 +49,6 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/gapi": "^0.0.47",
-    "@types/handlebars": "^4.0.40",
     "@types/node": "^20.14.13",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.3",
