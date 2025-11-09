@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { AuthError, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
 
   const signInWithGoogle = async () => {
+    if (!auth) return;
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
@@ -43,6 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    if (!auth) return;
     try {
       await auth.signOut();
       setGoogleApiToken(null);
