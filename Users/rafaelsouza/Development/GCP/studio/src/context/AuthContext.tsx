@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInAnonymously } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
@@ -10,9 +10,7 @@ import { Target } from 'lucide-react';
 interface AuthContextType {
   user: any | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  googleApiToken: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,58 +19,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
-  const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!auth) return;
-    const handleRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.accessToken) {
-            setGoogleApiToken(credential.accessToken);
-          }
-        }
-      } catch (error: any) {
-        console.error("Error getting redirect result:", error);
-      }
-    };
-    handleRedirectResult();
-  }, [auth]);
-
-  const signInWithGoogle = async () => {
-    if (!auth) return;
-    const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-    provider.addScope('https://www.googleapis.com/auth/calendar.events');
-    
-    try {
-      await signInWithRedirect(auth, provider);
-    } catch (error: any) {
-      console.error("Error signing in with Google:", error);
+    if (auth && !user && !isUserLoading) {
+      signInAnonymously(auth).catch((error) => {
+        console.error("Error signing in anonymously:", error);
+      });
     }
-  };
+  }, [auth, user, isUserLoading]);
 
   const signOut = async () => {
     if (!auth) return;
     try {
+      // Note: Signing out of an anonymous account deletes it. 
+      // For this app, we don't want a prominent sign-out button.
       await auth.signOut();
-      setGoogleApiToken(null);
       router.push('/login');
     } catch (error) {
       console.error("Error signing out:", error);
     }
   };
 
-  const value = { user, loading: isUserLoading, signInWithGoogle, signOut, googleApiToken };
+  const value = { user, loading: isUserLoading, signOut };
 
-  if (isUserLoading && !user) {
+  // This loading screen will show while the initial user state is being determined,
+  // including the anonymous sign-in process.
+  if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Target className="h-12 w-12 animate-pulse text-primary" />
-          <p className="text-muted-foreground">Verificando autenticação...</p>
+          <p className="text-muted-foreground">Carregando sessão...</p>
         </div>
       </div>
     );
