@@ -26,17 +26,3 @@ export interface Goal {
   kpiCurrent?: number;
   userId: string;
 }
-
-
-// Agent related types
-export interface AgentInput {
-  query: string;
-  context: {
-    goals: Goal[];
-    tasks: Task[];
-  };
-}
-
-export interface AgentOutput {
-  message: string;
-}

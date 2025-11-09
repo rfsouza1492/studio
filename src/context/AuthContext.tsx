@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { GoogleAuthProvider, signInWithPopup, UserCredential } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
@@ -23,6 +23,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
 
+  useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.accessToken) {
+            setGoogleApiToken(credential.accessToken);
+          }
+        }
+      } catch (error) {
+        console.error("Error handling redirect result", error);
+      }
+    };
+    handleRedirect();
+  }, [auth]);
+
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     // Adiciona os escopos necessários para ler e criar eventos no Google Calendar.
@@ -35,20 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       'authDomain': 'magnetai-4h4a8.firebaseapp.com'
     });
     
-    try {
-      const result: UserCredential = await signInWithPopup(auth, provider);
-      // O token de acesso OAuth é obtido do credential.
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) {
-        setGoogleApiToken(credential.accessToken);
-      }
-    } catch (error: any) {
-      // Evita logar erro se o usuário simplesmente fechar o popup.
-      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        return;
-      }
-      console.error("Error signing in with Google:", error);
-    }
+    await signInWithRedirect(auth, provider);
   };
 
   const signOut = async () => {
