@@ -1,3 +1,4 @@
+
 export const firebaseConfig = {
   "projectId": "magnetai-4h4a8",
   "appId": "1:210739580533:web:07c2e35aaa909693ed723c",
