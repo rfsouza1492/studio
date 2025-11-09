@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode, useState } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter } from 'next/navigation';
@@ -23,11 +23,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (user && auth.currentUser) {
+        auth.currentUser.getIdTokenResult().then(tokenResult => {
+            const accessToken = (tokenResult.claims['g_access_token'] as string) || null;
+            if (accessToken) {
+              setGoogleApiToken(accessToken);
+            }
+        });
+    }
+  }, [user, auth]);
+
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    // TODO: Re-add calendar scopes after configuring test users in GCP OAuth Consent Screen
-    // provider.addScope('https://www.googleapis.com/auth/calendar.events');
-    // provider.addScope('https://www.googleapis.com/auth/calendar.events.readonly');
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
     
     try {
       const result = await signInWithPopup(auth, provider);

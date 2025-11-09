@@ -78,13 +78,12 @@ export const talkToAgentFlow = defineFlow(
     const formattedContext = formatContextForPrompt(context);
     const prompt = `User message: \"${query}\"\n\n# USER'S CURRENT CONTEXT\n${formattedContext}`;
 
-    const llmResponse = await generate({
+    const llmResponse = await generate(prompt, {
       model: gemini15Flash,
-      prompt: prompt,
-      system: systemPrompt,
       config: {
         temperature: 0.5,
       },
+      system: systemPrompt,
     });
 
     return llmResponse.text;
