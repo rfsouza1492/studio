@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo, UserCredential } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
@@ -23,29 +23,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user && auth.currentUser) {
-        auth.currentUser.getIdTokenResult().then(tokenResult => {
-            const accessToken = (tokenResult.claims['g_access_token'] as string) || null;
-            if (accessToken) {
-              setGoogleApiToken(accessToken);
-            }
-        });
-    }
-  }, [user, auth]);
-
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
     
     try {
-      const result = await signInWithPopup(auth, provider);
+      const result: UserCredential = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential) {
-        setGoogleApiToken(credential.accessToken || null);
+      if (credential?.accessToken) {
+        setGoogleApiToken(credential.accessToken);
       }
-      router.push('/');
+      // O roteamento para a página inicial acontecerá naturalmente pelo PrivateRoute
+      // ou pela lógica na página de login, não precisa forçar aqui.
     } catch (error: any) {
       // Don't log an error if the user simply closes the popup.
       if (error.code === 'auth/popup-closed-by-user') {
@@ -67,7 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value = { user, loading: isUserLoading, signInWithGoogle, signOut, googleApiToken };
 
-  if (isUserLoading) {
+  if (isUserLoading && !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
