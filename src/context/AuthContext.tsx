@@ -25,9 +25,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
+    // Adiciona os escopos necessários para ler e criar eventos no Google Calendar.
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-    // CORREÇÃO: Especifica o authDomain para garantir que o redirecionamento
+    
+    // Especifica o authDomain para garantir que o redirecionamento
     // seja tratado pelo domínio de autenticação correto do Firebase.
     provider.setCustomParameters({
       'authDomain': 'magnetai-4h4a8.firebaseapp.com'
@@ -35,14 +37,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       const result: UserCredential = await signInWithPopup(auth, provider);
+      // O token de acesso OAuth é obtido do credential.
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) {
         setGoogleApiToken(credential.accessToken);
       }
-      // O roteamento para a página inicial acontecerá naturalmente pelo PrivateRoute
-      // ou pela lógica na página de login, não precisa forçar aqui.
     } catch (error: any) {
-      // Don't log an error if the user simply closes the popup.
+      // Evita logar erro se o usuário simplesmente fechar o popup.
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
         return;
       }
