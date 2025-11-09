@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithPopup } from 'firebase/auth';
+import { AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter } from 'next/navigation';
 import { Target } from 'lucide-react';
@@ -23,19 +23,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
 
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.accessToken) {
+            setGoogleApiToken(credential.accessToken);
+          }
+        }
+      } catch (error: any) {
+        console.error("Error getting redirect result:", error);
+      }
+    };
+    handleRedirectResult();
+  }, [auth]);
+
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) {
-        setGoogleApiToken(credential.accessToken);
-      }
+      await signInWithRedirect(auth, provider);
     } catch (error: any) {
-      // Silently handle the case where the user closes the popup
-      if (error.code !== 'auth/popup-closed-by-user') {
-        console.error("Error signing in with Google:", error);
-      }
+      console.error("Error signing in with Google:", error);
     }
   };
 
