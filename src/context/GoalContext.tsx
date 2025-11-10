@@ -126,20 +126,48 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
-        const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
-        
-        const tasksUnsub = onSnapshot(tasksQuery, (tasksSnapshot) => {
-            const tasksData = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
-            dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
-        }, (error) => {
-             console.error("Error fetching tasks:", error);
-             const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks collection group` });
-             dispatch({ type: 'SET_ERROR', payload: contextualError });
-             errorEmitter.emit('permission-error', contextualError);
+        // Fetch tasks for each goal individually (avoids collectionGroup issues)
+        const allTasksData: Task[] = [];
+        let completedGoals = 0;
+        const taskUnsubscribers: (() => void)[] = [];
+
+        const checkIfComplete = () => {
+          completedGoals++;
+          if (completedGoals === goalsData.length) {
+            dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: allTasksData } });
+          }
+        };
+
+        goalsData.forEach((goal) => {
+          const tasksQuery = query(
+            collection(firestore, 'users', user.uid, 'goals', goal.id, 'tasks')
+          );
+          
+          const tasksUnsub = onSnapshot(tasksQuery, 
+            (tasksSnapshot) => {
+              // Remove old tasks from this goal
+              const otherGoalTasks = allTasksData.filter(t => t.goalId !== goal.id);
+              // Add new tasks from this goal
+              const thisGoalTasks = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+              allTasksData.length = 0;
+              allTasksData.push(...otherGoalTasks, ...thisGoalTasks);
+              
+              // Update state with all tasks
+              dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: [...allTasksData] } });
+            }, 
+            (error) => {
+              console.error(`Error fetching tasks for goal ${goal.id}:`, error);
+              checkIfComplete();
+            }
+          );
+          
+          taskUnsubscribers.push(tasksUnsub);
         });
 
-        // Return a cleanup function for the tasks listener
-        return () => tasksUnsub();
+        // Return cleanup function for all task listeners
+        return () => {
+          taskUnsubscribers.forEach(unsub => unsub());
+        };
 
       }, 
       (error) => {
