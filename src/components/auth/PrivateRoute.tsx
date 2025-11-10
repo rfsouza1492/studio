@@ -11,15 +11,24 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   
   useEffect(() => {
-    if (!loading && !user && pathname !== '/login') {
-        router.replace('/login');
+    // Only redirect after loading is complete
+    if (loading) return;
+    
+    // Redirect to login if not authenticated (except if already on login page)
+    if (!user && pathname !== '/login') {
+      router.replace('/login');
+      return;
     }
     
-    if (!loading && user && pathname === '/login') {
-        router.replace('/');
+    // Redirect to home if authenticated and on login page
+    // This is handled by AuthProvider, but we keep it as fallback
+    if (user && pathname === '/login') {
+      router.replace('/');
+      return;
     }
   }, [user, loading, pathname, router]);
   
+  // Show loading screen during initial auth check
   if (loading) {
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -31,7 +40,13 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
     );
   }
 
+  // Don't render children if redirecting
   if (!user && pathname !== '/login') {
+    return null;
+  }
+
+  // Don't render login page if user is authenticated (redirecting)
+  if (user && pathname === '/login') {
     return null;
   }
 
