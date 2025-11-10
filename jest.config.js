@@ -7,6 +7,16 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  
+  // Auto-clear mocks between tests
+  clearMocks: true,
+  
+  // Timeout for async tests (10 seconds)
+  testTimeout: 10000,
+  
+  // Max workers to avoid overload
+  maxWorkers: '50%',
+  
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '@genkit-ai/next/server': '<rootDir>/__mocks__/next.js',
