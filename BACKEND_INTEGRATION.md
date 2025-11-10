@@ -15,6 +15,7 @@ This integration connects your **Next.js frontend** (Studio) with the **Express 
 ### 1. API Client (`src/lib/api-client.ts`)
 
 TypeScript client with full type safety:
+
 - Health & status endpoints
 - Firebase authentication
 - OAuth 2.0 flow
@@ -28,6 +29,7 @@ TypeScript client with full type safety:
 ### 2. React Hooks (`src/hooks/use-api.ts`)
 
 Convenient hooks for React components:
+
 - `useHealthCheck()` - Check backend health
 - `useApiInfo()` - Get API information
 - `useDrive()` - Google Drive operations
@@ -38,6 +40,7 @@ Convenient hooks for React components:
 ### 3. Demo Component (`src/components/backend/BackendStatus.tsx`)
 
 Visual component displaying:
+
 - Backend connection status
 - Health metrics
 - API information
@@ -46,6 +49,7 @@ Visual component displaying:
 ### 4. Test Page (`src/app/backend-test/page.tsx`)
 
 Interactive test page with:
+
 - Backend health check
 - Authentication testing
 - Google Drive API testing
@@ -78,11 +82,13 @@ NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
 In Firebase Console → App Hosting → goflow-1 → Settings → Environment Variables:
 
 Add or update:
+
 ```env
 ALLOWED_ORIGINS=https://goflow.zone,https://www.goflow.zone,https://studio--magnetai-4h4a8.us-east4.hosted.app
 ```
 
 **OR** if testing locally:
+
 ```env
 ALLOWED_ORIGINS=http://localhost:3000,https://goflow.zone
 ```
@@ -214,7 +220,7 @@ function DriveFileList() {
 
 ### Before Integration
 
-```
+```text
 Frontend (Studio)
     ↓
 Firebase SDK (client-side)
@@ -224,7 +230,7 @@ Firebase Services
 
 ### After Integration
 
-```
+```text
 Frontend (Studio)
     ↓
 API Client → GoFlow Backend API
@@ -272,6 +278,7 @@ await listFiles();
 ### Token Handling
 
 The backend handles tokens automatically:
+
 - Session cookies (httpOnly, secure)
 - Automatic token refresh
 - CSRF protection
@@ -351,6 +358,7 @@ DISABLE_REDIS=true
 **Problem**: "Access to fetch blocked by CORS policy"
 
 **Solution**:
+
 1. Verify `ALLOWED_ORIGINS` in backend includes your frontend URL
 2. Check backend logs for CORS errors
 3. Ensure `credentials: 'include'` in fetch options
@@ -360,6 +368,7 @@ DISABLE_REDIS=true
 **Problem**: API returns 401 for protected routes
 
 **Solution**:
+
 1. User needs to login first via OAuth: `/auth/oauth/login`
 2. Check session cookies are being sent
 3. Verify backend session store is working
@@ -369,6 +378,7 @@ DISABLE_REDIS=true
 **Problem**: Endpoint returns 404
 
 **Solution**:
+
 1. Verify endpoint path in API client
 2. Check backend routes are mounted correctly
 3. Use `/auth/firebase/*` for Firebase auth
@@ -379,6 +389,7 @@ DISABLE_REDIS=true
 **Problem**: Request times out
 
 **Solution**:
+
 1. Increase `NEXT_PUBLIC_API_TIMEOUT`
 2. Check backend is running
 3. Verify network connectivity
@@ -390,7 +401,7 @@ DISABLE_REDIS=true
 
 ### Public Endpoints
 
-```
+```text
 GET  /health               - Health check
 GET  /api/info             - API information
 GET  /api/v1/status        - API status
@@ -399,7 +410,7 @@ GET  /api/v1/example       - Example endpoint
 
 ### Firebase Auth Endpoints
 
-```
+```text
 POST /auth/firebase/register    - Register user
 POST /auth/firebase/login       - Login with email/password
 POST /auth/firebase/logout      - Logout
@@ -409,7 +420,7 @@ GET  /auth/firebase/status      - Check auth status
 
 ### OAuth Endpoints
 
-```
+```text
 GET  /auth/oauth/login          - Initiate Google OAuth
 GET  /auth/oauth/callback       - OAuth callback
 GET  /auth/oauth/status         - Check OAuth status
@@ -419,7 +430,7 @@ POST /auth/oauth/logout         - Logout OAuth
 
 ### Google APIs (Require OAuth)
 
-```
+```text
 GET  /api/google/drive/files              - List Drive files
 GET  /api/google/drive/files/:id          - Get file
 POST /api/google/drive/files              - Create file
@@ -440,6 +451,7 @@ POST /api/google/gmail/send               - Send email
 ✅ API client created
 ✅ Hooks available
 ✅ Test page ready
+
 - Test backend connectivity
 - Verify endpoints work
 - Test error handling
@@ -489,20 +501,23 @@ POST /api/google/gmail/send               - Send email
 ### Backend Issues
 
 Check backend logs:
-```
+
+```text
 Firebase Console → App Hosting → goflow-1 → Logs
 ```
 
 ### Frontend Issues
 
 Check browser console:
-```
+
+```text
 Open DevTools → Console tab
 ```
 
 ### Integration Issues
 
 Test manually:
+
 ```bash
 # From browser console on goflow.zone
 fetch('https://goflow-1--magnetai-4h4a8.us-east4.hosted.app/health')
@@ -530,4 +545,3 @@ Your integration is successful when:
 **Last Updated**: November 10, 2025  
 **Version**: 1.0.0  
 **Status**: Ready for Testing
-
