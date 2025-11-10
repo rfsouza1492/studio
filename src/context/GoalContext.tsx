@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { collection, doc, query, writeBatch, getDocs, where, onSnapshot, Unsubscribe, collectionGroup } from 'firebase/firestore';
-import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useUser, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { Target } from 'lucide-react';
 
 interface State {
@@ -189,7 +189,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
     const finalGoal = { ...newGoalData, id: goalRef.id, userId: user.uid };
-    addDocumentNonBlocking(goalRef, finalGoal);
+    setDocumentNonBlocking(goalRef, finalGoal, {});
     // Optimistic update
     dispatch({ type: 'ADD_GOAL', payload: finalGoal });
   };
@@ -238,7 +238,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   ) => {
     if (!user || !firestore) return;
     const taskRef = doc(collection(firestore, 'users', user.uid, 'goals', goalId, 'tasks'));
-    const newTask: Omit<Task, 'id'> = {
+    const newTask: Task = {
+      id: taskRef.id,
       goalId,
       title,
       completed: false,
@@ -248,7 +249,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       duration,
       userId: user.uid,
     };
-    addDocumentNonBlocking(taskRef, newTask);
+    setDocumentNonBlocking(taskRef, newTask, {});
      // Optimistic update
     dispatch({ type: 'ADD_TASK', payload: { id: taskRef.id, ...newTask } });
   };
