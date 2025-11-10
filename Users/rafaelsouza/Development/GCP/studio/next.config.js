@@ -9,7 +9,8 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/_next/:path*',
+        // Apply these headers to all routes in your application.
+        source: '/:path*',
         headers: [
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS, HEAD' },
