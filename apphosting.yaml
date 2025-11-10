@@ -12,3 +12,24 @@ runtime: nodejs18
 # The command to start your application.
 # App Hosting will automatically run `npm run build` before this command.
 entrypoint: npm start
+
+# Environment variables
+env:
+  # Firebase Client SDK Configuration
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyALRps1FyfrS8P3SxTEhpU-0m3Mb58k_1w
+  
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: magnetai-4h4a8.firebaseapp.com
+  
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: magnetai-4h4a8
+  
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: magnetai-4h4a8.firebasestorage.app
+  
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "210739580533"
+  
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:210739580533:web:90a7f1063949457ded723c
