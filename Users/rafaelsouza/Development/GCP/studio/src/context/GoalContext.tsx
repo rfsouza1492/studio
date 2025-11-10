@@ -289,5 +289,3 @@ export const useGoals = (): GoalContextType => {
 };
 
     
-
-    
