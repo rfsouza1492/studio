@@ -185,11 +185,20 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   }, [user, isUserLoading, firestore]);
   
 
+  // Helper function to remove undefined fields (Firestore doesn't accept undefined)
+  const removeUndefined = (obj: any): any => {
+    return Object.fromEntries(
+      Object.entries(obj).filter(([_, v]) => v !== undefined)
+    );
+  };
+
   const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>) => {
     if (!user || !firestore) return;
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
     const finalGoal = { ...newGoalData, id: goalRef.id, userId: user.uid };
-    setDocumentNonBlocking(goalRef, finalGoal, {});
+    // Remove undefined fields before saving to Firestore
+    const cleanGoal = removeUndefined(finalGoal);
+    setDocumentNonBlocking(goalRef, cleanGoal, {});
     // Optimistic update
     dispatch({ type: 'ADD_GOAL', payload: finalGoal });
   };
@@ -198,7 +207,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const { id, ...goalData } = updatedGoalData;
     const goalRef = doc(firestore, 'users', user.uid, 'goals', id);
-    updateDocumentNonBlocking(goalRef, goalData);
+    // Remove undefined fields before updating
+    const cleanGoalData = removeUndefined(goalData);
+    updateDocumentNonBlocking(goalRef, cleanGoalData);
      // Optimistic update
     dispatch({ type: 'EDIT_GOAL', payload: { ...updatedGoalData, userId: user.uid } });
   };
@@ -249,7 +260,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       duration,
       userId: user.uid,
     };
-    setDocumentNonBlocking(taskRef, newTask, {});
+    // Remove undefined fields before saving
+    const cleanTask = removeUndefined(newTask);
+    setDocumentNonBlocking(taskRef, cleanTask, {});
      // Optimistic update
     dispatch({ type: 'ADD_TASK', payload: { id: taskRef.id, ...newTask } });
   };
@@ -258,8 +271,10 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const { id, goalId, ...taskData } = updatedTaskData;
     const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', id);
-    updateDocumentNonBlocking(taskRef, taskData);
-     // Optimistic update
+    // Remove undefined fields before updating
+    const cleanTaskData = removeUndefined(taskData);
+    updateDocumentNonBlocking(taskRef, cleanTaskData);
+    // Optimistic update
     dispatch({ type: 'EDIT_TASK', payload: { ...updatedTaskData, userId: user.uid } });
   };
 
