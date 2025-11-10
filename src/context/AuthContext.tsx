@@ -4,7 +4,7 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Target } from 'lucide-react';
 
 interface AuthContextType {
@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
   const [hasCheckedRedirect, setHasCheckedRedirect] = useState(false);
 
@@ -54,13 +55,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Redirect to home after successful login
   useEffect(() => {
-    if (!isUserLoading && user && router) {
-      const currentPath = window.location.pathname;
-      if (currentPath === '/login') {
-        router.replace('/');
-      }
+    if (!isUserLoading && user && pathname === '/login') {
+      router.replace('/');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, pathname, router]);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
