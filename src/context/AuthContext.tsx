@@ -32,13 +32,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       try {
         const result = await getRedirectResult(auth);
-        if (result) {
+        if (result && result.user) {
           const credential = GoogleAuthProvider.credentialFromResult(result);
           if (credential?.accessToken) {
             setGoogleApiToken(credential.accessToken);
           }
-          console.log("Login successful, user:", result.user?.email);
-          // User will be available via onAuthStateChanged, which will trigger re-render
+          console.log("Login successful, user:", result.user.email);
+          
+          // Force redirect if we're on login page and have a user
+          // This ensures redirect happens even if onAuthStateChanged hasn't fired yet
+          if (pathname === '/login') {
+            setTimeout(() => {
+              router.replace('/');
+            }, 100);
+          }
         }
       } catch (error: any) {
         console.error("Error getting redirect result:", error);
@@ -51,14 +58,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (auth) {
       handleRedirectResult();
     }
-  }, [auth, hasCheckedRedirect]);
+  }, [auth, hasCheckedRedirect, pathname, router]);
 
   // Redirect to home after successful login
   useEffect(() => {
-    if (!isUserLoading && user && pathname === '/login') {
+    // Check both user from hook and auth.currentUser (more reliable after redirect)
+    const currentUser = user || (auth?.currentUser);
+    
+    if (!isUserLoading && currentUser && pathname === '/login') {
+      console.log('Redirecting to home after login, user:', currentUser.email);
       router.replace('/');
     }
-  }, [user, isUserLoading, pathname, router]);
+  }, [user, isUserLoading, pathname, router, auth]);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
