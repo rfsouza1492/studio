@@ -61,7 +61,7 @@ const goalReducer = (state: State, action: Action): State => {
     case 'EDIT_TASK':
       return {
         ...state,
-        tasks: state.tasks.map(t => (t.id === action.payload.id ? action.payload : g)),
+        tasks: state.tasks.map(t => (t.id === action.payload.id ? action.payload : t)),
       };
     case 'DELETE_TASK':
       return {
