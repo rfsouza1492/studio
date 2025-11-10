@@ -37,12 +37,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (credential?.accessToken) {
             setGoogleApiToken(credential.accessToken);
           }
-          console.log("✅ Login successful, user:", result.user.email);
           
           // Immediately redirect to home after successful login
           // Don't wait for onAuthStateChanged - redirect right away
           if (pathname === '/login' || window.location.pathname === '/login') {
-            console.log("🔄 Redirecting to home immediately after login...");
             router.replace('/');
             // Also use window.location as fallback
             window.location.href = '/';
@@ -50,16 +48,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           // No redirect result - check if user is already authenticated
           if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
-            console.log("✅ User already authenticated, redirecting to home...");
             router.replace('/');
             window.location.href = '/';
           }
         }
       } catch (error: any) {
-        console.error("❌ Error getting redirect result:", error);
+        console.error("Error getting redirect result:", error);
         // Even on error, check if user is authenticated
         if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
-          console.log("✅ User authenticated despite error, redirecting...");
           router.replace('/');
           window.location.href = '/';
         }
@@ -79,7 +75,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const currentUser = user || (auth?.currentUser);
     
     if (!isUserLoading && currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
-      console.log('🔄 Redirecting to home after login (fallback), user:', currentUser.email);
       router.replace('/');
       // Use window.location as backup to ensure redirect happens
       if (window.location.pathname === '/login') {
