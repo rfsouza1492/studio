@@ -59,15 +59,16 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
     const goalData = {
         name: values.name,
         id: goal?.id || '',
-        kpiName: values.kpiName || null,
-        kpiCurrent: values.kpiCurrent === undefined ? null : values.kpiCurrent,
-        kpiTarget: values.kpiTarget === undefined ? null : values.kpiTarget,
+        kpiName: values.kpiName,
+        kpiCurrent: values.kpiCurrent,
+        kpiTarget: values.kpiTarget,
     };
 
     if (isEditMode) {
       editGoal(goalData);
       toast({ title: "Meta Atualizada", description: `A meta "${values.name}" foi atualizada.` });
     } else {
+      // The addGoal function in the context will handle converting undefined to null
       addGoal(goalData);
       toast({ title: "Meta Criada", description: `A meta "${values.name}" foi criada.` });
     }
@@ -109,7 +110,7 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
                 <FormItem>
                   <FormLabel>Nome do KPI (Opcional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="ex: Páginas Lidas, Km Corridos" {...field} />
+                    <Input placeholder="ex: Páginas Lidas, Km Corridos" {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -123,7 +124,7 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
                   <FormItem>
                     <FormLabel>Valor Atual</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0" {...field} />
+                      <Input type="number" placeholder="0" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -136,7 +137,7 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
                   <FormItem>
                     <FormLabel>Valor Alvo</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="100" {...field} />
+                      <Input type="number" placeholder="100" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -153,3 +154,5 @@ export function AddOrEditGoalDialog({ open, onOpenChange, goal }: AddOrEditGoalD
     </Dialog>
   );
 }
+
+    
