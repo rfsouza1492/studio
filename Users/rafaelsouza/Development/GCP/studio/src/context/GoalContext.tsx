@@ -115,32 +115,12 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: 'SET_LOADING', payload: true });
 
     const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
-    
+    const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
+
     const goalsUnsub = onSnapshot(goalsQuery, 
       (goalsSnapshot) => {
         const goalsData = goalsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
-
-        if (goalsData.length === 0) {
-            // If there are no goals, there are no tasks to fetch.
-            dispatch({ type: 'SET_DATA', payload: { goals: [], tasks: [] } });
-            return;
-        }
-
-        const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
-        
-        const tasksUnsub = onSnapshot(tasksQuery, (tasksSnapshot) => {
-            const tasksData = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
-            dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
-        }, (error) => {
-             console.error("Error fetching tasks:", error);
-             const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks collection group` });
-             dispatch({ type: 'SET_ERROR', payload: contextualError });
-             errorEmitter.emit('permission-error', contextualError);
-        });
-
-        // Return a cleanup function for the tasks listener
-        return () => tasksUnsub();
-
+        dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: state.tasks } });
       }, 
       (error) => {
         console.error("Error fetching goals:", error);
@@ -150,8 +130,19 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
+    const tasksUnsub = onSnapshot(tasksQuery, (tasksSnapshot) => {
+        const tasksData = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+        dispatch({ type: 'SET_DATA', payload: { goals: state.goals, tasks: tasksData } });
+    }, (error) => {
+         console.error("Error fetching tasks:", error);
+         const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks collection group` });
+         dispatch({ type: 'SET_ERROR', payload: contextualError });
+         errorEmitter.emit('permission-error', contextualError);
+    });
+
     return () => {
       goalsUnsub();
+      tasksUnsub();
     };
   
   }, [user, isUserLoading, firestore]);
@@ -296,4 +287,5 @@ export const useGoals = (): GoalContextType => {
   return context;
 };
 
+    
     
