@@ -14,6 +14,10 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
     if (!loading && !user && pathname !== '/login') {
         router.replace('/login');
     }
+    
+    if (!loading && user && pathname === '/login') {
+        router.replace('/');
+    }
   }, [user, loading, pathname, router]);
   
   if (loading) {
@@ -29,11 +33,6 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
 
   if (!user && pathname !== '/login') {
     return null;
-  }
-  
-  if (user && pathname === '/login') {
-      router.replace('/');
-      return null;
   }
 
   return <>{children}</>;
