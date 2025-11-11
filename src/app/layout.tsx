@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import '@/lib/error-handler'; // Import global error handler
 import { Toaster } from '@/components/ui/toaster';
 import { GoalProvider } from '@/context/GoalContext';
 import { AuthProvider } from '@/context/AuthContext';

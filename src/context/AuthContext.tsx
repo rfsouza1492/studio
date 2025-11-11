@@ -31,7 +31,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!auth || hasCheckedRedirect) return;
       
       try {
-        const result = await getRedirectResult(auth);
+        // Add timeout wrapper for getRedirectResult to prevent unhandled promise rejections
+        // Use Promise.race with proper error handling
+        const getRedirectResultPromise = getRedirectResult(auth).catch(() => null);
+        const timeoutPromise = new Promise<null>((resolve) => {
+          setTimeout(() => resolve(null), 5000);
+        });
+
+        const result = await Promise.race([
+          getRedirectResultPromise,
+          timeoutPromise,
+        ]);
+
         if (result && result.user) {
           const credential = GoogleAuthProvider.credentialFromResult(result);
           if (credential?.accessToken) {
@@ -68,7 +79,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     
     if (auth) {
-      handleRedirectResult();
+      // Wrap in promise to catch any unhandled rejections
+      handleRedirectResult().catch(() => {
+        // Silently handle - errors are already handled in the function
+        setHasCheckedRedirect(true);
+      });
     }
   }, [auth, hasCheckedRedirect, pathname, router]);
 
