@@ -225,18 +225,73 @@ export interface CalendarEvent {
   id: string;
   summary: string;
   description?: string;
-  start: { dateTime: string };
-  end: { dateTime: string };
+  location?: string;
+  start: { dateTime?: string; date?: string };
+  end: { dateTime?: string; date?: string };
+  recurrence?: string[];
+  htmlLink?: string;
+  attendees?: Array<{ email: string }>;
 }
 
-export async function listCalendarEvents(): Promise<CalendarEvent[]> {
-  return apiRequest<CalendarEvent[]>('/api/google/calendar/events');
+export interface CalendarEventsResponse {
+  events: CalendarEvent[];
 }
 
-export async function createCalendarEvent(event: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent> {
+export async function listCalendarEvents(maxResults = 10, timeMin?: string, timeMax?: string): Promise<CalendarEventsResponse> {
+  const params = new URLSearchParams({ maxResults: maxResults.toString() });
+  if (timeMin) params.append('timeMin', timeMin);
+  if (timeMax) params.append('timeMax', timeMax);
+  
+  return apiRequest<CalendarEventsResponse>(`/api/google/calendar/events?${params}`);
+}
+
+export async function getCalendarEvent(eventId: string): Promise<CalendarEvent> {
+  return apiRequest<CalendarEvent>(`/api/google/calendar/events/${eventId}`);
+}
+
+export interface CreateCalendarEventData {
+  summary: string;
+  description?: string;
+  location?: string;
+  startTime: string;
+  endTime: string;
+  attendees?: Array<{ email: string }>;
+  recurrence?: string;
+}
+
+export async function createCalendarEvent(event: CreateCalendarEventData): Promise<CalendarEvent> {
   return apiRequest<CalendarEvent>('/api/google/calendar/events', {
     method: 'POST',
     body: JSON.stringify(event),
+  });
+}
+
+export interface UpdateCalendarEventData {
+  summary?: string;
+  description?: string;
+  location?: string;
+  startTime?: string;
+  endTime?: string;
+  attendees?: Array<{ email: string }>;
+  recurrence?: string | null;
+}
+
+export async function updateCalendarEvent(eventId: string, event: UpdateCalendarEventData): Promise<CalendarEvent> {
+  return apiRequest<CalendarEvent>(`/api/google/calendar/events/${eventId}`, {
+    method: 'PUT',
+    body: JSON.stringify(event),
+  });
+}
+
+export interface DeleteEventResponse {
+  success: boolean;
+  message: string;
+  eventId: string;
+}
+
+export async function deleteCalendarEvent(eventId: string): Promise<DeleteEventResponse> {
+  return apiRequest<DeleteEventResponse>(`/api/google/calendar/events/${eventId}`, {
+    method: 'DELETE',
   });
 }
 
@@ -263,7 +318,10 @@ const apiClient = {
   // Google APIs
   listDriveFiles,
   listCalendarEvents,
+  getCalendarEvent,
   createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
   
   // Utils
   useBackendApi,
