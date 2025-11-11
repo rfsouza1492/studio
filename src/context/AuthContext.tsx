@@ -158,12 +158,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }, 100);
       }
     } catch (error) {
-      // Only log errors in development
+      // Handle specific Firebase Auth errors
+      const authError = error as AuthError;
+      
+      // User closed the popup - this is not an error, just user cancellation
+      if (authError.code === 'auth/popup-closed-by-user') {
+        // Silently return - user intentionally cancelled
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Login cancelled by user");
+        }
+        return;
+      }
+      
+      // User blocked popup
+      if (authError.code === 'auth/popup-blocked') {
+        // Let the UI handle this with a friendly message
+        throw new Error('Popup bloqueado. Por favor, permita popups para este site.');
+      }
+      
+      // Network errors
+      if (authError.code === 'auth/network-request-failed') {
+        throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
+      }
+      
+      // Other errors - log in development
       if (process.env.NODE_ENV === 'development') {
         console.error("Error signing in with Google:", error);
       }
-      // Re-throw to allow error boundary to handle it
-      throw error;
+      
+      // Re-throw with friendly message for unexpected errors
+      throw new Error('Erro ao fazer login. Tente novamente.');
     }
   };
 

@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 
 export function Header() {
@@ -30,6 +31,7 @@ export function Header() {
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const pathname = usePathname();
   const { user, signOut, signInWithGoogle } = useAuth();
+  const { toast } = useToast();
 
   const navLinks = [
     { href: '/', label: 'Metas', icon: Home },
@@ -37,6 +39,19 @@ export function Header() {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/calendar', label: 'Google Calendar', icon: Calendar },
   ];
+
+  const handleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      // Show user-friendly error message
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer login",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+      });
+    }
+  };
 
   const Logo = () => (
     <Link href="/" className="flex items-center gap-3">
@@ -175,7 +190,7 @@ export function Header() {
                 </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-             <Button variant="outline" size="sm" onClick={signInWithGoogle}>
+             <Button variant="outline" size="sm" onClick={handleSignIn}>
                <LogIn className="h-4 w-4 sm:mr-2" />
                <span className='hidden sm:inline'>Entrar</span>
              </Button>
