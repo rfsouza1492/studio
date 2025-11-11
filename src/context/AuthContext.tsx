@@ -30,9 +30,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const handleRedirectResult = async () => {
       if (!auth || hasCheckedRedirect) return;
       
+      // Check if we're coming from a Firebase auth redirect by checking URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const isAuthRedirect = urlParams.has('apiKey') || 
+                             window.location.href.includes('__/auth/handler') ||
+                             window.location.href.includes('authType=signInViaRedirect');
+      
       try {
-        // Add timeout wrapper for getRedirectResult to prevent unhandled promise rejections
-        // Use Promise.race with proper error handling
+        // Call getRedirectResult immediately - this is safe even if no redirect happened
+        // It will return null if there's no pending redirect result
         const getRedirectResultPromise = getRedirectResult(auth).catch(() => null);
         const timeoutPromise = new Promise<null>((resolve) => {
           setTimeout(() => resolve(null), 5000);
@@ -50,17 +56,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
           
           // Immediately redirect to home after successful login
-          // Don't wait for onAuthStateChanged - redirect right away
+          // Clear any URL parameters first to prevent redirect loops
           if (pathname === '/login' || window.location.pathname === '/login') {
+            // Use replace to avoid adding to history
+            window.history.replaceState({}, '', '/');
             router.replace('/');
-            // Also use window.location as fallback
-            window.location.href = '/';
+            // Force navigation if router doesn't work immediately
+            setTimeout(() => {
+              if (window.location.pathname === '/login') {
+                window.location.href = '/';
+              }
+            }, 100);
           }
+        } else if (isAuthRedirect) {
+          // We came from auth redirect but no result - wait a bit for auth state to update
+          // This handles cases where getRedirectResult returns null but auth is still processing
+          setTimeout(() => {
+            if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
+              window.history.replaceState({}, '', '/');
+              router.replace('/');
+              setTimeout(() => {
+                if (window.location.pathname === '/login') {
+                  window.location.href = '/';
+                }
+              }, 100);
+            }
+          }, 500);
         } else {
-          // No redirect result - check if user is already authenticated
+          // No redirect result and not from auth redirect - check if user is already authenticated
           if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
+            window.history.replaceState({}, '', '/');
             router.replace('/');
-            window.location.href = '/';
+            setTimeout(() => {
+              if (window.location.pathname === '/login') {
+                window.location.href = '/';
+              }
+            }, 100);
           }
         }
       } catch (error) {
@@ -70,8 +101,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         // Even on error, check if user is authenticated
         if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
+          window.history.replaceState({}, '', '/');
           router.replace('/');
-          window.location.href = '/';
+          setTimeout(() => {
+            if (window.location.pathname === '/login') {
+              window.location.href = '/';
+            }
+          }, 100);
         }
       } finally {
         setHasCheckedRedirect(true);
@@ -93,11 +129,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const currentUser = user || (auth?.currentUser);
     
     if (!isUserLoading && currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
+      // Clear URL parameters to prevent redirect loops
+      window.history.replaceState({}, '', '/');
       router.replace('/');
       // Use window.location as backup to ensure redirect happens
-      if (window.location.pathname === '/login') {
-        window.location.href = '/';
-      }
+      setTimeout(() => {
+        if (window.location.pathname === '/login') {
+          window.location.href = '/';
+        }
+      }, 100);
     }
   }, [user, isUserLoading, pathname, router, auth]);
 

@@ -13,7 +13,15 @@ const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (!loading && user) {
+      // Clear URL parameters to prevent redirect loops
+      window.history.replaceState({}, '', '/');
       router.replace('/');
+      // Fallback redirect if router doesn't work immediately
+      setTimeout(() => {
+        if (window.location.pathname === '/login') {
+          window.location.href = '/';
+        }
+      }, 100);
     }
   }, [user, loading, router]);
   
