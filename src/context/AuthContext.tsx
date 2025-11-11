@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { User, AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { User, AuthError, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter, usePathname } from 'next/navigation';
 import { Target } from 'lucide-react';
@@ -25,7 +25,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
   const [hasCheckedRedirect, setHasCheckedRedirect] = useState(false);
 
-  // Handle redirect result after Google login
+  // Handle redirect result after Google login (fallback for old redirects)
+  // Note: We now use signInWithPopup as primary method, but keep this for compatibility
   useEffect(() => {
     const handleRedirectResult = async () => {
       if (!auth || hasCheckedRedirect) return;
@@ -36,9 +37,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                              window.location.href.includes('__/auth/handler') ||
                              window.location.href.includes('authType=signInViaRedirect');
       
+      // Only process redirect if we detect we came from one
+      if (!isAuthRedirect) {
+        setHasCheckedRedirect(true);
+        return;
+      }
+      
       try {
-        // Call getRedirectResult immediately - this is safe even if no redirect happened
-        // It will return null if there's no pending redirect result
+        // Call getRedirectResult for legacy redirect flows
         const getRedirectResultPromise = getRedirectResult(auth).catch(() => null);
         const timeoutPromise = new Promise<null>((resolve) => {
           setTimeout(() => resolve(null), 5000);
@@ -58,19 +64,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Immediately redirect to home after successful login
           // Clear any URL parameters first to prevent redirect loops
           if (pathname === '/login' || window.location.pathname === '/login') {
-            // Use replace to avoid adding to history
             window.history.replaceState({}, '', '/');
             router.replace('/');
-            // Force navigation if router doesn't work immediately
             setTimeout(() => {
               if (window.location.pathname === '/login') {
                 window.location.href = '/';
               }
             }, 100);
           }
-        } else if (isAuthRedirect) {
-          // We came from auth redirect but no result - wait a bit for auth state to update
-          // This handles cases where getRedirectResult returns null but auth is still processing
+        } else {
+          // Wait a bit for auth state to update
           setTimeout(() => {
             if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
               window.history.replaceState({}, '', '/');
@@ -82,20 +85,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               }, 100);
             }
           }, 500);
-        } else {
-          // No redirect result and not from auth redirect - check if user is already authenticated
-          if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
-            window.history.replaceState({}, '', '/');
-            router.replace('/');
-            setTimeout(() => {
-              if (window.location.pathname === '/login') {
-                window.location.href = '/';
-              }
-            }, 100);
-          }
         }
       } catch (error) {
-        // Only log errors in development or if they're critical
         if (process.env.NODE_ENV === 'development') {
           console.error("Error getting redirect result:", error);
         }
@@ -115,9 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     
     if (auth) {
-      // Wrap in promise to catch any unhandled rejections
       handleRedirectResult().catch(() => {
-        // Silently handle - errors are already handled in the function
         setHasCheckedRedirect(true);
       });
     }
@@ -144,7 +133,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithRedirect(auth, provider);
+      // Use signInWithPopup instead of signInWithRedirect to avoid Chrome's
+      // "intermediate website" warning. Popup is opened directly from user interaction
+      // and doesn't trigger Chrome's tracking detection.
+      const result = await signInWithPopup(auth, provider);
+      
+      // Extract access token from credential
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleApiToken(credential.accessToken);
+      }
+      
+      // Redirect to home after successful login
+      // The user state will update via onAuthStateChanged, but we can redirect immediately
+      if (pathname === '/login' || window.location.pathname === '/login') {
+        window.history.replaceState({}, '', '/');
+        router.replace('/');
+        // Fallback redirect if router doesn't work immediately
+        setTimeout(() => {
+          if (window.location.pathname === '/login') {
+            window.location.href = '/';
+          }
+        }, 100);
+      }
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
