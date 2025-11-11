@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 export function Header() {
@@ -75,6 +77,30 @@ export function Header() {
                     </Link>
                   ))}
                 </nav>
+                
+                {user && (
+                  <>
+                    <Separator />
+                    <div className="flex flex-col gap-2">
+                      <Button 
+                        onClick={() => setImportDialogOpen(true)} 
+                        variant="outline"
+                        className="w-full justify-start gap-2"
+                      >
+                        <Download className="h-5 w-5" />
+                        Importar HubSpot
+                        <Badge variant="secondary" className="ml-auto">52</Badge>
+                      </Button>
+                      <Button 
+                        onClick={() => setDialogOpen(true)} 
+                        className="w-full justify-start gap-2"
+                      >
+                        <Plus className="h-5 w-5" />
+                        Nova Meta
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </SheetContent>
           </Sheet>
@@ -95,16 +121,29 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button 
-            onClick={() => setImportDialogOpen(true)} 
-            size="sm" 
-            variant="outline"
-            disabled={!user}
-            className="hidden sm:flex"
-          >
-            <Download className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Importar HubSpot</span>
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={() => setImportDialogOpen(true)} 
+                  size="sm" 
+                  variant="outline"
+                  disabled={!user}
+                  className="hidden sm:flex gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden md:inline">Importar HubSpot</span>
+                  <Badge variant="secondary" className="hidden md:flex h-5 px-1.5 text-xs">
+                    52
+                  </Badge>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Importar 52 tarefas do HubSpot em 6 projetos</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <Button onClick={() => setDialogOpen(true)} size="sm" disabled={!user}>
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Nova Meta</span>
