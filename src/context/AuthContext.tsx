@@ -27,106 +27,107 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Handle redirect result after Google login (fallback for old redirects)
   // Note: We now use signInWithPopup as primary method, but keep this for compatibility
+  // Optimized: Use requestIdleCallback to avoid blocking main thread
   useEffect(() => {
-    const handleRedirectResult = async () => {
-      if (!auth || hasCheckedRedirect) return;
-      
-      // Check if we're coming from a Firebase auth redirect by checking URL params
-      const urlParams = new URLSearchParams(window.location.search);
-      const isAuthRedirect = urlParams.has('apiKey') || 
+    if (!auth || hasCheckedRedirect) return;
+    
+    // Check if we're coming from a Firebase auth redirect by checking URL params
+    // Do this synchronously but quickly
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const isAuthRedirect = urlParams?.has('apiKey') || 
+                           (typeof window !== 'undefined' && (
                              window.location.href.includes('__/auth/handler') ||
-                             window.location.href.includes('authType=signInViaRedirect');
-      
-      // Only process redirect if we detect we came from one
-      if (!isAuthRedirect) {
-        setHasCheckedRedirect(true);
-        return;
-      }
-      
-      try {
-        // Call getRedirectResult for legacy redirect flows
-        const getRedirectResultPromise = getRedirectResult(auth).catch(() => null);
-        const timeoutPromise = new Promise<null>((resolve) => {
-          setTimeout(() => resolve(null), 5000);
-        });
-
-        const result = await Promise.race([
-          getRedirectResultPromise,
-          timeoutPromise,
-        ]);
-
-        if (result && result.user) {
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.accessToken) {
-            setGoogleApiToken(credential.accessToken);
-          }
-          
-          // Immediately redirect to home after successful login
-          // Clear any URL parameters first to prevent redirect loops
-          if (pathname === '/login' || window.location.pathname === '/login') {
-            window.history.replaceState({}, '', '/');
-            router.replace('/');
-            setTimeout(() => {
-              if (window.location.pathname === '/login') {
-                window.location.href = '/';
-              }
-            }, 100);
-          }
-        } else {
-          // Wait a bit for auth state to update
-          setTimeout(() => {
-            if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
-              window.history.replaceState({}, '', '/');
-              router.replace('/');
-              setTimeout(() => {
-                if (window.location.pathname === '/login') {
-                  window.location.href = '/';
-                }
-              }, 100);
-            }
-          }, 500);
-        }
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error("Error getting redirect result:", error);
-        }
-        // Even on error, check if user is authenticated
-        if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
-          window.history.replaceState({}, '', '/');
-          router.replace('/');
-          setTimeout(() => {
-            if (window.location.pathname === '/login') {
-              window.location.href = '/';
-            }
-          }, 100);
-        }
-      } finally {
-        setHasCheckedRedirect(true);
+                             window.location.href.includes('authType=signInViaRedirect')
+                           ));
+    
+    // Only process redirect if we detect we came from one
+    if (!isAuthRedirect) {
+      setHasCheckedRedirect(true);
+      return;
+    }
+    
+    // Use requestIdleCallback to defer non-critical work
+    const scheduleWork = (callback: () => void) => {
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        requestIdleCallback(callback, { timeout: 2000 });
+      } else {
+        // Fallback for browsers without requestIdleCallback
+        setTimeout(callback, 0);
       }
     };
     
-    if (auth) {
+    scheduleWork(() => {
+      const handleRedirectResult = async () => {
+        try {
+          // Call getRedirectResult for legacy redirect flows with shorter timeout
+          const getRedirectResultPromise = getRedirectResult(auth).catch(() => null);
+          const timeoutPromise = new Promise<null>((resolve) => {
+            setTimeout(() => resolve(null), 3000); // Reduced from 5s to 3s
+          });
+
+          const result = await Promise.race([
+            getRedirectResultPromise,
+            timeoutPromise,
+          ]);
+
+          if (result && result.user) {
+            const credential = GoogleAuthProvider.credentialFromResult(result);
+            if (credential?.accessToken) {
+              setGoogleApiToken(credential.accessToken);
+            }
+            
+            // Immediately redirect to home after successful login
+            if (pathname === '/login' || window.location.pathname === '/login') {
+              window.history.replaceState({}, '', '/');
+              router.replace('/');
+            }
+          } else if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
+            window.history.replaceState({}, '', '/');
+            router.replace('/');
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error("Error getting redirect result:", error);
+          }
+          if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
+            window.history.replaceState({}, '', '/');
+            router.replace('/');
+          }
+        } finally {
+          setHasCheckedRedirect(true);
+        }
+      };
+      
       handleRedirectResult().catch(() => {
         setHasCheckedRedirect(true);
       });
-    }
+    });
   }, [auth, hasCheckedRedirect, pathname, router]);
 
   // Redirect to home after successful login (fallback check)
+  // Optimized: Use requestIdleCallback to avoid blocking
   useEffect(() => {
-    // Check both user from hook and auth.currentUser (more reliable after redirect)
+    if (isUserLoading) return;
+    
     const currentUser = user || (auth?.currentUser);
     
-    if (!isUserLoading && currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
-      // Clear URL parameters to prevent redirect loops
-      window.history.replaceState({}, '', '/');
-      router.replace('/');
-      // Use window.location as backup to ensure redirect happens
-      setTimeout(() => {
-        if (window.location.pathname === '/login') {
-          window.location.href = '/';
+    if (currentUser && (pathname === '/login' || (typeof window !== 'undefined' && window.location.pathname === '/login'))) {
+      // Use requestIdleCallback to defer redirect work
+      const scheduleRedirect = () => {
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          requestIdleCallback(() => {
+            window.history.replaceState({}, '', '/');
+            router.replace('/');
+          }, { timeout: 500 });
+        } else {
+          setTimeout(() => {
+            window.history.replaceState({}, '', '/');
+            router.replace('/');
+          }, 0);
         }
-      }, 100);
+      };
+      
+      scheduleRedirect();
     }
   }, [user, isUserLoading, pathname, router, auth]);
 
