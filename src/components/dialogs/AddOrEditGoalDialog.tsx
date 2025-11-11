@@ -18,10 +18,10 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { goalSchema } from '@/lib/schemas';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '../ui/separator';
+import { Separator } from '@/components/ui/separator';
 
 interface AddOrEditGoalDialogProps {
   open: boolean;

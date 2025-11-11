@@ -6,8 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format, differenceInMinutes, parseISO } from "date-fns";
 import { PlusCircle } from "lucide-react";
 import React from "react";
-import { Button } from "../ui/button";
-import { Checkbox } from "../ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useGoals } from "@/context/GoalContext";
 

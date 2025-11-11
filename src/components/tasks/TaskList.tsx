@@ -3,7 +3,7 @@
 
 import { useGoals } from "@/context/GoalContext";
 import { TaskItem } from "./TaskItem";
-import { ScrollArea } from "../ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMemo } from "react";
 import { priorities, Task } from "@/app/types";
 import { differenceInDays } from "date-fns";
