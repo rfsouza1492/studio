@@ -82,12 +82,7 @@ export function ImportHubSpotTasksDialog({ open, onOpenChange }: ImportHubSpotTa
           kpiCurrent: project.goal.kpiCurrent,
         };
 
-        const newGoalId = await addGoal(
-          goalData.name,
-          goalData.kpiName,
-          goalData.kpiTarget,
-          goalData.kpiCurrent
-        );
+        const newGoalId = await addGoal(goalData);
 
         // Adicionar tarefas à meta
         for (const task of project.tasks) {

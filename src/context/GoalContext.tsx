@@ -77,7 +77,7 @@ interface GoalContextType {
   goals: Goal[];
   tasks: Task[];
   loading: boolean;
-  addGoal: (newGoal: Omit<Goal, 'id' | 'userId'>) => Promise<void>;
+  addGoal: (newGoal: Omit<Goal, 'id' | 'userId'>) => Promise<string>;
   editGoal: (updatedGoal: Omit<Goal, 'userId'>) => Promise<void>;
   deleteGoal: (goalId: string) => Promise<void>;
   addTask: (
@@ -193,7 +193,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>) => {
-    if (!user || !firestore) return;
+    if (!user || !firestore) return '';
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
     const finalGoal = { ...newGoalData, id: goalRef.id, userId: user.uid };
     // Remove undefined fields before saving to Firestore
@@ -201,6 +201,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     setDocumentNonBlocking(goalRef, cleanGoal, {});
     // Optimistic update
     dispatch({ type: 'ADD_GOAL', payload: finalGoal });
+    // Return the ID so it can be used for adding tasks
+    return goalRef.id;
   };
 
   const editGoal = async (updatedGoalData: Omit<Goal, 'userId'>) => {
