@@ -133,8 +133,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const value = { user, loading: isUserLoading, signInWithGoogle, signOut, googleApiToken };
 
   // Show loading only during initial auth check
-  // After redirect, onAuthStateChanged will update user state
-  if (isUserLoading) {
+  // Add timeout to prevent infinite loading
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  
+  useEffect(() => {
+    if (isUserLoading) {
+      const timeout = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 6000); // 6 seconds total (5s Firebase + 1s buffer)
+      
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [isUserLoading]);
+
+  // Don't show loading if timeout occurred - let the page render
+  if (isUserLoading && !loadingTimeout) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

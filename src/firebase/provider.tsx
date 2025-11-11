@@ -76,19 +76,32 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
 
-    // Timeout safety: if onAuthStateChanged doesn't fire within 10 seconds, stop loading
+    // Check current user immediately (synchronous check)
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      // User is already authenticated, set state immediately
+      setUserAuthState({ user: currentUser, isUserLoading: false, userError: null });
+    }
+
+    // Timeout safety: if onAuthStateChanged doesn't fire within 5 seconds, stop loading
     const timeoutId = setTimeout(() => {
-      // Only log warnings in development
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('FirebaseProvider: onAuthStateChanged timeout - stopping loading state');
-      }
       setUserAuthState(prev => {
         if (prev.isUserLoading) {
-          return { user: null, isUserLoading: false, userError: new Error('Auth state check timeout') };
+          // Only log warnings in development
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('FirebaseProvider: onAuthStateChanged timeout - stopping loading state');
+          }
+          // Use currentUser as fallback if available
+          const fallbackUser = auth.currentUser;
+          return { 
+            user: fallbackUser, 
+            isUserLoading: false, 
+            userError: fallbackUser ? null : new Error('Auth state check timeout') 
+          };
         }
         return prev;
       });
-    }, 10000); // 10 second timeout
+    }, 5000); // Reduced to 5 seconds
 
     const unsubscribe = onAuthStateChanged(
       auth,
@@ -100,7 +113,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         clearTimeout(timeoutId);
         // Always log auth errors (critical)
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        setUserAuthState({ user: null, isUserLoading: false, userError: error });
+        // Use currentUser as fallback if available
+        const fallbackUser = auth.currentUser;
+        setUserAuthState({ 
+          user: fallbackUser, 
+          isUserLoading: false, 
+          userError: fallbackUser ? null : error 
+        });
       }
     );
     
