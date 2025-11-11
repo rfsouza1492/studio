@@ -225,7 +225,10 @@ export function useBackendAvailable() {
         await apiClient.checkHealth();
         setAvailable(true);
       } catch (error) {
-        console.warn('Backend API not available, falling back to Firebase', error);
+        // Only log warnings in development
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Backend API not available, falling back to Firebase', error);
+        }
         setAvailable(false);
       } finally {
         setChecking(false);

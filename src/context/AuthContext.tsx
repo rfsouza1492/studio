@@ -2,13 +2,13 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { User, AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter, usePathname } from 'next/navigation';
 import { Target } from 'lucide-react';
 
 interface AuthContextType {
-  user: any | null;
+  user: User | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -52,8 +52,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             window.location.href = '/';
           }
         }
-      } catch (error: any) {
-        console.error("Error getting redirect result:", error);
+      } catch (error) {
+        // Only log errors in development or if they're critical
+        if (process.env.NODE_ENV === 'development') {
+          console.error("Error getting redirect result:", error);
+        }
         // Even on error, check if user is authenticated
         if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
           router.replace('/');
@@ -87,8 +90,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithRedirect(auth, provider);
-    } catch (error: any) {
-      console.error("Error signing in with Google:", error);
+    } catch (error) {
+      // Only log errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Error signing in with Google:", error);
+      }
+      // Re-throw to allow error boundary to handle it
+      throw error;
     }
   };
 
@@ -98,7 +106,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setGoogleApiToken(null);
       router.push('/login');
     } catch (error) {
-      console.error("Error signing out:", error);
+      // Only log errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Error signing out:", error);
+      }
+      // Re-throw to allow error boundary to handle it
+      throw error;
     }
   };
 

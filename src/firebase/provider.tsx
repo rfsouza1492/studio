@@ -78,7 +78,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     // Timeout safety: if onAuthStateChanged doesn't fire within 10 seconds, stop loading
     const timeoutId = setTimeout(() => {
-      console.warn('FirebaseProvider: onAuthStateChanged timeout - stopping loading state');
+      // Only log warnings in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('FirebaseProvider: onAuthStateChanged timeout - stopping loading state');
+      }
       setUserAuthState(prev => {
         if (prev.isUserLoading) {
           return { user: null, isUserLoading: false, userError: new Error('Auth state check timeout') };
@@ -95,6 +98,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       },
       (error) => { // Auth listener error
         clearTimeout(timeoutId);
+        // Always log auth errors (critical)
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
         setUserAuthState({ user: null, isUserLoading: false, userError: error });
       }

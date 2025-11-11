@@ -16,22 +16,23 @@ export function initializeFirebase() {
     try {
       // Attempt to initialize via Firebase App Hosting environment variables
       firebaseApp = initializeApp();
-      console.log('Firebase initialized via App Hosting environment variables');
-    } catch (e) {
-      // Only warn in production because it's normal to use the firebaseConfig to initialize
-      // during development
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
+      // Log only in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Firebase initialized via App Hosting environment variables');
       }
-      
+    } catch (e) {
       // Fallback to manual config
       if (!firebaseConfig.apiKey) {
+        // Always log errors for missing apiKey (critical)
         console.error('Firebase config missing apiKey! Check environment variables.');
         throw new Error('Firebase configuration is missing apiKey. Please check NEXT_PUBLIC_FIREBASE_API_KEY environment variable.');
       }
       
       firebaseApp = initializeApp(firebaseConfig);
-      console.log('Firebase initialized via firebaseConfig fallback');
+      // Log only in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Firebase initialized via firebaseConfig fallback');
+      }
     }
 
     return getSdks(firebaseApp);

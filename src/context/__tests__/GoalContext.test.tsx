@@ -8,6 +8,15 @@
 
 import { useGoals } from '../GoalContext';
 
+// Mock React's useContext to return null (simulating use outside provider)
+jest.mock('react', () => {
+  const actualReact = jest.requireActual('react');
+  return {
+    ...actualReact,
+    useContext: jest.fn(() => null),
+  };
+});
+
 // Mock Firebase completely
 jest.mock('@/firebase', () => ({
   useUser: () => ({ user: null, isUserLoading: false }),
