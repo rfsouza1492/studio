@@ -12,24 +12,26 @@ const LoginPage: React.FC = () => {
   const router = useRouter();
 
   useEffect(() => {
-    // Se o usuário já estiver logado e não estiver carregando, redirecione para a home
+    // If the user is already logged in, redirect to the home page.
     if (!loading && user) {
       router.replace('/');
     }
   }, [user, loading, router]);
   
-  // Exibe um estado de carregamento se a autenticação estiver em progresso ou se o usuário já estiver logado (e o redirecionamento estiver prestes a acontecer)
+  // While loading or if the user is logged in (and about to be redirected),
+  // show a loading indicator. This prevents a flash of the login page.
   if (loading || user) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
                 <Target className="h-12 w-12 animate-pulse text-primary" />
-                <p className="text-muted-foreground">Verificando sessão...</p>
+                <p className="text-muted-foreground">Carregando...</p>
             </div>
         </div>
     );
   }
 
+  // If not loading and no user, show the login page.
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary/50 p-4">
       <div className="w-full max-w-sm rounded-lg bg-card p-8 text-center shadow-lg">

@@ -11,14 +11,25 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Se não estiver carregando e não houver usuário, redirecione para o login.
-    // Evita redirecionar se já estivermos na página de login.
-    if (!loading && !user && pathname !== '/login') {
+    // If auth state is not determined yet, do nothing.
+    if (loading) {
+      return;
+    }
+
+    // If there is no user and the current page is not the login page,
+    // redirect to the login page.
+    if (!user && pathname !== '/login') {
         router.replace('/login');
+    }
+
+    // If there is a user and the current page is the login page,
+    // redirect to the home page.
+    if (user && pathname === '/login') {
+      router.replace('/');
     }
   }, [user, loading, pathname, router]);
 
-  // Exibe o carregamento enquanto a autenticação está sendo verificada.
+  // While loading, show a global loading screen.
   if (loading) {
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -30,20 +41,15 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
     );
   }
   
-  // Se o usuário não existir e o caminho não for o login, não renderize nada
-  // pois o redirecionamento está em andamento.
-  if (!user && pathname !== '/login') {
-    return null;
-  }
-  
-  // Se houver um usuário e estivermos na página de login, o AuthProvider/página de login
-  // cuidará do redirecionamento. Renderizar null evita um flash de conteúdo.
-  if (user && pathname === '/login') {
-      return null;
+  // If a user exists and we are not on the login page, show the children.
+  // Or if no user exists and we are on the login page, show the login page.
+  if ((user && pathname !== '/login') || (!user && pathname === '/login')) {
+    return <>{children}</>;
   }
 
-  // Se as condições acima não forem atendidas, renderize o conteúdo da rota.
-  return <>{children}</>;
+  // In other cases (like being unauthenticated on a protected route),
+  // return null while the redirection is in progress.
+  return null;
 };
 
 export default PrivateRoute;

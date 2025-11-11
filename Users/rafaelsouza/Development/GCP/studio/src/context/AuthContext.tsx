@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { User, AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { User, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter, usePathname } from 'next/navigation';
 import { Target } from 'lucide-react';
@@ -23,48 +23,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
-  const [authIsLoading, setAuthIsLoading] = useState(true);
 
-  // Combina o carregamento do hook useUser com o nosso próprio estado de carregamento
-  const loading = isUserLoading || authIsLoading;
-
+  // When user changes (login/logout), handle redirects
   useEffect(() => {
-    const handleRedirectResult = async () => {
-      if (!auth) return;
-      
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.accessToken) {
-            setGoogleApiToken(credential.accessToken);
-          }
-          // Redireciona para a home após o login bem-sucedido via redirect
-          if (pathname === '/login') {
-            router.replace('/');
-          }
-        }
-      } catch (error) {
-        console.error("Error getting redirect result:", error);
-      } finally {
-        setAuthIsLoading(false);
-      }
-    };
-    
-    handleRedirectResult();
-  }, [auth, pathname, router]);
+    if (isUserLoading) return; // Wait until auth state is confirmed
+
+    // If user is logged in, redirect them away from the login page
+    if (user && pathname === '/login') {
+      router.replace('/');
+    }
+    // If user is not logged in, redirect them to the login page
+    if (!user && pathname !== '/login') {
+      router.replace('/login');
+    }
+  }, [user, isUserLoading, pathname, router]);
 
   const signInWithGoogle = async () => {
     if (!auth) return;
-    setAuthIsLoading(true);
     const provider = new GoogleAuthProvider();
-    // Adiciona o escopo da API do Google Calendar para obter permissão
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    
     try {
-      await signInWithRedirect(auth, provider);
+      // Use signInWithPopup for a more reliable and user-friendly flow
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleApiToken(credential.accessToken);
+      }
+      // Redirect to home page after successful login
+      router.replace('/');
     } catch (error) {
       console.error("Error signing in with Google:", error);
-      setAuthIsLoading(false);
+      // Let user know something went wrong, but don't crash
     }
   };
 
@@ -73,15 +63,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await auth.signOut();
       setGoogleApiToken(null);
+      // Redirect to login page after sign out
       router.push('/login');
     } catch (error) {
       console.error("Error signing out:", error);
     }
   };
 
-  const value = { user, loading, signInWithGoogle, signOut, googleApiToken };
+  const value = { user, loading: isUserLoading, signInWithGoogle, signOut, googleApiToken };
 
-  if (loading) {
+  // Show a loading screen while Firebase is determining the auth state
+  if (isUserLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
