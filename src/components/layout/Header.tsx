@@ -3,8 +3,9 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ListTodo, Target, Home, LogIn, LayoutDashboard, Menu, LogOut, Calendar } from 'lucide-react';
+import { Plus, ListTodo, Target, Home, LogIn, LayoutDashboard, Menu, LogOut, Calendar, Download } from 'lucide-react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
+import { ImportHubSpotTasksDialog } from '@/components/dialogs/ImportHubSpotTasksDialog';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 
 export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const pathname = usePathname();
   const { user, signOut, signInWithGoogle } = useAuth();
 
@@ -93,6 +95,16 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button 
+            onClick={() => setImportDialogOpen(true)} 
+            size="sm" 
+            variant="outline"
+            disabled={!user}
+            className="hidden sm:flex"
+          >
+            <Download className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Importar HubSpot</span>
+          </Button>
           <Button onClick={() => setDialogOpen(true)} size="sm" disabled={!user}>
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Nova Meta</span>
@@ -133,6 +145,7 @@ export function Header() {
         </div>
       </header>
       <AddOrEditGoalDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <ImportHubSpotTasksDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
     </>
   );
 }
