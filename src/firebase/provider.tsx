@@ -76,17 +76,34 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
 
+    // Timeout safety: if onAuthStateChanged doesn't fire within 10 seconds, stop loading
+    const timeoutId = setTimeout(() => {
+      console.warn('FirebaseProvider: onAuthStateChanged timeout - stopping loading state');
+      setUserAuthState(prev => {
+        if (prev.isUserLoading) {
+          return { user: null, isUserLoading: false, userError: new Error('Auth state check timeout') };
+        }
+        return prev;
+      });
+    }, 10000); // 10 second timeout
+
     const unsubscribe = onAuthStateChanged(
       auth,
       (firebaseUser) => { // Auth state determined
+        clearTimeout(timeoutId);
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
       },
       (error) => { // Auth listener error
+        clearTimeout(timeoutId);
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
         setUserAuthState({ user: null, isUserLoading: false, userError: error });
       }
     );
-    return () => unsubscribe(); // Cleanup
+    
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, [auth]); // Depends on the auth instance
 
   // Memoize the context value
