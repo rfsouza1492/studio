@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
@@ -17,11 +16,6 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
     if (!loading && !user && pathname !== '/login') {
         router.replace('/login');
     }
-    // Se não estiver carregando, houver um usuário e estivermos na página de login,
-    // redirecione para a página principal.
-    else if (!loading && user && pathname === '/login') {
-        router.replace('/');
-    }
   }, [user, loading, pathname, router]);
 
   // Exibe o carregamento enquanto a autenticação está sendo verificada.
@@ -35,17 +29,17 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
         </div>
     );
   }
-
-  // Se o usuário existir e o caminho for o login, não renderize nada
-  // pois o redirecionamento está em andamento.
-  if (user && pathname === '/login') {
-      return null;
-  }
   
   // Se o usuário não existir e o caminho não for o login, não renderize nada
   // pois o redirecionamento está em andamento.
   if (!user && pathname !== '/login') {
     return null;
+  }
+  
+  // Se houver um usuário e estivermos na página de login, o AuthProvider/página de login
+  // cuidará do redirecionamento. Renderizar null evita um flash de conteúdo.
+  if (user && pathname === '/login') {
+      return null;
   }
 
   // Se as condições acima não forem atendidas, renderize o conteúdo da rota.
