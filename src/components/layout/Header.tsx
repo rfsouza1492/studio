@@ -30,12 +30,8 @@ export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const pathname = usePathname();
-<<<<<<< HEAD
   const { user, signOut, signInWithGoogle, loading } = useAuth();
-=======
-  const { user, signOut, signInWithGoogle } = useAuth();
   const { toast } = useToast();
->>>>>>> ce3c594c82510fe5948fd48eea403b1fb6f66e8a
 
   const navLinks = [
     { href: '/', label: 'Metas', icon: Home },
@@ -194,11 +190,7 @@ export function Header() {
                 </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-<<<<<<< HEAD
-             <Button variant="outline" size="sm" onClick={signInWithGoogle} disabled={loading}>
-=======
-             <Button variant="outline" size="sm" onClick={handleSignIn}>
->>>>>>> ce3c594c82510fe5948fd48eea403b1fb6f66e8a
+             <Button variant="outline" size="sm" onClick={handleSignIn} disabled={loading}>
                <LogIn className="h-4 w-4 sm:mr-2" />
                <span className='hidden sm:inline'>Entrar</span>
              </Button>

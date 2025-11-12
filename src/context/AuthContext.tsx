@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { User, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { User, GoogleAuthProvider, signInWithPopup, AuthError } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -22,16 +22,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
-<<<<<<< HEAD
-=======
-  const [hasCheckedRedirect, setHasCheckedRedirect] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Ensure we only render loading state on client-side to avoid hydration errors
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
->>>>>>> ce3c594c82510fe5948fd48eea403b1fb6f66e8a
 
   // When user auth state changes, handle redirects. This is the single source of truth for redirection.
   useEffect(() => {
@@ -63,10 +53,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       // After successful login, the useEffect hook above will handle the redirect.
     } catch (error) {
-<<<<<<< HEAD
-      console.error("Error signing in with Google:", error);
-      // Let user know something went wrong, maybe with a toast
-=======
       // Handle specific Firebase Auth errors
       const authError = error as AuthError;
       
@@ -97,7 +83,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Re-throw with friendly message for unexpected errors
       throw new Error('Erro ao fazer login. Tente novamente.');
->>>>>>> ce3c594c82510fe5948fd48eea403b1fb6f66e8a
     }
   };
 
@@ -114,39 +99,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value = { user, loading: isUserLoading, signInWithGoogle, signOut, googleApiToken };
 
-<<<<<<< HEAD
   // The loading state is now directly from useUser, which is managed by the FirebaseProvider
   // The PrivateRoute component will show a loading indicator while `isUserLoading` is true.
-=======
-  // Show loading only during initial auth check
-  // Add timeout to prevent infinite loading
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-  
-  useEffect(() => {
-    if (isUserLoading) {
-      const timeout = setTimeout(() => {
-        setLoadingTimeout(true);
-      }, 6000); // 6 seconds total (5s Firebase + 1s buffer)
-      
-      return () => clearTimeout(timeout);
-    } else {
-      setLoadingTimeout(false);
-    }
-  }, [isUserLoading]);
-
-  // Don't show loading if timeout occurred or not mounted yet (prevent hydration errors)
-  if (isMounted && isUserLoading && !loadingTimeout) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Target className="h-12 w-12 animate-pulse text-primary" />
-          <p className="text-muted-foreground">Verificando autenticação...</p>
-        </div>
-      </div>
-    );
-  }
-
->>>>>>> ce3c594c82510fe5948fd48eea403b1fb6f66e8a
   return (
     <AuthContext.Provider value={value}>
       {children}
