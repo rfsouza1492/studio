@@ -3,8 +3,9 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ListTodo, Target, Home, LogIn, LayoutDashboard, Menu, LogOut, Calendar } from 'lucide-react';
+import { Plus, ListTodo, Target, Home, LogIn, LayoutDashboard, Menu, LogOut, Calendar, Download } from 'lucide-react';
 import { AddOrEditGoalDialog } from '@/components/dialogs/AddOrEditGoalDialog';
+import { ImportHubSpotTasksDialog } from '@/components/dialogs/ImportHubSpotTasksDialog';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -20,12 +21,21 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 
 export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const pathname = usePathname();
+<<<<<<< HEAD
   const { user, signOut, signInWithGoogle, loading } = useAuth();
+=======
+  const { user, signOut, signInWithGoogle } = useAuth();
+  const { toast } = useToast();
+>>>>>>> ce3c594c82510fe5948fd48eea403b1fb6f66e8a
 
   const navLinks = [
     { href: '/', label: 'Metas', icon: Home },
@@ -33,6 +43,19 @@ export function Header() {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/calendar', label: 'Google Calendar', icon: Calendar },
   ];
+
+  const handleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      // Show user-friendly error message
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer login",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+      });
+    }
+  };
 
   const Logo = () => (
     <Link href="/" className="flex items-center gap-3">
@@ -73,6 +96,30 @@ export function Header() {
                     </Link>
                   ))}
                 </nav>
+                
+                {user && (
+                  <>
+                    <Separator />
+                    <div className="flex flex-col gap-2">
+                      <Button 
+                        onClick={() => setImportDialogOpen(true)} 
+                        variant="outline"
+                        className="w-full justify-start gap-2"
+                      >
+                        <Download className="h-5 w-5" />
+                        Importar HubSpot
+                        <Badge variant="secondary" className="ml-auto">52</Badge>
+                      </Button>
+                      <Button 
+                        onClick={() => setDialogOpen(true)} 
+                        className="w-full justify-start gap-2"
+                      >
+                        <Plus className="h-5 w-5" />
+                        Nova Meta
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </SheetContent>
           </Sheet>
@@ -93,6 +140,29 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={() => setImportDialogOpen(true)} 
+                  size="sm" 
+                  variant="outline"
+                  disabled={!user}
+                  className="hidden sm:flex gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden md:inline">Importar HubSpot</span>
+                  <Badge variant="secondary" className="hidden md:flex h-5 px-1.5 text-xs">
+                    52
+                  </Badge>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Importar 52 tarefas do HubSpot em 6 projetos</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <Button onClick={() => setDialogOpen(true)} size="sm" disabled={!user}>
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Nova Meta</span>
@@ -124,7 +194,11 @@ export function Header() {
                 </DropdownMenuContent>
             </DropdownMenu>
           ) : (
+<<<<<<< HEAD
              <Button variant="outline" size="sm" onClick={signInWithGoogle} disabled={loading}>
+=======
+             <Button variant="outline" size="sm" onClick={handleSignIn}>
+>>>>>>> ce3c594c82510fe5948fd48eea403b1fb6f66e8a
                <LogIn className="h-4 w-4 sm:mr-2" />
                <span className='hidden sm:inline'>Entrar</span>
              </Button>
@@ -133,6 +207,7 @@ export function Header() {
         </div>
       </header>
       <AddOrEditGoalDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <ImportHubSpotTasksDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
     </>
   );
 }

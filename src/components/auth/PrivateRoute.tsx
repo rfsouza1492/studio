@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from 'next/navigation';
 import { Target } from "lucide-react";
 
@@ -9,11 +9,32 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure we only render loading state on client-side to avoid hydration errors
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
-  // This component's main responsibility is now just to show a loading screen
-  // or render children, not to handle redirection logic.
-  // Redirection is now centralized in AuthContext.
+  useEffect(() => {
+    // Only redirect after loading is complete
+    if (loading) return;
+    
+    // Redirect to login if not authenticated (except if already on login page)
+    if (!user && pathname !== '/login') {
+      router.replace('/login');
+      return;
+    }
+    
+    // Redirect to home if authenticated and on login page
+    // This is handled by AuthProvider, but we keep it as fallback
+    if (user && pathname === '/login') {
+      router.replace('/');
+      return;
+    }
+  }, [user, loading, pathname, router]);
   
+  // Show loading screen during initial auth check
   if (loading) {
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">

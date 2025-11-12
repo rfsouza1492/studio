@@ -77,7 +77,7 @@ interface GoalContextType {
   goals: Goal[];
   tasks: Task[];
   loading: boolean;
-  addGoal: (newGoal: Omit<Goal, 'id' | 'userId'>) => Promise<void>;
+  addGoal: (newGoal: Omit<Goal, 'id' | 'userId'>) => Promise<string>;
   editGoal: (updatedGoal: Omit<Goal, 'userId'>) => Promise<void>;
   deleteGoal: (goalId: string) => Promise<void>;
   addTask: (
@@ -100,6 +100,12 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [state, dispatch] = useReducer(goalReducer, initialState);
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  // Ensure we only render loading state on client-side to avoid hydration errors
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   useEffect(() => {
     if (isUserLoading) {
@@ -175,7 +181,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>) => {
-    if (!user || !firestore) return;
+    if (!user || !firestore) return '';
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
     const finalGoal: Goal = { 
       ...newGoalData, 
@@ -188,7 +194,13 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const cleanGoal = removeUndefined(finalGoal);
     setDocumentNonBlocking(goalRef, cleanGoal, {});
     // Optimistic update
+<<<<<<< HEAD
     dispatch({ type: 'ADD_GOAL', payload: cleanGoal as Goal });
+=======
+    dispatch({ type: 'ADD_GOAL', payload: finalGoal });
+    // Return the ID so it can be used for adding tasks
+    return goalRef.id;
+>>>>>>> ce3c594c82510fe5948fd48eea403b1fb6f66e8a
   };
 
   const editGoal = async (updatedGoalData: Omit<Goal, 'userId'>) => {
@@ -280,7 +292,12 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
   
+<<<<<<< HEAD
   if (state.loading && state.goals.length === 0) {
+=======
+  // Only show loading screen on client-side to prevent hydration errors
+  if (isMounted && state.loading) {
+>>>>>>> ce3c594c82510fe5948fd48eea403b1fb6f66e8a
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">

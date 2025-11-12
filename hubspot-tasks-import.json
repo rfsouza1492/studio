@@ -1,0 +1,473 @@
+{
+  "projects": [
+    {
+      "goal": {
+        "name": "Formulário - Melhorias Urgentes",
+        "kpiName": "Tarefas Completadas",
+        "kpiTarget": 10,
+        "kpiCurrent": 0
+      },
+      "tasks": [
+        {
+          "title": "Permitir enviar dados do formulário direto para conversa no WhatsApp",
+          "priority": "High",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 180,
+          "recurrence": "None",
+          "category": "Desenvolvimento/Integração"
+        },
+        {
+          "title": "Estudar e implementar mapeamento de parâmetros do formulário para WhatsApp via HTML",
+          "priority": "High",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 120,
+          "recurrence": "None",
+          "category": "Desenvolvimento/Pesquisa"
+        },
+        {
+          "title": "Investigar casos de não sincronização com HubSpot",
+          "priority": "High",
+          "deadline": "2025-11-17T13:53:00",
+          "duration": 90,
+          "recurrence": "None",
+          "category": "Bug/Investigação"
+        },
+        {
+          "title": "Reordenar perguntas do formulário: mover e-mail da 2ª para 4ª posição",
+          "priority": "Medium",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 30,
+          "recurrence": "None",
+          "category": "UX/Frontend"
+        },
+        {
+          "title": "Remover pergunta sobre e-mail corporativo quando já tem e-mail pessoal",
+          "priority": "Medium",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 45,
+          "recurrence": "None",
+          "category": "UX/Lógica Condicional"
+        },
+        {
+          "title": "Remover texto 'não atendemos menos de 80' do formulário",
+          "priority": "Medium",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 15,
+          "recurrence": "None",
+          "category": "Conteúdo/Frontend"
+        },
+        {
+          "title": "Enquanto não tem o vídeo, já implementar mudanças textuais",
+          "priority": "Medium",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 30,
+          "recurrence": "None",
+          "category": "Conteúdo/Frontend"
+        },
+        {
+          "title": "Conversar com André sobre teste do formulário",
+          "priority": "Low",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 30,
+          "recurrence": "None",
+          "category": "Comunicação/Reunião"
+        },
+        {
+          "title": "Enviar resumo completo da reunião para o grupo",
+          "priority": "Low",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 20,
+          "recurrence": "None",
+          "category": "Comunicação/Documentação"
+        },
+        {
+          "title": "Enviar textinhos/alterações no grupo",
+          "priority": "Low",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 10,
+          "recurrence": "None",
+          "category": "Comunicação"
+        }
+      ]
+    },
+    {
+      "goal": {
+        "name": "Meta Patagon Star",
+        "kpiName": "Tarefas Completadas",
+        "kpiTarget": 11,
+        "kpiCurrent": 0
+      },
+      "tasks": [
+        {
+          "title": "VExpenses: Apresentar proposta de critérios para leads premium",
+          "priority": "High",
+          "deadline": "2025-11-28T21:00:00",
+          "duration": 120,
+          "recurrence": "None",
+          "category": "Produto/Estratégia"
+        },
+        {
+          "title": "VExpenses: Implementar ajustes no prompt baseados no feedback da Alana",
+          "priority": "High",
+          "deadline": "2025-11-21T21:00:00",
+          "duration": 90,
+          "recurrence": "None",
+          "category": "IA/Prompt Engineering"
+        },
+        {
+          "title": "VExpenses: Desenvolver dashboard com dados cruzados WhatsApp + Pipedrive",
+          "priority": "High",
+          "deadline": "2025-11-21T21:00:00",
+          "duration": 240,
+          "recurrence": "None",
+          "category": "Desenvolvimento/Integração"
+        },
+        {
+          "title": "Implementar orientação para clientes quando conteúdo for PDF ou imagem",
+          "priority": "Medium",
+          "deadline": "2025-11-17T15:28:00",
+          "duration": 60,
+          "recurrence": "None",
+          "category": "UX/Frontend"
+        },
+        {
+          "title": "Retornar sobre melhoria na clareza dos detalhes da nova interface de attribution",
+          "priority": "Medium",
+          "deadline": "2025-11-17T15:28:00",
+          "duration": 45,
+          "recurrence": "None",
+          "category": "UX/Design"
+        },
+        {
+          "title": "Melhorar mensagem de erro da API quando email já existe mas CNPJ não está cadastrado",
+          "priority": "Medium",
+          "deadline": "2025-11-17T15:28:00",
+          "duration": 30,
+          "recurrence": "None",
+          "category": "Backend/API"
+        },
+        {
+          "title": "Atualizar settings para Salesforce",
+          "priority": "Medium",
+          "deadline": "2025-11-17T15:05:00",
+          "duration": 45,
+          "recurrence": "None",
+          "category": "Integração/Config"
+        },
+        {
+          "title": "Investigar e corrigir inconsistências nos dados do dashboard da Patagon",
+          "priority": "High",
+          "deadline": "2025-11-17T14:43:00",
+          "duration": 120,
+          "recurrence": "None",
+          "category": "Bug/Investigação"
+        },
+        {
+          "title": "Corrigir prompt da IA: Regras de qualificação e desqualificação de leads",
+          "priority": "High",
+          "deadline": "2025-11-17T14:17:00",
+          "duration": 90,
+          "recurrence": "None",
+          "category": "IA/Prompt Engineering"
+        },
+        {
+          "title": "Solicitar correção de cadastro - Endereço incorreto na base do prestador Patagon",
+          "priority": "Low",
+          "deadline": "2025-11-17T14:12:00",
+          "duration": 15,
+          "recurrence": "None",
+          "category": "Administrativo/Dados"
+        },
+        {
+          "title": "Adicionar informação sobre crediário no follow-up de agendamento",
+          "priority": "Medium",
+          "deadline": "2025-11-17T13:54:00",
+          "duration": 30,
+          "recurrence": "None",
+          "category": "Comunicação/Template"
+        }
+      ]
+    },
+    {
+      "goal": {
+        "name": "VExpenses - Bugs e Features",
+        "kpiName": "Tarefas Completadas",
+        "kpiTarget": 7,
+        "kpiCurrent": 0
+      },
+      "tasks": [
+        {
+          "title": "VExpenses: Atualizar prompt com gaps identificados pela Alana",
+          "priority": "High",
+          "deadline": "2025-11-14T21:00:00",
+          "duration": 90,
+          "recurrence": "None",
+          "category": "IA/Prompt Engineering"
+        },
+        {
+          "title": "VExpenses: Implementar alternativa via webhook se necessário",
+          "priority": "High",
+          "deadline": "2025-11-14T21:00:00",
+          "duration": 120,
+          "recurrence": "None",
+          "category": "Desenvolvimento/Integração"
+        },
+        {
+          "title": "VExpenses: Testar se Retool integra com Google Sheets",
+          "priority": "Medium",
+          "deadline": "2025-11-14T21:00:00",
+          "duration": 60,
+          "recurrence": "None",
+          "category": "Pesquisa/Testes"
+        },
+        {
+          "title": "VExpenses: Finalizar investigação do bug de resumos",
+          "priority": "High",
+          "deadline": "2025-11-14T21:00:00",
+          "duration": 90,
+          "recurrence": "None",
+          "category": "Bug/Investigação"
+        },
+        {
+          "title": "VExpenses: Testar integração Retool com Google Sheets",
+          "priority": "Medium",
+          "deadline": "2025-11-14T21:00:00",
+          "duration": 60,
+          "recurrence": "None",
+          "category": "Testes/Integração"
+        },
+        {
+          "title": "VExpenses: Investigar e resolver bug de resumos incoerentes",
+          "priority": "High",
+          "deadline": "2025-11-07T21:00:00",
+          "duration": 120,
+          "recurrence": "None",
+          "category": "Bug/Investigação"
+        },
+        {
+          "title": "VExpenses: FAQ http tool",
+          "priority": "Medium",
+          "deadline": "2025-10-31T08:00:00",
+          "duration": 90,
+          "recurrence": "None",
+          "category": "Documentação",
+          "status": "ATRASADA"
+        }
+      ]
+    },
+    {
+      "goal": {
+        "name": "Tracking & Monitoring",
+        "kpiName": "Dias com Tracking Completo",
+        "kpiTarget": 17,
+        "kpiCurrent": 0
+      },
+      "tasks": [
+        {
+          "title": "Tracking agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-12T08:45:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento"
+        },
+        {
+          "title": "Tracking agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-11T08:45:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento"
+        },
+        {
+          "title": "Tracking agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-10T08:45:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento"
+        },
+        {
+          "title": "Tracking agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-09T08:45:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento"
+        },
+        {
+          "title": "Tracking agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-08T08:45:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento"
+        },
+        {
+          "title": "Tracking agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-07T08:45:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento"
+        },
+        {
+          "title": "Tracking agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-06T08:45:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento"
+        },
+        {
+          "title": "Tracking Rotunno Agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-11T13:15:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento/Rotunno"
+        },
+        {
+          "title": "Tracking Rotunno Agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-10T13:15:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento/Rotunno"
+        },
+        {
+          "title": "Tracking Rotunno Agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-09T13:15:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento/Rotunno"
+        },
+        {
+          "title": "Tracking Rotunno Agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-08T13:15:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento/Rotunno"
+        },
+        {
+          "title": "Tracking Rotunno Agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-07T13:15:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento/Rotunno"
+        },
+        {
+          "title": "Tracking Rotunno Agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-06T13:15:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento/Rotunno"
+        },
+        {
+          "title": "Tracking Rotunno Agent adjustments",
+          "priority": "Medium",
+          "deadline": "2025-11-05T13:15:00",
+          "duration": 30,
+          "recurrence": "Daily",
+          "category": "Monitoramento/Rotunno"
+        }
+      ]
+    },
+    {
+      "goal": {
+        "name": "Rotunno - Desenvolvimento",
+        "kpiName": "Features Completadas",
+        "kpiTarget": 1,
+        "kpiCurrent": 0
+      },
+      "tasks": [
+        {
+          "title": "Desenvolver agent para Portugal no projeto Rotunno",
+          "priority": "High",
+          "deadline": "2025-11-10T05:00:00",
+          "duration": 240,
+          "recurrence": "None",
+          "category": "Desenvolvimento/AI Agent"
+        }
+      ]
+    },
+    {
+      "goal": {
+        "name": "Análises & Investigações",
+        "kpiName": "Análises Completadas",
+        "kpiTarget": 7,
+        "kpiCurrent": 0
+      },
+      "tasks": [
+        {
+          "title": "Fazer análise de 25 bairros: Percentual de atendimento, demanda e motivo principal de não atendimento",
+          "priority": "High",
+          "deadline": "2025-11-07T08:00:00",
+          "duration": 180,
+          "recurrence": "None",
+          "category": "Análise de Dados"
+        },
+        {
+          "title": "Analisar Conversa em que a IA mandou dois links para cada apartamento (Arthur.galdino@yuca.live - 61982795463)",
+          "priority": "Medium",
+          "deadline": "2025-11-07T08:00:00",
+          "duration": 45,
+          "recurrence": "None",
+          "category": "Bug/Análise IA"
+        },
+        {
+          "title": "Entender Interesting Leads que não eram para ser Interesting lead",
+          "priority": "Medium",
+          "deadline": "2025-11-07T08:00:00",
+          "duration": 60,
+          "recurrence": "None",
+          "category": "Qualificação/Lógica"
+        },
+        {
+          "title": "Investigar caso de link da agenda - Neofim",
+          "priority": "Medium",
+          "deadline": "2025-11-06T08:00:00",
+          "duration": 45,
+          "recurrence": "None",
+          "category": "Bug/Integração"
+        },
+        {
+          "title": "Ajustes e melhorias - Praso",
+          "priority": "Low",
+          "deadline": "2025-11-06T08:00:00",
+          "duration": 60,
+          "recurrence": "None",
+          "category": "Melhoria"
+        },
+        {
+          "title": "A análise passará a ser cobrada Investimento R$ 180 - Clube da Fala",
+          "priority": "Low",
+          "deadline": "2025-11-06T08:00:00",
+          "duration": 30,
+          "recurrence": "None",
+          "category": "Config/Pricing"
+        },
+        {
+          "title": "NPJ ainda não está cadastrado, mas o e-mail informado já existe",
+          "priority": "Medium",
+          "deadline": "2025-11-05T08:00:00",
+          "duration": 30,
+          "recurrence": "None",
+          "category": "Bug/Validação"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "totalTasks": 52,
+    "totalProjects": 6,
+    "urgentTasks": 33,
+    "highPriorityTasks": 25,
+    "totalEstimatedHours": 51.8
+  }
+}
+

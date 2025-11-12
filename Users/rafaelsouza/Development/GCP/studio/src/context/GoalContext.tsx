@@ -3,8 +3,9 @@
 
 import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
-import { collection, doc, query, writeBatch, getDocs, where, onSnapshot, Unsubscribe, collectionGroup } from 'firebase/firestore';
+import { collection, doc, query, writeBatch, getDocs, where, onSnapshot, Unsubscribe, collectionGroup, setDoc } from 'firebase/firestore';
 import { useFirestore, useUser, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { Target } from 'lucide-react';
 
 interface State {
   goals: Goal[];
@@ -76,7 +77,7 @@ interface GoalContextType {
   goals: Goal[];
   tasks: Task[];
   loading: boolean;
-  addGoal: (newGoal: Omit<Goal, 'id' | 'userId'>) => Promise<void>;
+  addGoal: (newGoal: Omit<Goal, 'id' | 'userId'>) => Promise<string>;
   editGoal: (updatedGoal: Omit<Goal, 'userId'>) => Promise<void>;
   deleteGoal: (goalId: string) => Promise<void>;
   addTask: (
@@ -115,7 +116,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
 
     const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
     const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
-    
+
     let goalsData: Goal[] = [];
     let tasksData: Task[] = [];
     let goalsLoaded = false;
@@ -126,7 +127,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
         dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
       }
     };
-    
+
     const goalsUnsub = onSnapshot(goalsQuery, 
       (goalsSnapshot) => {
         goalsData = goalsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
@@ -172,20 +173,21 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     return newObj;
   };
 
-  const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>) => {
-    if (!user || !firestore) return;
+  const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>): Promise<string> => {
+    if (!user || !firestore) return '';
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
     const finalGoal: Goal = { 
+      ...newGoalData, 
       id: goalRef.id, 
       userId: user.uid,
-      name: newGoalData.name,
       kpiName: newGoalData.kpiName || null,
       kpiCurrent: newGoalData.kpiCurrent || 0,
       kpiTarget: newGoalData.kpiTarget || 0,
     };
     const cleanGoal = removeUndefined(finalGoal);
-    setDocumentNonBlocking(goalRef, cleanGoal, {});
+    await setDoc(goalRef, cleanGoal);
     dispatch({ type: 'ADD_GOAL', payload: cleanGoal as Goal });
+    return goalRef.id;
   };
 
   const editGoal = async (updatedGoalData: Omit<Goal, 'userId'>) => {
@@ -193,7 +195,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const { id, ...goalData } = updatedGoalData;
     const goalRef = doc(firestore, 'users', user.uid, 'goals', id);
     const cleanGoalData = removeUndefined(goalData);
-    updateDocumentNonBlocking(goalRef, cleanGoalData);
+    await updateDocumentNonBlocking(goalRef, cleanGoalData);
     dispatch({ type: 'EDIT_GOAL', payload: { ...updatedGoalData, userId: user.uid } });
   };
 
@@ -207,7 +209,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       tasksSnapshot.forEach(doc => {
           batch.delete(doc.ref);
       });
-      batch.commit().catch(error => {
+      await batch.commit().catch(error => {
           console.error("Error deleting tasks in batch:", error);
           const contextualError = new FirestorePermissionError({ operation: 'delete', path: `tasks in goal ${goalId}` });
           errorEmitter.emit('permission-error', contextualError);
@@ -215,7 +217,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     }
     
     const goalRef = doc(firestore, 'users', user.uid, 'goals', goalId);
-    deleteDocumentNonBlocking(goalRef);
+    await deleteDocumentNonBlocking(goalRef);
     dispatch({ type: 'DELETE_GOAL', payload: goalId });
   };
 
@@ -225,7 +227,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     priority: Priority,
     recurrence: Recurrence,
     deadline?: Date,
-    duration?: number
+    duration?: number,
+    completed = false
   ) => {
     if (!user || !firestore) return;
     const taskRef = doc(collection(firestore, 'users', user.uid, 'goals', goalId, 'tasks'));
@@ -233,7 +236,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       id: taskRef.id,
       goalId,
       title,
-      completed: false,
+      completed,
       priority,
       deadline: deadline?.toISOString() || null,
       recurrence,
@@ -241,7 +244,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       userId: user.uid,
     };
     const cleanTask = removeUndefined(newTask);
-    setDocumentNonBlocking(taskRef, cleanTask, {});
+    await setDocumentNonBlocking(taskRef, cleanTask, {});
     dispatch({ type: 'ADD_TASK', payload: cleanTask as Task });
   };
 
@@ -250,14 +253,14 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const { id, goalId, ...taskData } = updatedTaskData;
     const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', id);
     const cleanTaskData = removeUndefined(taskData);
-    updateDocumentNonBlocking(taskRef, cleanTaskData);
+    await updateDocumentNonBlocking(taskRef, cleanTaskData);
     dispatch({ type: 'EDIT_TASK', payload: { ...updatedTaskData, userId: user.uid } });
   };
 
   const deleteTask = async (taskId: string, goalId: string) => {
     if (!user || !firestore) return;
     const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', taskId);
-    deleteDocumentNonBlocking(taskRef);
+    await deleteDocumentNonBlocking(taskRef);
     dispatch({ type: 'DELETE_TASK', payload: taskId });
   };
 
@@ -265,10 +268,14 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const taskRef = doc(firestore, 'users', user.uid, 'goals', task.goalId, 'tasks', task.id);
     const newCompletedStatus = !task.completed;
-    updateDocumentNonBlocking(taskRef, { completed: newCompletedStatus });
+    await updateDocumentNonBlocking(taskRef, { completed: newCompletedStatus });
     dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
   
+  if (state.loading) {
+    return null;
+  }
+
   const value: GoalContextType = {
     ...state,
     addGoal,
@@ -294,3 +301,5 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
+
+    
