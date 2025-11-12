@@ -27,6 +27,7 @@ interface DeadlineStatus {
   label: string;
   color: string;
   icon: DeadlineStatusIcon;
+  formattedDate: string;
 }
 
 const deadlineIcons = {
@@ -46,9 +47,9 @@ export function TaskItem({ task }: { task: Task }) {
   const [deadlineStatus, setDeadlineStatus] = useState<DeadlineStatus | null>(null);
 
   useEffect(() => {
-    // This effect runs only on the client, after hydration
+    // This effect runs only on the client, after hydration, preventing mismatches
     if (!task.deadline) {
-      setDeadlineStatus({ label: 'Sem prazo', color: 'text-gray-500', icon: 'Minus' });
+      setDeadlineStatus({ label: 'Sem prazo', color: 'text-gray-500', icon: 'Minus', formattedDate: '' });
       return;
     }
 
@@ -56,15 +57,16 @@ export function TaskItem({ task }: { task: Task }) {
     const deadlineDate = new Date(task.deadline);
     const hoursRemaining = differenceInHours(deadlineDate, now);
     const daysRemaining = differenceInDays(deadlineDate, now);
+    const formattedDate = format(deadlineDate, "dd MMM, p");
 
     if (hoursRemaining < 0) {
-      setDeadlineStatus({ label: `Atrasada`, color: 'text-red-600 font-bold', icon: 'XCircle' });
+      setDeadlineStatus({ label: `Atrasada`, color: 'text-red-600 font-bold', icon: 'XCircle', formattedDate });
     } else if (hoursRemaining < 24) {
-      setDeadlineStatus({ label: `Vence em ${hoursRemaining} hora(s)`, color: 'text-red-500', icon: 'AlertCircle' });
+      setDeadlineStatus({ label: `Vence em ${hoursRemaining} hora(s)`, color: 'text-red-500', icon: 'AlertCircle', formattedDate });
     } else if (daysRemaining <= 7) {
-      setDeadlineStatus({ label: `Vence em ${daysRemaining} dia(s)`, color: 'text-yellow-500', icon: 'Clock' });
+      setDeadlineStatus({ label: `Vence em ${daysRemaining} dia(s)`, color: 'text-yellow-500', icon: 'Clock', formattedDate });
     } else {
-      setDeadlineStatus({ label: `Vence em ${daysRemaining} dias`, color: 'text-green-500', icon: 'CheckCircle2' });
+      setDeadlineStatus({ label: `Vence em ${daysRemaining} dias`, color: 'text-green-500', icon: 'CheckCircle2', formattedDate });
     }
   }, [task.deadline]);
 
@@ -208,13 +210,13 @@ export function TaskItem({ task }: { task: Task }) {
             </Tooltip>
           </TooltipProvider>
         )}
-        {task.deadline && deadlineStatus && DeadlineIcon && (
+        {deadlineStatus && DeadlineIcon && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
                   <div className={cn("flex items-center gap-1 text-xs", deadlineStatus.color)}>
                     <DeadlineIcon className="h-4 w-4 flex-shrink-0" />
-                    <span className="hidden sm:inline">{format(new Date(task.deadline), "dd MMM, p")}</span>
+                    {deadlineStatus.formattedDate && <span className="hidden sm:inline">{deadlineStatus.formattedDate}</span>}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
