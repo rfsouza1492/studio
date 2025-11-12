@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { User, GoogleAuthProvider, signInWithPopup, AuthError } from 'firebase/auth';
+import { User, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, AuthError } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -24,9 +24,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
   const { toast } = useToast();
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration issues by tracking client-side mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Handle redirect result after Google OAuth redirect
+  useEffect(() => {
+    if (!mounted || !auth) return;
+
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.accessToken) {
+            setGoogleApiToken(credential.accessToken);
+          }
+          // User will be set by onAuthStateChanged, redirect handled below
+        }
+      } catch (error) {
+        const authError = error as AuthError;
+        console.error("Error handling redirect result:", authError);
+        // Don't throw - let user try again
+      }
+    };
+
+    handleRedirectResult();
+  }, [mounted, auth]);
 
   // When user auth state changes, handle redirects. This is the single source of truth for redirection.
   useEffect(() => {
+    // Only handle redirects after component is mounted on client
+    if (!mounted) return;
+    
     if (isUserLoading) return; // Wait until auth state is confirmed
 
     // If user is NOT logged in and is NOT on the login page, redirect to login.
@@ -38,16 +71,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user && pathname === '/login') {
       router.replace('/');
     }
-  }, [user, isUserLoading, pathname, router]);
+  }, [user, isUserLoading, pathname, router, mounted]);
 
   const signInWithGoogle = async () => {
-    if (!auth) return;
+    if (!auth) {
+      throw new Error('Serviço de autenticação não disponível. Tente novamente.');
+    }
+    
     const provider = new GoogleAuthProvider();
     // Request access to the user's calendar
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
     
     try {
-      // Use signInWithPopup for a more reliable and user-friendly flow
+      // Try popup first (better UX)
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) {
@@ -67,10 +103,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       
-      // User blocked popup
+      // User blocked popup - fallback to redirect
       if (authError.code === 'auth/popup-blocked') {
-        // Let the UI handle this with a friendly message
-        throw new Error('Popup bloqueado. Por favor, permita popups para este site e tente novamente.');
+        try {
+          // Use redirect as fallback when popup is blocked
+          await signInWithRedirect(auth, provider);
+          // User will be redirected to Google, then back to our app
+          // getRedirectResult will handle the result in useEffect
+          return;
+        } catch (redirectError) {
+          const redirectAuthError = redirectError as AuthError;
+          console.error("Redirect sign-in failed:", redirectAuthError);
+          throw new Error('Não foi possível fazer login. Por favor, permita popups ou tente novamente.');
+        }
       }
       
       // Network errors

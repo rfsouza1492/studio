@@ -61,14 +61,24 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   firestore,
   auth,
 }) => {
+  // Initialize with loading state, but this will be consistent between SSR and client
   const [userAuthState, setUserAuthState] = useState<UserAuthState>({
     user: null,
     isUserLoading: true, // Start loading until first auth event
     userError: null,
   });
+  const [isClient, setIsClient] = useState(false);
+
+  // Track client-side mount to prevent hydration issues
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
+    // Only initialize auth listener on client side
+    if (!isClient) return;
+
     if (!auth) { // If no Auth service instance, cannot determine user state
       setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
       return;
@@ -127,7 +137,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [auth]); // Depends on the auth instance
+  }, [auth, isClient]); // Depends on the auth instance and client mount
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {

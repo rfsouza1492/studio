@@ -1,15 +1,18 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Target, LogIn } from 'lucide-react';
+import { Target, LogIn, AlertCircle } from 'lucide-react';
 import { useEffect } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const LoginPage: React.FC = () => {
   const { signInWithGoogle, user, loading } = useAuth();
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
@@ -24,6 +27,21 @@ const LoginPage: React.FC = () => {
       }, 100);
     }
   }, [user, loading, router]);
+
+  const handleSignIn = async () => {
+    setError(null);
+    setIsSigningIn(true);
+    
+    try {
+      await signInWithGoogle();
+      // If using redirect, the page will navigate away
+      // If using popup, the useEffect above will handle redirect
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao fazer login. Tente novamente.';
+      setError(errorMessage);
+      setIsSigningIn(false);
+    }
+  };
   
   if (loading || user) {
     return (
@@ -44,9 +62,34 @@ const LoginPage: React.FC = () => {
         </div>
         <h1 className="text-2xl font-bold text-card-foreground">Bem-vindo ao GoalFlow</h1>
         <p className="mb-6 mt-2 text-muted-foreground">Faça login para começar a gerenciar suas metas.</p>
-        <Button onClick={signInWithGoogle} className='w-full' size='lg' disabled={loading}>
-          {loading ? 'Carregando...' : <><LogIn className="mr-2 h-4 w-4" /> Entrar com Google</>}
+        
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        <Button 
+          onClick={handleSignIn} 
+          className='w-full' 
+          size='lg' 
+          disabled={loading || isSigningIn}
+        >
+          {loading || isSigningIn ? (
+            'Carregando...'
+          ) : (
+            <>
+              <LogIn className="mr-2 h-4 w-4" /> Entrar com Google
+            </>
+          )}
         </Button>
+        
+        {isSigningIn && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            Redirecionando para Google...
+          </p>
+        )}
       </div>
     </div>
   );
