@@ -5,7 +5,6 @@ import React, { createContext, useContext, useEffect, useReducer, ReactNode } fr
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { collection, doc, query, writeBatch, getDocs, where, onSnapshot, Unsubscribe, collectionGroup, setDoc } from 'firebase/firestore';
 import { useFirestore, useUser, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { Target } from 'lucide-react';
 
 interface State {
   goals: Goal[];
@@ -86,7 +85,7 @@ interface GoalContextType {
     priority: Priority,
     recurrence: Recurrence,
     deadline?: Date,
-    duration?: number,
+    duration?: number | null,
     completed?: boolean
   ) => Promise<void>;
   editTask: (updatedTask: Omit<Task, 'userId'>) => Promise<void>;
@@ -115,8 +114,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: 'SET_LOADING', payload: true });
 
     const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
-    const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
-
+    
+    let tasksUnsub: Unsubscribe = () => {};
     let goalsData: Goal[] = [];
     let tasksData: Task[] = [];
     let goalsLoaded = false;
@@ -141,17 +140,24 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
         errorEmitter.emit('permission-error', contextualError);
       }
     );
-
-    const tasksUnsub = onSnapshot(tasksQuery, (tasksSnapshot) => {
-        tasksData = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+    
+    if (user.uid) {
+        const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
+        tasksUnsub = onSnapshot(tasksQuery, (tasksSnapshot) => {
+            tasksData = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+            tasksLoaded = true;
+            maybeSetData();
+        }, (error) => {
+            console.error("Error fetching tasks:", error);
+            const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks collection group for user ${user.uid}` });
+            dispatch({ type: 'SET_ERROR', payload: contextualError });
+            errorEmitter.emit('permission-error', contextualError);
+        });
+    } else {
         tasksLoaded = true;
         maybeSetData();
-    }, (error) => {
-         console.error("Error fetching tasks:", error);
-         const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks collection group for user ${user.uid}` });
-         dispatch({ type: 'SET_ERROR', payload: contextualError });
-         errorEmitter.emit('permission-error', contextualError);
-    });
+    }
+
 
     return () => {
       goalsUnsub();
@@ -176,14 +182,15 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>): Promise<string> => {
     if (!user || !firestore) return '';
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
-    const finalGoal: Goal = { 
-      ...newGoalData, 
-      id: goalRef.id, 
+    const finalGoal: Goal = {
+      name: newGoalData.name,
+      id: goalRef.id,
       userId: user.uid,
       kpiName: newGoalData.kpiName || null,
       kpiCurrent: newGoalData.kpiCurrent || 0,
       kpiTarget: newGoalData.kpiTarget || 0,
     };
+    
     const cleanGoal = removeUndefined(finalGoal);
     await setDoc(goalRef, cleanGoal);
     dispatch({ type: 'ADD_GOAL', payload: cleanGoal as Goal });
@@ -194,7 +201,12 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const { id, ...goalData } = updatedGoalData;
     const goalRef = doc(firestore, 'users', user.uid, 'goals', id);
-    const cleanGoalData = removeUndefined(goalData);
+    const cleanGoalData = {
+        name: goalData.name,
+        kpiName: goalData.kpiName || null,
+        kpiCurrent: goalData.kpiCurrent || 0,
+        kpiTarget: goalData.kpiTarget || 0,
+    };
     await updateDocumentNonBlocking(goalRef, cleanGoalData);
     dispatch({ type: 'EDIT_GOAL', payload: { ...updatedGoalData, userId: user.uid } });
   };
@@ -227,7 +239,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     priority: Priority,
     recurrence: Recurrence,
     deadline?: Date,
-    duration?: number,
+    duration?: number | null,
     completed = false
   ) => {
     if (!user || !firestore) return;
@@ -238,7 +250,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       title,
       completed,
       priority,
-      deadline: deadline?.toISOString() || null,
+      deadline: deadline ? deadline.toISOString() : null,
       recurrence,
       duration: duration || null,
       userId: user.uid,
@@ -252,7 +264,14 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const { id, goalId, ...taskData } = updatedTaskData;
     const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', id);
-    const cleanTaskData = removeUndefined(taskData);
+    const cleanTaskData = {
+        title: taskData.title,
+        priority: taskData.priority,
+        deadline: taskData.deadline || null,
+        recurrence: taskData.recurrence,
+        duration: taskData.duration || null,
+        completed: taskData.completed
+    };
     await updateDocumentNonBlocking(taskRef, cleanTaskData);
     dispatch({ type: 'EDIT_TASK', payload: { ...updatedTaskData, userId: user.uid } });
   };
@@ -271,10 +290,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     await updateDocumentNonBlocking(taskRef, { completed: newCompletedStatus });
     dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
-  
-  if (state.loading) {
-    return null;
-  }
 
   const value: GoalContextType = {
     ...state,
@@ -301,6 +316,3 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
-
-    
-    
