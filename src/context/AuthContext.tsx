@@ -24,6 +24,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
   const [hasCheckedRedirect, setHasCheckedRedirect] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure we only render loading state on client-side to avoid hydration errors
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Handle redirect result after Google login (fallback for old redirects)
   // Note: We now use signInWithPopup as primary method, but keep this for compatibility
@@ -224,8 +230,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isUserLoading]);
 
-  // Don't show loading if timeout occurred - let the page render
-  if (isUserLoading && !loadingTimeout) {
+  // Don't show loading if timeout occurred or not mounted yet (prevent hydration errors)
+  if (isMounted && isUserLoading && !loadingTimeout) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

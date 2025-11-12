@@ -100,6 +100,12 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [state, dispatch] = useReducer(goalReducer, initialState);
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  // Ensure we only render loading state on client-side to avoid hydration errors
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   useEffect(() => {
     if (isUserLoading) {
@@ -297,7 +303,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
   
-  if (state.loading) {
+  // Only show loading screen on client-side to prevent hydration errors
+  if (isMounted && state.loading) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
