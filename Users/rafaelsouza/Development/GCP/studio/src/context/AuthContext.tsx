@@ -5,7 +5,6 @@ import React, { createContext, useContext, ReactNode, useState, useEffect } from
 import { User, GoogleAuthProvider, signInWithPopup, getRedirectResult, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter, usePathname } from 'next/navigation';
-import { Target } from 'lucide-react';
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +20,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (isUserLoading) return; // Wait until auth state is confirmed
+
+    if (!user && pathname !== '/login') {
+      router.replace('/login');
+    }
+    
+    if (user && pathname === '/login') {
+      router.replace('/');
+    }
+  }, [user, isUserLoading, pathname, router]);
 
   const signInWithGoogle = async () => {
     if (!auth) return;

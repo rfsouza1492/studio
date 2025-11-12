@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
@@ -12,28 +13,22 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
 
-  const isLoading = authLoading || goalsLoading;
+  const isLoading = authLoading || (user && goalsLoading);
 
   useEffect(() => {
-    // If auth state is not determined yet, do nothing.
     if (authLoading) {
       return;
     }
 
-    // If there is no user and the current page is not the login page,
-    // redirect to the login page.
     if (!user && pathname !== '/login') {
         router.replace('/login');
     }
 
-    // If there is a user and the current page is the login page,
-    // redirect to the home page.
     if (user && pathname === '/login') {
       router.replace('/');
     }
   }, [user, authLoading, pathname, router]);
 
-  // While loading auth or goals, show a global loading screen.
   if (isLoading && pathname !== '/login') {
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -45,14 +40,10 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
     );
   }
   
-  // If a user exists and we are not on the login page, show the children.
-  // Or if no user exists and we are on the login page, show the login page.
   if ((user && pathname !== '/login') || (!user && pathname === '/login')) {
     return <>{children}</>;
   }
 
-  // In other cases (like being unauthenticated on a protected route),
-  // return a loading state while the redirection is in progress.
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

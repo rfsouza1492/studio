@@ -5,7 +5,6 @@ import React, { createContext, useContext, useEffect, useReducer, ReactNode } fr
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { collection, doc, query, writeBatch, getDocs, where, onSnapshot, Unsubscribe, collectionGroup } from 'firebase/firestore';
 import { useFirestore, useUser, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { Target } from 'lucide-react';
 
 interface State {
   goals: Goal[];
@@ -117,16 +116,22 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
     const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
     
+    let goalsData: Goal[] = [];
+    let tasksData: Task[] = [];
     let goalsLoaded = false;
     let tasksLoaded = false;
+
+    const maybeSetData = () => {
+      if (goalsLoaded && tasksLoaded) {
+        dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: tasksData } });
+      }
+    };
     
     const goalsUnsub = onSnapshot(goalsQuery, 
       (goalsSnapshot) => {
-        const goalsData = goalsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
+        goalsData = goalsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
         goalsLoaded = true;
-        if(tasksLoaded) {
-            dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: state.tasks } });
-        }
+        maybeSetData();
       }, 
       (error) => {
         console.error("Error fetching goals:", error);
@@ -137,11 +142,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     );
 
     const tasksUnsub = onSnapshot(tasksQuery, (tasksSnapshot) => {
-        const tasksData = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+        tasksData = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
         tasksLoaded = true;
-        if(goalsLoaded) {
-            dispatch({ type: 'SET_DATA', payload: { goals: state.goals, tasks: tasksData } });
-        }
+        maybeSetData();
     }, (error) => {
          console.error("Error fetching tasks:", error);
          const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks collection group for user ${user.uid}` });
