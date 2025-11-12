@@ -61,7 +61,7 @@ const goalReducer = (state: State, action: Action): State => {
     case 'EDIT_TASK':
       return {
         ...state,
-        tasks: state.tasks.map(t => (t.id === action.payload.id ? action.payload : t)),
+        tasks: state.tasks.map(t => (t.id === action.payload.id ? action.payload : g)),
       };
     case 'DELETE_TASK':
       return {
@@ -183,9 +183,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>): Promise<string> => {
     if (!user || !firestore) return '';
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
-    const finalGoal: Goal = { 
+    const finalGoal: Goal = {
       name: newGoalData.name,
-      id: goalRef.id, 
+      id: goalRef.id,
       userId: user.uid,
       kpiName: newGoalData.kpiName || null,
       kpiCurrent: newGoalData.kpiCurrent || 0,
