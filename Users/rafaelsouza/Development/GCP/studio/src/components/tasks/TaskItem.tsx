@@ -36,10 +36,16 @@ export function TaskItem({ task }: { task: Task }) {
   const [editTaskOpen, setEditTaskOpen] = React.useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = React.useState(false);
   const { googleApiToken, signInWithGoogle } = useAuth();
+  
+  // State to track if the component has mounted on the client
+  const [isClient, setIsClient] = useState(false);
+  
+  // State for deadline status, calculated only on the client
   const [deadlineStatus, setDeadlineStatus] = useState<DeadlineStatus | null>(null);
 
   useEffect(() => {
-    // Calculate deadline status on the client-side to avoid hydration errors
+    // This effect runs only on the client side
+    setIsClient(true);
     if (task.deadline) {
       setDeadlineStatus(getDeadlineStatus(task.deadline));
     }
@@ -187,19 +193,19 @@ export function TaskItem({ task }: { task: Task }) {
             </Tooltip>
           </TooltipProvider>
         )}
-        {task.deadline && (
+        {isClient && task.deadline && deadlineStatus && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <div className={cn("flex items-center gap-1 text-xs", deadlineStatus?.color)}>
-                    <DeadlineIcon className={cn("h-4 w-4 flex-shrink-0", !deadlineStatus && "animate-spin")} />
+                  <div className={cn("flex items-center gap-1 text-xs", deadlineStatus.color)}>
+                    <DeadlineIcon className="h-4 w-4 flex-shrink-0" />
                     <span className="hidden sm:inline">
-                      {deadlineStatus ? format(new Date(task.deadline), "dd MMM, p") : 'Calculando...'}
+                      {format(new Date(task.deadline), "dd MMM, p")}
                     </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{deadlineStatus ? deadlineStatus.label : 'Verificando prazo...'}</p>
+                  <p>{deadlineStatus.label}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
