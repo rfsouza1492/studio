@@ -4,15 +4,19 @@ import { useAuth } from "@/context/AuthContext";
 import { ReactNode, useEffect } from "react";
 import { usePathname, useRouter } from 'next/navigation';
 import { Target } from "lucide-react";
+import { useGoals } from "@/context/GoalContext";
 
 const PrivateRoute = ({ children }: { children: ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { loading: goalsLoading } = useGoals();
   const router = useRouter();
   const pathname = usePathname();
 
+  const isLoading = authLoading || goalsLoading;
+
   useEffect(() => {
     // If auth state is not determined yet, do nothing.
-    if (loading) {
+    if (authLoading) {
       return;
     }
 
@@ -27,15 +31,15 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
     if (user && pathname === '/login') {
       router.replace('/');
     }
-  }, [user, loading, pathname, router]);
+  }, [user, authLoading, pathname, router]);
 
-  // While loading, show a global loading screen.
-  if (loading) {
+  // While loading auth or goals, show a global loading screen.
+  if (isLoading && pathname !== '/login') {
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
                 <Target className="h-12 w-12 animate-pulse text-primary" />
-                <p className="text-muted-foreground">Verificando autenticação...</p>
+                <p className="text-muted-foreground">Carregando...</p>
             </div>
         </div>
     );
@@ -48,8 +52,15 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
   }
 
   // In other cases (like being unauthenticated on a protected route),
-  // return null while the redirection is in progress.
-  return null;
+  // return a loading state while the redirection is in progress.
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+            <Target className="h-12 w-12 animate-pulse text-primary" />
+            <p className="text-muted-foreground">Redirecionando...</p>
+        </div>
+    </div>
+  );
 };
 
 export default PrivateRoute;

@@ -116,12 +116,17 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
 
     const goalsQuery = query(collection(firestore, 'users', user.uid, 'goals'));
     const tasksQuery = query(collectionGroup(firestore, 'tasks'), where('userId', '==', user.uid));
-
+    
+    let goalsLoaded = false;
+    let tasksLoaded = false;
+    
     const goalsUnsub = onSnapshot(goalsQuery, 
       (goalsSnapshot) => {
         const goalsData = goalsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal));
-        // Use the current tasks from the state to avoid overwriting them
-        dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: state.tasks } });
+        goalsLoaded = true;
+        if(tasksLoaded) {
+            dispatch({ type: 'SET_DATA', payload: { goals: goalsData, tasks: state.tasks } });
+        }
       }, 
       (error) => {
         console.error("Error fetching goals:", error);
@@ -133,8 +138,10 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
 
     const tasksUnsub = onSnapshot(tasksQuery, (tasksSnapshot) => {
         const tasksData = tasksSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
-        // Use the current goals from the state to avoid overwriting them
-        dispatch({ type: 'SET_DATA', payload: { goals: state.goals, tasks: tasksData } });
+        tasksLoaded = true;
+        if(goalsLoaded) {
+            dispatch({ type: 'SET_DATA', payload: { goals: state.goals, tasks: tasksData } });
+        }
     }, (error) => {
          console.error("Error fetching tasks:", error);
          const contextualError = new FirestorePermissionError({ operation: 'list', path: `tasks collection group for user ${user.uid}` });
@@ -155,6 +162,8 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     Object.keys(obj).forEach(key => {
         if (obj[key] !== undefined) {
             newObj[key] = obj[key];
+        } else {
+            newObj[key] = null;
         }
     });
     return newObj;
@@ -164,17 +173,16 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
     const finalGoal: Goal = { 
-      ...newGoalData, 
       id: goalRef.id, 
       userId: user.uid,
+      name: newGoalData.name,
       kpiName: newGoalData.kpiName || null,
-      kpiCurrent: newGoalData.kpiCurrent || null,
-      kpiTarget: newGoalData.kpiTarget || null,
+      kpiCurrent: newGoalData.kpiCurrent || 0,
+      kpiTarget: newGoalData.kpiTarget || 0,
     };
     const cleanGoal = removeUndefined(finalGoal);
     setDocumentNonBlocking(goalRef, cleanGoal, {});
-    // Optimistic update
-    dispatch({ type: 'ADD_GOAL', payload: finalGoal });
+    dispatch({ type: 'ADD_GOAL', payload: cleanGoal as Goal });
   };
 
   const editGoal = async (updatedGoalData: Omit<Goal, 'userId'>) => {
@@ -183,7 +191,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const goalRef = doc(firestore, 'users', user.uid, 'goals', id);
     const cleanGoalData = removeUndefined(goalData);
     updateDocumentNonBlocking(goalRef, cleanGoalData);
-     // Optimistic update
     dispatch({ type: 'EDIT_GOAL', payload: { ...updatedGoalData, userId: user.uid } });
   };
 
@@ -197,7 +204,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       tasksSnapshot.forEach(doc => {
           batch.delete(doc.ref);
       });
-      // Non-blocking commit
       batch.commit().catch(error => {
           console.error("Error deleting tasks in batch:", error);
           const contextualError = new FirestorePermissionError({ operation: 'delete', path: `tasks in goal ${goalId}` });
@@ -207,8 +213,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     
     const goalRef = doc(firestore, 'users', user.uid, 'goals', goalId);
     deleteDocumentNonBlocking(goalRef);
-
-    // Optimistic update
     dispatch({ type: 'DELETE_GOAL', payload: goalId });
   };
 
@@ -235,8 +239,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     };
     const cleanTask = removeUndefined(newTask);
     setDocumentNonBlocking(taskRef, cleanTask, {});
-     // Optimistic update
-    dispatch({ type: 'ADD_TASK', payload: newTask });
+    dispatch({ type: 'ADD_TASK', payload: cleanTask as Task });
   };
 
   const editTask = async (updatedTaskData: Omit<Task, 'userId'>) => {
@@ -245,7 +248,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', id);
     const cleanTaskData = removeUndefined(taskData);
     updateDocumentNonBlocking(taskRef, cleanTaskData);
-     // Optimistic update
     dispatch({ type: 'EDIT_TASK', payload: { ...updatedTaskData, userId: user.uid } });
   };
 
@@ -253,7 +255,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', taskId);
     deleteDocumentNonBlocking(taskRef);
-     // Optimistic update
     dispatch({ type: 'DELETE_TASK', payload: taskId });
   };
 
@@ -262,21 +263,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     const taskRef = doc(firestore, 'users', user.uid, 'goals', task.goalId, 'tasks', task.id);
     const newCompletedStatus = !task.completed;
     updateDocumentNonBlocking(taskRef, { completed: newCompletedStatus });
-     // Optimistic update
     dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
   
-  if (state.loading && state.goals.length === 0) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <div className="flex flex-col items-center gap-4">
-                <Target className="h-12 w-12 animate-pulse text-primary" />
-                <p className="text-muted-foreground">Carregando dados...</p>
-            </div>
-        </div>
-    );
-  }
-
   const value: GoalContextType = {
     ...state,
     addGoal,
@@ -302,8 +291,3 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
-
-    
-    
-
-    
