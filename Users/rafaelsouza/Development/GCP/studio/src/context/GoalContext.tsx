@@ -5,7 +5,6 @@ import React, { createContext, useContext, useEffect, useReducer, ReactNode } fr
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { collection, doc, query, writeBatch, getDocs, where, onSnapshot, Unsubscribe, collectionGroup, setDoc } from 'firebase/firestore';
 import { useFirestore, useUser, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { Target } from 'lucide-react';
 
 interface State {
   goals: Goal[];
@@ -160,7 +159,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   
   }, [user, isUserLoading, firestore]);
   
-
   const removeUndefined = (obj: any) => {
     const newObj: any = {};
     Object.keys(obj).forEach(key => {
@@ -180,7 +178,7 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       ...newGoalData, 
       id: goalRef.id, 
       userId: user.uid,
-      kpiName: newGoalData.kpiName || null,
+      kpiName: newGoalData.kpiName || undefined,
       kpiCurrent: newGoalData.kpiCurrent || 0,
       kpiTarget: newGoalData.kpiTarget || 0,
     };
@@ -238,9 +236,9 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       title,
       completed,
       priority,
-      deadline: deadline?.toISOString() || null,
+      deadline: deadline?.toISOString(),
       recurrence,
-      duration: duration || null,
+      duration: duration || undefined,
       userId: user.uid,
     };
     const cleanTask = removeUndefined(newTask);
@@ -301,5 +299,3 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
-
-    
