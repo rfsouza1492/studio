@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from 'next/navigation';
 import { Target } from "lucide-react";
 
@@ -9,6 +9,12 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure we only render loading state on client-side to avoid hydration errors
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   useEffect(() => {
     // Only redirect after loading is complete
@@ -28,8 +34,8 @@ const PrivateRoute = ({ children }: { children: ReactNode }) => {
     }
   }, [user, loading, pathname, router]);
   
-  // Show loading screen during initial auth check
-  if (loading) {
+  // Show loading screen during initial auth check (only on client-side)
+  if (isMounted && loading) {
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
