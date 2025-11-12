@@ -291,10 +291,6 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     await updateDocumentNonBlocking(taskRef, { completed: newCompletedStatus });
     dispatch({ type: 'EDIT_TASK', payload: { ...task, completed: newCompletedStatus } });
   };
-  
-  if (state.loading) {
-    return null;
-  }
 
   const value: GoalContextType = {
     ...state,
@@ -321,6 +317,3 @@ export const useGoals = (): GoalContextType => {
   }
   return context;
 };
-
-    
-    
