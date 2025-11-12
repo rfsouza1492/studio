@@ -25,7 +25,7 @@ import { Separator } from '@/components/ui/separator';
 export function Header() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const pathname = usePathname();
-  const { user, signOut, signInWithGoogle } = useAuth();
+  const { user, signOut, signInWithGoogle, loading } = useAuth();
 
   const navLinks = [
     { href: '/', label: 'Metas', icon: Home },
@@ -103,14 +103,14 @@ export function Header() {
                     <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                         <Avatar className="h-9 w-9">
                             <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'Usuário'} />
-                            <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+                            <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                        <p className="text-sm font-medium leading-none">{user.displayName || "Usuário"}</p>
                         <p className="text-xs leading-none text-muted-foreground">
                         {user.email}
                         </p>
@@ -124,7 +124,7 @@ export function Header() {
                 </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-             <Button variant="outline" size="sm" onClick={signInWithGoogle}>
+             <Button variant="outline" size="sm" onClick={signInWithGoogle} disabled={loading}>
                <LogIn className="h-4 w-4 sm:mr-2" />
                <span className='hidden sm:inline'>Entrar</span>
              </Button>
