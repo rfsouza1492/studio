@@ -5,6 +5,7 @@ import React, { createContext, useContext, ReactNode, useState, useEffect } from
 import { User, GoogleAuthProvider, signInWithPopup, AuthError } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter, usePathname } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -22,6 +23,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // When user auth state changes, handle redirects. This is the single source of truth for redirection.
   useEffect(() => {
@@ -68,7 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // User blocked popup
       if (authError.code === 'auth/popup-blocked') {
         // Let the UI handle this with a friendly message
-        throw new Error('Popup bloqueado. Por favor, permita popups para este site.');
+        throw new Error('Popup bloqueado. Por favor, permita popups para este site e tente novamente.');
       }
       
       // Network errors
@@ -99,8 +101,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value = { user, loading: isUserLoading, signInWithGoogle, signOut, googleApiToken };
 
-  // The loading state is now directly from useUser, which is managed by the FirebaseProvider
-  // The PrivateRoute component will show a loading indicator while `isUserLoading` is true.
   return (
     <AuthContext.Provider value={value}>
       {children}
