@@ -2,6 +2,5 @@
   "firebase_hosting": {
     "deploymentHostingUrl": "https://magnetai-4h4a8.web.app"
   },
-  "cloud_run_deploy": {},
-  "gemini_api": {}
+  "cloud_run_deploy": {}
 }
