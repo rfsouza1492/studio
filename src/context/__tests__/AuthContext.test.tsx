@@ -21,6 +21,14 @@ jest.mock('next/navigation', () => ({
     push: jest.fn(),
     replace: jest.fn(),
   }),
+  usePathname: () => '/login',
+}));
+
+// Mock useToast
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: jest.fn(),
+  }),
 }));
 
 // Mock Firebase Auth
