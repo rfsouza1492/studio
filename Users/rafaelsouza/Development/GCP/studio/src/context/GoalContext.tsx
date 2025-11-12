@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useReducer, ReactNode } fr
 import { Goal, Task, Priority, Recurrence } from '@/app/types';
 import { collection, doc, query, writeBatch, getDocs, where, onSnapshot, Unsubscribe, collectionGroup, setDoc } from 'firebase/firestore';
 import { useFirestore, useUser, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { Target } from 'lucide-react';
 
 interface State {
   goals: Goal[];
@@ -159,32 +160,23 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
   
   }, [user, isUserLoading, firestore]);
   
-  const removeUndefined = (obj: any) => {
-    const newObj: any = {};
-    Object.keys(obj).forEach(key => {
-        if (obj[key] !== undefined) {
-            newObj[key] = obj[key];
-        } else {
-            newObj[key] = null;
-        }
-    });
-    return newObj;
-  };
 
   const addGoal = async (newGoalData: Omit<Goal, 'id' | 'userId'>): Promise<string> => {
     if (!user || !firestore) return '';
     const goalRef = doc(collection(firestore, 'users', user.uid, 'goals'));
+    
+    // Explicitly construct the object to ensure undefined values are handled
     const finalGoal: Goal = { 
-      ...newGoalData, 
+      name: newGoalData.name,
       id: goalRef.id, 
       userId: user.uid,
-      kpiName: newGoalData.kpiName || undefined,
+      kpiName: newGoalData.kpiName || null,
       kpiCurrent: newGoalData.kpiCurrent || 0,
       kpiTarget: newGoalData.kpiTarget || 0,
     };
-    const cleanGoal = removeUndefined(finalGoal);
-    await setDoc(goalRef, cleanGoal);
-    dispatch({ type: 'ADD_GOAL', payload: cleanGoal as Goal });
+    
+    await setDoc(goalRef, finalGoal);
+    dispatch({ type: 'ADD_GOAL', payload: finalGoal });
     return goalRef.id;
   };
 
@@ -192,7 +184,12 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !firestore) return;
     const { id, ...goalData } = updatedGoalData;
     const goalRef = doc(firestore, 'users', user.uid, 'goals', id);
-    const cleanGoalData = removeUndefined(goalData);
+    const cleanGoalData = {
+        name: goalData.name,
+        kpiName: goalData.kpiName || null,
+        kpiCurrent: goalData.kpiCurrent || 0,
+        kpiTarget: goalData.kpiTarget || 0,
+    };
     await updateDocumentNonBlocking(goalRef, cleanGoalData);
     dispatch({ type: 'EDIT_GOAL', payload: { ...updatedGoalData, userId: user.uid } });
   };
@@ -236,21 +233,27 @@ export const GoalProvider = ({ children }: { children: ReactNode }) => {
       title,
       completed,
       priority,
-      deadline: deadline?.toISOString(),
+      deadline: deadline ? deadline.toISOString() : null,
       recurrence,
-      duration: duration || undefined,
+      duration: duration || null,
       userId: user.uid,
     };
-    const cleanTask = removeUndefined(newTask);
-    await setDocumentNonBlocking(taskRef, cleanTask, {});
-    dispatch({ type: 'ADD_TASK', payload: cleanTask as Task });
+    await setDocumentNonBlocking(taskRef, newTask, {});
+    dispatch({ type: 'ADD_TASK', payload: newTask });
   };
 
   const editTask = async (updatedTaskData: Omit<Task, 'userId'>) => {
     if (!user || !firestore) return;
     const { id, goalId, ...taskData } = updatedTaskData;
     const taskRef = doc(firestore, 'users', user.uid, 'goals', goalId, 'tasks', id);
-    const cleanTaskData = removeUndefined(taskData);
+    const cleanTaskData = {
+        title: taskData.title,
+        priority: taskData.priority,
+        deadline: taskData.deadline || null,
+        recurrence: taskData.recurrence,
+        duration: taskData.duration || null,
+        completed: taskData.completed
+    };
     await updateDocumentNonBlocking(taskRef, cleanTaskData);
     dispatch({ type: 'EDIT_TASK', payload: { ...updatedTaskData, userId: user.uid } });
   };
