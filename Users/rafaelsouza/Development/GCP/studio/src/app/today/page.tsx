@@ -5,12 +5,11 @@ import { useGoals } from '@/context/GoalContext';
 import { TaskItem } from '@/components/tasks/TaskItem';
 import { Header } from '@/components/layout/Header';
 import { ListTodo } from 'lucide-react';
-import { isToday, isPast, startOfToday, addDays, parseISO } from 'date-fns';
+import { isToday, isPast, startOfToday, addDays } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
-import { Task } from '@/app/types';
 
 export default function TodayPage() {
   const { tasks, addTask } = useGoals();
@@ -19,14 +18,14 @@ export default function TodayPage() {
     const today = startOfToday();
     
     tasks.forEach(task => {
-        if (task.recurrence === 'Daily' && task.deadline && isPast(parseISO(task.deadline)) && !isToday(parseISO(task.deadline))) {
+        if (task.recurrence === 'Daily' && task.deadline && isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline))) {
            
-            const newDeadline = addDays(parseISO(task.deadline), 1);
+            const newDeadline = addDays(new Date(task.deadline), 1);
             
             const taskAlreadyExistsForToday = tasks.some(t => 
                 t.title === task.title && 
                 t.deadline && 
-                isToday(parseISO(t.deadline))
+                isToday(new Date(t.deadline))
             );
 
             if (!taskAlreadyExistsForToday) {
@@ -49,17 +48,17 @@ export default function TodayPage() {
     if (typeof window !== 'undefined') {
         const timeoutId = setTimeout(() => {
             handleRecurringTasks();
-        }, 100); // Small delay to ensure it runs after hydration
+        }, 1); // Delay slightly to ensure it runs after hydration
         return () => clearTimeout(timeoutId);
     }
-  }, []);
+  }, [handleRecurringTasks]);
 
   const todayTasks = useMemo(() => {
     return tasks
-        .filter(task => task.deadline && isToday(parseISO(task.deadline)))
+        .filter(task => task.deadline && isToday(new Date(task.deadline)))
         .sort((a,b) => {
             if (!a.deadline || !b.deadline) return 0;
-            return parseISO(a.deadline).getTime() - parseISO(b.deadline).getTime()
+            return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
         });
   }, [tasks]);
 
