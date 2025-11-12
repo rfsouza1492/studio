@@ -1,13 +1,13 @@
 
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task } from '@/app/types';
 import { useGoals } from '@/context/GoalContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown, XCircle, AlertCircle, Clock, CheckCircle2, Minus, Repeat, Timer, CalendarPlus } from 'lucide-react';
-import { cn, getDeadlineStatus } from '@/lib/utils';
+import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown, XCircle, AlertCircle, Clock, CheckCircle2, Minus, Repeat, Timer, CalendarPlus, Loader2 } from 'lucide-react';
+import { cn, getDeadlineStatus, DeadlineStatus } from '@/lib/utils';
 import { AddOrEditTaskDialog } from '@/components/dialogs/AddOrEditTaskDialog';
 import { DeleteConfirmationDialog } from '@/components/dialogs/DeleteConfirmationDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -27,6 +27,7 @@ const deadlineIcons = {
   Clock,
   CheckCircle2,
   Minus,
+  Loader2,
 };
 
 export function TaskItem({ task }: { task: Task }) {
@@ -35,13 +36,19 @@ export function TaskItem({ task }: { task: Task }) {
   const [editTaskOpen, setEditTaskOpen] = React.useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = React.useState(false);
   const { googleApiToken, signInWithGoogle } = useAuth();
+  const [deadlineStatus, setDeadlineStatus] = useState<DeadlineStatus | null>(null);
 
+  useEffect(() => {
+    // Calculate deadline status on the client-side to avoid hydration errors
+    if (task.deadline) {
+      setDeadlineStatus(getDeadlineStatus(task.deadline));
+    }
+  }, [task.deadline]);
 
   const PriorityIcon = priorityConfig[task.priority]?.icon || ChevronDown;
   const priorityColor = priorityConfig[task.priority]?.color || 'text-muted-foreground';
 
-  const deadlineStatus = getDeadlineStatus(task.deadline);
-  const DeadlineIcon = deadlineIcons[deadlineStatus.icon];
+  const DeadlineIcon = deadlineStatus ? deadlineIcons[deadlineStatus.icon] : Loader2;
 
   const handleCreateEvent = async () => {
     if (!googleApiToken) {
@@ -184,13 +191,15 @@ export function TaskItem({ task }: { task: Task }) {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <div className={cn("flex items-center gap-1 text-xs", deadlineStatus.color)}>
-                    <DeadlineIcon className="h-4 w-4 flex-shrink-0" />
-                    <span className="hidden sm:inline">{format(new Date(task.deadline), "dd MMM, p")}</span>
+                  <div className={cn("flex items-center gap-1 text-xs", deadlineStatus?.color)}>
+                    <DeadlineIcon className={cn("h-4 w-4 flex-shrink-0", !deadlineStatus && "animate-spin")} />
+                    <span className="hidden sm:inline">
+                      {deadlineStatus ? format(new Date(task.deadline), "dd MMM, p") : 'Calculando...'}
+                    </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{deadlineStatus.label}</p>
+                  <p>{deadlineStatus ? deadlineStatus.label : 'Verificando prazo...'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
