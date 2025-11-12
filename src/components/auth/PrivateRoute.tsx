@@ -1,36 +1,42 @@
 "use client";
 
-import { useAuth } from "@/context/AuthContext";
-import { useGoals } from "@/context/GoalContext";
-import { ReactNode } from "react";
-import { usePathname } from 'next/navigation';
-import { Target } from "lucide-react";
+import React, { ReactNode } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { Target } from 'lucide-react';
 
-const PrivateRoute = ({ children }: { children: ReactNode }) => {
-  const { user, loading: authLoading } = useAuth();
-  const { loading: goalsLoading } = useGoals();
-  const pathname = usePathname();
+interface PrivateRouteProps {
+  children: ReactNode;
+}
 
-  // Show a global loading screen while either auth state is resolving
-  // or initial goal data is loading.
-  if (authLoading || (user && goalsLoading && pathname !== '/login')) {
-     return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <div className="flex flex-col items-center gap-4">
-                <Target className="h-12 w-12 animate-pulse text-primary" />
-                <p className="text-muted-foreground">Carregando...</p>
-            </div>
+const PrivateRoute = ({ children }: PrivateRouteProps) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Target className="h-12 w-12 animate-pulse text-primary" />
+          <p className="text-muted-foreground">Carregando...</p>
         </div>
+      </div>
     );
   }
 
-  // If loading is finished, and we're on the correct page, render children.
-  if ((user && pathname !== '/login') || (!user && pathname === '/login')) {
-      return <>{children}</>;
+  // If user is not logged in, AuthProvider will redirect to /login
+  // So, if we are not loading and user exists, we can render the children.
+  if (user) {
+    return <>{children}</>;
   }
-
-  // Fallback, though AuthProvider's useEffect should handle redirects.
-  return null;
+  
+  // Return a loader while the redirect is happening
+  return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Target className="h-12 w-12 animate-pulse text-primary" />
+          <p className="text-muted-foreground">Redirecionando...</p>
+        </div>
+      </div>
+    );
 };
 
 export default PrivateRoute;
