@@ -23,6 +23,7 @@ if (typeof window !== 'undefined') {
     // Suppress abort/cancellation errors (handled by api-client)
     if (message.includes('Request was cancelled') ||
         message.includes('Request timeout') ||
+        message.includes('timeout') ||
         message.includes('AbortError') ||
         (reason?.name === 'AbortError')) {
       event.preventDefault();
@@ -70,6 +71,7 @@ if (typeof window !== 'undefined') {
     if (message.includes('runtime.lastError') || 
         message.includes('message port closed') ||
         message.includes('Unchecked runtime.lastError') ||
+        message.includes('The message port closed') ||
         hasLastError) {
       // Suppress Chrome extension errors (similar to checking chrome.runtime.lastError)
       return;

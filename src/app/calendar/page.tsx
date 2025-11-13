@@ -98,7 +98,13 @@ export default function CalendarPage() {
         title: 'Evento deletado',
         description: 'O evento foi removido do seu calendário.',
       });
-      loadEvents(); // Reload events
+      // Reload events with error handling
+      try {
+        await loadEvents();
+      } catch (reloadErr) {
+        // Error already handled in loadEvents
+        console.warn('Failed to reload events after delete:', reloadErr);
+      }
     } catch (err: any) {
       toast({
         variant: 'destructive',
@@ -109,15 +115,25 @@ export default function CalendarPage() {
   };
 
   // Handle event created
-  const handleEventCreated = () => {
+  const handleEventCreated = async () => {
     setCreateDialogOpen(false);
-    loadEvents();
+    try {
+      await loadEvents();
+    } catch (err) {
+      // Error already handled in loadEvents
+      console.warn('Failed to reload events after creation:', err);
+    }
   };
 
   // Handle event updated
-  const handleEventUpdated = () => {
+  const handleEventUpdated = async () => {
     setEditingEvent(null);
-    loadEvents();
+    try {
+      await loadEvents();
+    } catch (err) {
+      // Error already handled in loadEvents
+      console.warn('Failed to reload events after update:', err);
+    }
   };
 
   return (
