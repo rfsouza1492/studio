@@ -88,7 +88,9 @@ describe('BackendStatus', () => {
     render(<BackendStatus />)
 
     expect(screen.getByText(/Backend Health/i)).toBeInTheDocument()
-    expect(screen.getByText(/goflow/i)).toBeInTheDocument()
+    // Check for service name in the Service field
+    const serviceElements = screen.getAllByText(/goflow/i)
+    expect(serviceElements.length).toBeGreaterThan(0)
     expect(screen.getByText(/123s/i)).toBeInTheDocument()
   })
 

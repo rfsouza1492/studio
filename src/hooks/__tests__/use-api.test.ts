@@ -4,16 +4,26 @@
 
 import { renderHook, waitFor } from '@testing-library/react'
 import { useHealthCheck, useBackendAvailable } from '../use-api'
-import apiClient from '@/lib/api-client'
+import apiClient, { ApiError } from '@/lib/api-client'
 
 // Mock the API client
-jest.mock('@/lib/api-client', () => ({
-  __esModule: true,
-  default: {
-    checkHealth: jest.fn(),
-    useBackendApi: jest.fn(() => false),
-  },
-}))
+jest.mock('@/lib/api-client', () => {
+  class ApiError extends Error {
+    constructor(public status: number, message: string, public data?: any) {
+      super(message);
+      this.name = 'ApiError';
+    }
+  }
+  
+  return {
+    __esModule: true,
+    default: {
+      checkHealth: jest.fn(),
+      useBackendApi: jest.fn(() => false),
+    },
+    ApiError,
+  };
+})
 
 describe('useHealthCheck', () => {
   beforeEach(() => {
@@ -54,7 +64,7 @@ describe('useHealthCheck', () => {
   })
 
   it('should handle errors', async () => {
-    const error = new Error('Network error')
+    const error = new ApiError(500, 'Network error')
     ;(apiClient.checkHealth as jest.Mock).mockRejectedValue(error)
 
     const { result } = renderHook(() => useHealthCheck())
@@ -63,8 +73,8 @@ describe('useHealthCheck', () => {
 
     await waitFor(() => {
       expect(result.current.data).toBeNull()
-      expect(result.current.loading).toBe(false)
       expect(result.current.error).toBe('Network error')
+      expect(result.current.loading).toBe(false)
     })
   })
 })

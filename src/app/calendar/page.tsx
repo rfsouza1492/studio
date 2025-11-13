@@ -2,17 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
-import { useCalendar } from '@/hooks/use-api';
-import { CalendarEvent } from '@/lib/api-client';
+import { useCalendar, useBackendAuth } from '@/hooks/use-api';
+import { CalendarEvent, ApiError } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Plus, RefreshCw, Loader2, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, RefreshCw, Loader2, AlertCircle, LogIn } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CalendarEventCard } from '@/components/calendar/CalendarEventCard';
 import { CreateEventDialog } from '@/components/calendar/CreateEventDialog';
 import { EditEventDialog } from '@/components/calendar/EditEventDialog';
 import { ViewEventDialog } from '@/components/calendar/ViewEventDialog';
 import { useToast } from '@/hooks/use-toast';
+import apiClient from '@/lib/api-client';
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -22,9 +23,36 @@ export default function CalendarPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
+  const [isBackendAuthenticated, setIsBackendAuthenticated] = useState<boolean | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   const { listEvents, deleteEvent: deleteEventApi } = useCalendar();
+  const { checkAuthStatus, initiateOAuthLogin } = useBackendAuth();
   const { toast } = useToast();
+
+  // Check backend authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      // Only check if backend API is enabled
+      if (!apiClient.useBackendApi()) {
+        setIsBackendAuthenticated(true); // Skip check if backend not enabled
+        setCheckingAuth(false);
+        return;
+      }
+
+      try {
+        const status = await checkAuthStatus();
+        setIsBackendAuthenticated(status?.authenticated || false);
+      } catch (err) {
+        // If auth check fails, assume not authenticated
+        setIsBackendAuthenticated(false);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, [checkAuthStatus]);
 
   // Load events
   const loadEvents = async () => {
@@ -37,16 +65,26 @@ export default function CalendarPage() {
       setEvents(response.events || []);
     } catch (err: any) {
       console.error('Failed to load events:', err);
-      setError(err.message || 'Failed to load calendar events. Please try again.');
+      
+      // Handle authentication errors specifically
+      if (err instanceof ApiError && err.status === 401) {
+        setError('Autenticação necessária. Por favor, faça login com Google para acessar seu calendário.');
+        setIsBackendAuthenticated(false);
+      } else {
+        setError(err.message || 'Failed to load calendar events. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Load events on mount and when maxResults changes
+  // Load events on mount and when maxResults changes (only if authenticated)
   useEffect(() => {
-    loadEvents();
-  }, [maxResults]);
+    if (!checkingAuth && isBackendAuthenticated) {
+      loadEvents();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxResults, checkingAuth, isBackendAuthenticated]);
 
   // Handle delete event
   const handleDelete = async (eventId: string, summary: string) => {
@@ -140,8 +178,28 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {/* Authentication Required Message */}
+        {!checkingAuth && isBackendAuthenticated === false && (
+          <Alert className="mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="flex items-center justify-between">
+              <span className="text-yellow-800 dark:text-yellow-200">
+                Você precisa autenticar com Google para acessar seu calendário.
+              </span>
+              <Button
+                onClick={initiateOAuthLogin}
+                size="sm"
+                className="ml-4 gap-2"
+              >
+                <LogIn className="h-4 w-4" />
+                Fazer Login
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Error Message */}
-        {error && (
+        {error && isBackendAuthenticated !== false && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
@@ -149,19 +207,21 @@ export default function CalendarPage() {
         )}
 
         {/* Loading State */}
-        {isLoading && (
+        {(isLoading || checkingAuth) && (
           <Card>
             <CardContent className="flex items-center justify-center py-12">
               <div className="text-center space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                <p className="text-muted-foreground">Carregando eventos...</p>
+                <p className="text-muted-foreground">
+                  {checkingAuth ? 'Verificando autenticação...' : 'Carregando eventos...'}
+                </p>
               </div>
             </CardContent>
           </Card>
         )}
 
         {/* Events List */}
-        {!isLoading && !error && (
+        {!isLoading && !checkingAuth && isBackendAuthenticated && !error && (
           <>
             {events.length === 0 ? (
               <Card>
