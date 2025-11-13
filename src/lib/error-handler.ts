@@ -60,12 +60,47 @@ if (typeof window !== 'undefined') {
   const originalError = console.error;
   console.error = (...args: any[]) => {
     const message = args[0]?.toString() || '';
+    
+    // Check for chrome.runtime.lastError pattern
+    const hasLastError = args.some(arg => 
+      arg && typeof arg === 'object' && 
+      ('lastError' in arg || 'runtime' in arg)
+    );
+    
     if (message.includes('runtime.lastError') || 
-        message.includes('message port closed')) {
-      // Suppress Chrome extension errors
+        message.includes('message port closed') ||
+        message.includes('Unchecked runtime.lastError') ||
+        hasLastError) {
+      // Suppress Chrome extension errors (similar to checking chrome.runtime.lastError)
       return;
     }
     originalError.apply(console, args);
   };
+
+  // Handle chrome.runtime.lastError if chrome.runtime exists (for Chrome extensions)
+  if (typeof chrome !== 'undefined' && chrome.runtime) {
+    // Wrap chrome.runtime methods to check lastError
+    const originalSendMessage = chrome.runtime.sendMessage;
+    if (originalSendMessage) {
+      chrome.runtime.sendMessage = function(...args: any[]) {
+        const callback = args[args.length - 1];
+        if (typeof callback === 'function') {
+          const wrappedCallback = function(response: any) {
+            if (chrome.runtime.lastError) {
+              // Handle the error, e.g., the port was closed
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('Error sending message:', chrome.runtime.lastError.message);
+              }
+              return; // Important to return if an error occurred
+            }
+            // Process the successful response
+            callback(response);
+          };
+          args[args.length - 1] = wrappedCallback;
+        }
+        return originalSendMessage.apply(chrome.runtime, args);
+      };
+    }
+  }
 }
 

@@ -3,9 +3,23 @@
  * Handles HTTP requests to the Express backend API
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+// Detect production environment
+const isProduction = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('hosted.app') || 
+   window.location.hostname.includes('goflow.zone') ||
+   process.env.NODE_ENV === 'production');
+
+// Use production backend URL if in production and no explicit URL is set
+const getDefaultApiUrl = () => {
+  if (isProduction && !process.env.NEXT_PUBLIC_API_URL) {
+    return 'https://goflow--magnetai-4h4a8.us-east4.hosted.app';
+  }
+  return 'http://localhost:8080';
+};
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || getDefaultApiUrl();
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000');
-const USE_BACKEND_API = process.env.NEXT_PUBLIC_USE_BACKEND_API === 'true';
+const USE_BACKEND_API = process.env.NEXT_PUBLIC_USE_BACKEND_API === 'true' || isProduction;
 
 /**
  * API Error class
