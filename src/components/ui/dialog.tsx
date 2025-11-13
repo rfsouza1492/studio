@@ -35,16 +35,20 @@ const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => {
   // Check if children contain a DialogDescription
   const hasDescription = React.Children.toArray(children).some(
-    (child) =>
-      React.isValidElement(child) &&
-      (child.type === DialogDescription ||
-        (typeof child.type === 'object' && child.type?.displayName === 'DialogDescription') ||
-        React.Children.toArray(child.props?.children).some(
+    (child) => {
+      if (!React.isValidElement(child)) return false;
+      if (child.type === DialogDescription) return true;
+      
+      // Check nested children (e.g., inside DialogHeader)
+      if (child.props?.children) {
+        return React.Children.toArray(child.props.children).some(
           (grandchild) =>
-            React.isValidElement(grandchild) &&
-            (grandchild.type === DialogDescription ||
-              (typeof grandchild.type === 'object' && grandchild.type?.displayName === 'DialogDescription'))
-        ))
+            React.isValidElement(grandchild) && grandchild.type === DialogDescription
+        );
+      }
+      
+      return false;
+    }
   );
 
   // Generate a unique ID for aria-describedby if not provided and no description exists
