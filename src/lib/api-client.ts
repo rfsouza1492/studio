@@ -448,3 +448,10 @@ const apiClient = {
 
 export default apiClient;
 
+// Log API URL in development for debugging
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  console.log('[API Client] Using API URL:', API_URL);
+  console.log('[API Client] Use Backend API:', USE_BACKEND_API);
+  console.log('[API Client] Is Production:', isProduction);
+}
+
