@@ -33,3 +33,10 @@ env:
   
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
     value: 1:210739580533:web:90a7f1063949457ded723c
+  
+  # Backend API Configuration (Production)
+  - variable: NEXT_PUBLIC_API_URL
+    value: https://goflow--magnetai-4h4a8.us-east4.hosted.app
+  
+  - variable: NEXT_PUBLIC_USE_BACKEND_API
+    value: "true"
