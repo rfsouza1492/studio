@@ -3,6 +3,7 @@
  */
 
 import { renderHook, waitFor } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { useHealthCheck, useBackendAvailable } from '../use-api'
 import apiClient, { ApiError } from '@/lib/api-client'
 

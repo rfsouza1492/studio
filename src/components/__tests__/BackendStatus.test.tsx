@@ -4,6 +4,7 @@
 
 import React from 'react'
 import { render, screen, waitFor } from '@/test-utils'
+import '@testing-library/jest-dom'
 import BackendStatus from '../backend/BackendStatus'
 import * as useApiHooks from '@/hooks/use-api'
 
