@@ -4,6 +4,7 @@
 
 import React from 'react'
 import { render, screen, waitFor } from '@/test-utils'
+import '@testing-library/jest-dom'
 import BackendStatus from '../backend/BackendStatus'
 import * as useApiHooks from '@/hooks/use-api'
 
@@ -88,7 +89,9 @@ describe('BackendStatus', () => {
     render(<BackendStatus />)
 
     expect(screen.getByText(/Backend Health/i)).toBeInTheDocument()
-    expect(screen.getByText(/goflow/i)).toBeInTheDocument()
+    // Check for service name in the Service field
+    const serviceElements = screen.getAllByText(/goflow/i)
+    expect(serviceElements.length).toBeGreaterThan(0)
     expect(screen.getByText(/123s/i)).toBeInTheDocument()
   })
 

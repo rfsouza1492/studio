@@ -1,49 +1,54 @@
+
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { ReactNode, useEffect } from "react";
-import { usePathname, useRouter } from 'next/navigation';
+import { useGoals } from "@/context/GoalContext";
+import { ReactNode, useState, useEffect } from "react";
+import { usePathname } from 'next/navigation';
 import { Target } from "lucide-react";
 
 const PrivateRoute = ({ children }: { children: ReactNode }) => {
-  const { user, loading } = useAuth();
-  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const { loading: goalsLoading } = useGoals();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
 
+  // Prevent hydration mismatch by only rendering after client-side mount
   useEffect(() => {
-    // Se não estiver carregando e não houver usuário, redirecione para o login.
-    // Evita redirecionar se já estivermos na página de login.
-    if (!loading && !user && pathname !== '/login') {
-        router.replace('/login');
-    }
-  }, [user, loading, pathname, router]);
+    setMounted(true);
+  }, []);
 
-  // Exibe o carregamento enquanto a autenticação está sendo verificada.
-  if (loading) {
+  // During SSR and initial hydration, render a consistent loading state
+  if (!mounted) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Target className="h-12 w-12 animate-pulse text-primary" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // After mount, handle loading and rendering logic
+  if (authLoading || (user && goalsLoading && pathname !== '/login')) {
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
                 <Target className="h-12 w-12 animate-pulse text-primary" />
-                <p className="text-muted-foreground">Verificando autenticação...</p>
+                <p className="text-muted-foreground">Carregando...</p>
             </div>
         </div>
     );
   }
-  
-  // Se o usuário não existir e o caminho não for o login, não renderize nada
-  // pois o redirecionamento está em andamento.
-  if (!user && pathname !== '/login') {
-    return null;
-  }
-  
-  // Se houver um usuário e estivermos na página de login, o AuthProvider/página de login
-  // cuidará do redirecionamento. Renderizar null evita um flash de conteúdo.
-  if (user && pathname === '/login') {
-      return null;
+
+  // If loading is finished, and we're on the correct page based on auth state, render children.
+  if ((user && pathname !== '/login') || (!user && pathname === '/login')) {
+      return <>{children}</>;
   }
 
-  // Se as condições acima não forem atendidas, renderize o conteúdo da rota.
-  return <>{children}</>;
+  // Fallback for edge cases during redirects, though AuthProvider's useEffect should handle it.
+  return null;
 };
 
 export default PrivateRoute;

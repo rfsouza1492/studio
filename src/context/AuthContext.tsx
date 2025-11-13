@@ -2,10 +2,10 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { User, AuthError, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { User, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, AuthError } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter, usePathname } from 'next/navigation';
-import { Target } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -23,194 +23,128 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
-  const [hasCheckedRedirect, setHasCheckedRedirect] = useState(false);
+  const { toast } = useToast();
+  const [mounted, setMounted] = useState(false);
 
-  // Handle redirect result after Google login (fallback for old redirects)
-  // Note: We now use signInWithPopup as primary method, but keep this for compatibility
-  // Optimized: Use requestIdleCallback to avoid blocking main thread
+  // Prevent hydration issues by tracking client-side mount
   useEffect(() => {
-    if (!auth || hasCheckedRedirect) return;
-    
-    // Check if we're coming from a Firebase auth redirect by checking URL params
-    // Do this synchronously but quickly
-    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-    const isAuthRedirect = urlParams?.has('apiKey') || 
-                           (typeof window !== 'undefined' && (
-                             window.location.href.includes('__/auth/handler') ||
-                             window.location.href.includes('authType=signInViaRedirect')
-                           ));
-    
-    // Only process redirect if we detect we came from one
-    if (!isAuthRedirect) {
-      setHasCheckedRedirect(true);
-      return;
-    }
-    
-    // Use requestIdleCallback to defer non-critical work
-    const scheduleWork = (callback: () => void) => {
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        requestIdleCallback(callback, { timeout: 2000 });
-      } else {
-        // Fallback for browsers without requestIdleCallback
-        setTimeout(callback, 0);
+    setMounted(true);
+  }, []);
+
+  // Handle redirect result after Google OAuth redirect
+  useEffect(() => {
+    if (!mounted || !auth) return;
+
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.accessToken) {
+            setGoogleApiToken(credential.accessToken);
+          }
+          // User will be set by onAuthStateChanged, redirect handled below
+        }
+      } catch (error) {
+        const authError = error as AuthError;
+        console.error("Error handling redirect result:", authError);
+        // Don't throw - let user try again
       }
     };
-    
-    scheduleWork(() => {
-      const handleRedirectResult = async () => {
-        try {
-          // Call getRedirectResult for legacy redirect flows with shorter timeout
-          const getRedirectResultPromise = getRedirectResult(auth).catch(() => null);
-          const timeoutPromise = new Promise<null>((resolve) => {
-            setTimeout(() => resolve(null), 3000); // Reduced from 5s to 3s
-          });
 
-          const result = await Promise.race([
-            getRedirectResultPromise,
-            timeoutPromise,
-          ]);
+    handleRedirectResult();
+  }, [mounted, auth]);
 
-          if (result && result.user) {
-            const credential = GoogleAuthProvider.credentialFromResult(result);
-            if (credential?.accessToken) {
-              setGoogleApiToken(credential.accessToken);
-            }
-            
-            // Immediately redirect to home after successful login
-            if (pathname === '/login' || window.location.pathname === '/login') {
-              window.history.replaceState({}, '', '/');
-              router.replace('/');
-            }
-          } else if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
-            window.history.replaceState({}, '', '/');
-            router.replace('/');
-          }
-        } catch (error) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error("Error getting redirect result:", error);
-          }
-          if (auth.currentUser && (pathname === '/login' || window.location.pathname === '/login')) {
-            window.history.replaceState({}, '', '/');
-            router.replace('/');
-          }
-        } finally {
-          setHasCheckedRedirect(true);
-        }
-      };
-      
-      handleRedirectResult().catch(() => {
-        setHasCheckedRedirect(true);
-      });
-    });
-  }, [auth, hasCheckedRedirect, pathname, router]);
-
-  // Redirect to home after successful login (fallback check)
-  // Optimized: Use requestIdleCallback to avoid blocking
+  // When user auth state changes, handle redirects. This is the single source of truth for redirection.
   useEffect(() => {
-    if (isUserLoading) return;
+    // Only handle redirects after component is mounted on client
+    if (!mounted) return;
     
-    const currentUser = user || (auth?.currentUser);
-    
-    if (currentUser && (pathname === '/login' || (typeof window !== 'undefined' && window.location.pathname === '/login'))) {
-      // Use requestIdleCallback to defer redirect work
-      const scheduleRedirect = () => {
-        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-          requestIdleCallback(() => {
-            window.history.replaceState({}, '', '/');
-            router.replace('/');
-          }, { timeout: 500 });
-        } else {
-          setTimeout(() => {
-            window.history.replaceState({}, '', '/');
-            router.replace('/');
-          }, 0);
-        }
-      };
-      
-      scheduleRedirect();
+    if (isUserLoading) return; // Wait until auth state is confirmed
+
+    // If user is NOT logged in and is NOT on the login page, redirect to login.
+    if (!user && pathname !== '/login') {
+      router.replace('/login');
     }
-  }, [user, isUserLoading, pathname, router, auth]);
+    
+    // If user IS logged in and IS on the login page, redirect to home.
+    if (user && pathname === '/login') {
+      router.replace('/');
+    }
+  }, [user, isUserLoading, pathname, router, mounted]);
 
   const signInWithGoogle = async () => {
+    if (!auth) {
+      throw new Error('Serviço de autenticação não disponível. Tente novamente.');
+    }
+    
     const provider = new GoogleAuthProvider();
+    // Request access to the user's calendar
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    
     try {
-      // Use signInWithPopup instead of signInWithRedirect to avoid Chrome's
-      // "intermediate website" warning. Popup is opened directly from user interaction
-      // and doesn't trigger Chrome's tracking detection.
+      // Try popup first (better UX)
       const result = await signInWithPopup(auth, provider);
-      
-      // Extract access token from credential
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) {
         setGoogleApiToken(credential.accessToken);
       }
-      
-      // Redirect to home after successful login
-      // The user state will update via onAuthStateChanged, but we can redirect immediately
-      if (pathname === '/login' || window.location.pathname === '/login') {
-        window.history.replaceState({}, '', '/');
-        router.replace('/');
-        // Fallback redirect if router doesn't work immediately
-        setTimeout(() => {
-          if (window.location.pathname === '/login') {
-            window.location.href = '/';
-          }
-        }, 100);
-      }
+      // After successful login, the useEffect hook above will handle the redirect.
     } catch (error) {
-      // Only log errors in development
+      // Handle specific Firebase Auth errors
+      const authError = error as AuthError;
+      
+      // User closed the popup - this is not an error, just user cancellation
+      if (authError.code === 'auth/popup-closed-by-user') {
+        // Silently return - user intentionally cancelled
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Login cancelled by user");
+        }
+        return;
+      }
+      
+      // User blocked popup - fallback to redirect
+      if (authError.code === 'auth/popup-blocked') {
+        try {
+          // Use redirect as fallback when popup is blocked
+          await signInWithRedirect(auth, provider);
+          // User will be redirected to Google, then back to our app
+          // getRedirectResult will handle the result in useEffect
+          return;
+        } catch (redirectError) {
+          const redirectAuthError = redirectError as AuthError;
+          console.error("Redirect sign-in failed:", redirectAuthError);
+          throw new Error('Não foi possível fazer login. Por favor, permita popups ou tente novamente.');
+        }
+      }
+      
+      // Network errors
+      if (authError.code === 'auth/network-request-failed') {
+        throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
+      }
+      
+      // Other errors - log in development
       if (process.env.NODE_ENV === 'development') {
         console.error("Error signing in with Google:", error);
       }
-      // Re-throw to allow error boundary to handle it
-      throw error;
+      
+      // Re-throw with friendly message for unexpected errors
+      throw new Error('Erro ao fazer login. Tente novamente.');
     }
   };
 
   const signOut = async () => {
+    if (!auth) return;
     try {
       await auth.signOut();
       setGoogleApiToken(null);
-      router.push('/login');
+      // After sign out, the useEffect hook will handle redirecting to the login page.
     } catch (error) {
-      // Only log errors in development
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Error signing out:", error);
-      }
-      // Re-throw to allow error boundary to handle it
-      throw error;
+      console.error("Error signing out:", error);
     }
   };
 
   const value = { user, loading: isUserLoading, signInWithGoogle, signOut, googleApiToken };
-
-  // Show loading only during initial auth check
-  // Add timeout to prevent infinite loading
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-  
-  useEffect(() => {
-    if (isUserLoading) {
-      const timeout = setTimeout(() => {
-        setLoadingTimeout(true);
-      }, 6000); // 6 seconds total (5s Firebase + 1s buffer)
-      
-      return () => clearTimeout(timeout);
-    } else {
-      setLoadingTimeout(false);
-    }
-  }, [isUserLoading]);
-
-  // Don't show loading if timeout occurred - let the page render
-  if (isUserLoading && !loadingTimeout) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Target className="h-12 w-12 animate-pulse text-primary" />
-          <p className="text-muted-foreground">Verificando autenticação...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <AuthContext.Provider value={value}>

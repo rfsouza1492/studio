@@ -1,17 +1,17 @@
 
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task } from '@/app/types';
 import { useGoals } from '@/context/GoalContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Pencil, Trash2, ChevronUp, ChevronsUp, ChevronDown, XCircle, AlertCircle, Clock, CheckCircle2, Minus, Repeat, Timer, CalendarPlus } from 'lucide-react';
-import { cn, getDeadlineStatus } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { AddOrEditTaskDialog } from '@/components/dialogs/AddOrEditTaskDialog';
 import { DeleteConfirmationDialog } from '@/components/dialogs/DeleteConfirmationDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { format, addMinutes } from 'date-fns';
+import { format, addMinutes, differenceInHours, differenceInDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 
@@ -20,6 +20,15 @@ const priorityConfig = {
   Medium: { icon: ChevronUp, color: 'text-yellow-500' },
   Low: { icon: ChevronDown, color: 'text-green-500' },
 };
+
+type DeadlineStatusIcon = 'XCircle' | 'AlertCircle' | 'Clock' | 'CheckCircle2' | 'Minus';
+
+interface DeadlineStatus {
+  label: string;
+  color: string;
+  icon: DeadlineStatusIcon;
+  formattedDate: string;
+}
 
 const deadlineIcons = {
   XCircle,
@@ -34,14 +43,37 @@ export function TaskItem({ task }: { task: Task }) {
   const { toast } = useToast();
   const [editTaskOpen, setEditTaskOpen] = React.useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = React.useState(false);
-  const { googleApiToken, signInWithGoogle } = useAuth();
+  const { googleApiToken } = useAuth();
+  const [deadlineStatus, setDeadlineStatus] = useState<DeadlineStatus | null>(null);
 
+  useEffect(() => {
+    // This effect runs only on the client, after hydration, preventing mismatches
+    if (!task.deadline) {
+      setDeadlineStatus({ label: 'Sem prazo', color: 'text-gray-500', icon: 'Minus', formattedDate: '' });
+      return;
+    }
+
+    const now = new Date();
+    const deadlineDate = new Date(task.deadline);
+    const hoursRemaining = differenceInHours(deadlineDate, now);
+    const daysRemaining = differenceInDays(deadlineDate, now);
+    const formattedDate = format(deadlineDate, "dd MMM, p");
+
+    if (hoursRemaining < 0) {
+      setDeadlineStatus({ label: `Atrasada`, color: 'text-red-600 font-bold', icon: 'XCircle', formattedDate });
+    } else if (hoursRemaining < 24) {
+      setDeadlineStatus({ label: `Vence em ${hoursRemaining} hora(s)`, color: 'text-red-500', icon: 'AlertCircle', formattedDate });
+    } else if (daysRemaining <= 7) {
+      setDeadlineStatus({ label: `Vence em ${daysRemaining} dia(s)`, color: 'text-yellow-500', icon: 'Clock', formattedDate });
+    } else {
+      setDeadlineStatus({ label: `Vence em ${daysRemaining} dias`, color: 'text-green-500', icon: 'CheckCircle2', formattedDate });
+    }
+  }, [task.deadline]);
 
   const PriorityIcon = priorityConfig[task.priority]?.icon || ChevronDown;
   const priorityColor = priorityConfig[task.priority]?.color || 'text-muted-foreground';
 
-  const deadlineStatus = getDeadlineStatus(task.deadline);
-  const DeadlineIcon = deadlineIcons[deadlineStatus.icon];
+  const DeadlineIcon = deadlineStatus ? deadlineIcons[deadlineStatus.icon] : null;
 
   const handleCreateEvent = async () => {
     if (!googleApiToken) {
@@ -49,7 +81,6 @@ export function TaskItem({ task }: { task: Task }) {
             variant: "destructive",
             title: 'Autenticação Necessária',
             description: `Você precisa estar conectado com o Google para criar eventos.`,
-            action: <Button onClick={signInWithGoogle}>Entrar com Google</Button>
         });
         return;
     }
@@ -86,8 +117,7 @@ export function TaskItem({ task }: { task: Task }) {
         });
 
         if (!response.ok) {
-            const errorBody = await response.json();
-            throw new Error(errorBody.error?.message || `Google Calendar API error: ${response.statusText}`);
+            throw new Error(`Google Calendar API error: ${response.statusText}`);
         }
         
         await response.json();
@@ -175,18 +205,18 @@ export function TaskItem({ task }: { task: Task }) {
                 <Repeat className="h-4 w-4 text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Recorre {task.recurrence === 'Daily' ? 'diariamente' : task.recurrence.toLowerCase()}</p>
+                <p>Recorre {task.recurrence.toLowerCase()}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
-        {task.deadline && (
+        {deadlineStatus && DeadlineIcon && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
                   <div className={cn("flex items-center gap-1 text-xs", deadlineStatus.color)}>
                     <DeadlineIcon className="h-4 w-4 flex-shrink-0" />
-                    <span className="hidden sm:inline">{format(new Date(task.deadline), "dd MMM, p")}</span>
+                    {deadlineStatus.formattedDate && <span className="hidden sm:inline">{deadlineStatus.formattedDate}</span>}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>

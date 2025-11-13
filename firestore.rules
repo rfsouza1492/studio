@@ -94,8 +94,16 @@ service cloud.firestore {
       allow delete: if isExistingOwner(userId);
     }
     
+    /**
+     * @description Allows collectionGroup queries for tasks across all users.
+     * Only returns tasks where resource.data.userId matches the authenticated user.
+     * @path Collection group: tasks (any path)
+     * @allow (list) - User can list tasks via collectionGroup query, but only their own tasks are returned
+     * @principle Validates ownership via document data field, not path-based ownership
+     */
     match /{path=**}/tasks/{taskId} {
-      allow list: if request.auth != null && request.auth.uid == request.query.filters.userId;
+      allow list: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow get: if request.auth != null && resource.data.userId == request.auth.uid;
     }
   }
 }

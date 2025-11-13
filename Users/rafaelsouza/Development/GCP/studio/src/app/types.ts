@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 export const priorities = ["Low", "Medium", "High"] as const;
@@ -23,9 +22,7 @@ export interface Goal {
   id: string;
   name: string;
   kpiName?: string | null;
-  kpiTarget?: number | null;
-  kpiCurrent?: number | null;
+  kpiTarget?: number;
+  kpiCurrent?: number;
   userId: string;
 }
-
-    

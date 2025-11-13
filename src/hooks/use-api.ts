@@ -110,15 +110,29 @@ export function useCalendar() {
     error: null,
   });
 
-  const listEvents = useCallback(async () => {
+  const listEvents = useCallback(async (maxResults = 10, timeMin?: string, timeMax?: string) => {
     setState({ data: null, loading: true, error: null });
     
     try {
-      const data = await apiClient.listCalendarEvents();
+      const data = await apiClient.listCalendarEvents(maxResults, timeMin, timeMax);
       setState({ data, loading: false, error: null });
       return data;
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to list calendar events';
+      setState({ data: null, loading: false, error: message });
+      throw error;
+    }
+  }, []);
+
+  const getEvent = useCallback(async (eventId: string) => {
+    setState({ data: null, loading: true, error: null });
+    
+    try {
+      const data = await apiClient.getCalendarEvent(eventId);
+      setState({ data, loading: false, error: null });
+      return data;
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to get calendar event';
       setState({ data: null, loading: false, error: message });
       throw error;
     }
@@ -138,7 +152,35 @@ export function useCalendar() {
     }
   }, []);
 
-  return { ...state, listEvents, createEvent };
+  const updateEvent = useCallback(async (eventId: string, event: any) => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    
+    try {
+      const data = await apiClient.updateCalendarEvent(eventId, event);
+      setState(prev => ({ ...prev, loading: false }));
+      return data;
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to update calendar event';
+      setState(prev => ({ ...prev, loading: false, error: message }));
+      throw error;
+    }
+  }, []);
+
+  const deleteEvent = useCallback(async (eventId: string) => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    
+    try {
+      const data = await apiClient.deleteCalendarEvent(eventId);
+      setState(prev => ({ ...prev, loading: false }));
+      return data;
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to delete calendar event';
+      setState(prev => ({ ...prev, loading: false, error: message }));
+      throw error;
+    }
+  }, []);
+
+  return { ...state, listEvents, getEvent, createEvent, updateEvent, deleteEvent };
 }
 
 /**

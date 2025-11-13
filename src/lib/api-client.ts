@@ -3,9 +3,23 @@
  * Handles HTTP requests to the Express backend API
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+// Detect production environment
+const isProduction = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('hosted.app') || 
+   window.location.hostname.includes('goflow.zone') ||
+   process.env.NODE_ENV === 'production');
+
+// Use production backend URL if in production and no explicit URL is set
+const getDefaultApiUrl = () => {
+  if (isProduction && !process.env.NEXT_PUBLIC_API_URL) {
+    return 'https://goflow--magnetai-4h4a8.us-east4.hosted.app';
+  }
+  return 'http://localhost:8080';
+};
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || getDefaultApiUrl();
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000');
-const USE_BACKEND_API = process.env.NEXT_PUBLIC_USE_BACKEND_API === 'true';
+const USE_BACKEND_API = process.env.NEXT_PUBLIC_USE_BACKEND_API === 'true' || isProduction;
 
 /**
  * API Error class
@@ -23,6 +37,7 @@ export class ApiError extends Error {
 
 /**
  * Fetch with timeout
+ * Always ensures a response is returned, even if the request is cancelled
  */
 async function fetchWithTimeout(
   url: string,
@@ -30,26 +45,61 @@ async function fetchWithTimeout(
   timeout = API_TIMEOUT
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeout);
 
   try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
     });
+    
+    // Clear timeout on successful fetch
     clearTimeout(timeoutId);
+    
+    // Check if request was aborted after fetch but before processing
+    // This can happen if abort happens between fetch completion and response processing
+    if (controller.signal.aborted) {
+      // Request was cancelled, but we got a response - still process it
+      // unless it's a critical cancellation
+      if (options.signal && (options.signal as AbortSignal).aborted) {
+        throw new ApiError(408, 'Request was cancelled');
+      }
+    }
+    
     return response;
   } catch (error) {
+    // Always clear timeout in catch block
     clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new ApiError(408, 'Request timeout');
+    
+    // Handle abort errors (timeout or manual cancellation)
+    if (error instanceof Error) {
+      // Check for abort errors first
+      if (error.name === 'AbortError' || controller.signal.aborted) {
+        // Always provide a response, even for cancelled requests
+        throw new ApiError(408, 'Request timeout or cancelled');
+      }
+      
+      // Handle network errors that might indicate closed connection
+      // These errors often occur when message ports close unexpectedly
+      if (error.message.includes('Failed to fetch') || 
+          error.message.includes('NetworkError') ||
+          error.message.includes('message port closed') ||
+          error.message.includes('The message port closed')) {
+        throw new ApiError(503, 'Network error: Unable to connect to server');
+      }
     }
+    
+    // Re-throw if not handled above
     throw error;
   }
 }
 
 /**
  * Make API request
+ * Always ensures a response is returned, even on error or cancellation
+ * Similar to Chrome extension message listener pattern: always call sendResponse()
  */
 async function apiRequest<T>(
   endpoint: string,
@@ -67,9 +117,30 @@ async function apiRequest<T>(
       credentials: 'include', // Include cookies for session
     });
 
+    // Check if response body is readable before parsing
+    if (!response.body) {
+      // Always provide a response, even for empty bodies
+      throw new ApiError(500, 'Empty response from server');
+    }
+
     // Handle non-200 responses
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      let errorData: any = {};
+      try {
+        // Only try to parse JSON if content-type indicates JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          errorData = await response.json();
+        } else {
+          const text = await response.text();
+          errorData = { message: text || response.statusText };
+        }
+      } catch (parseError) {
+        // If parsing fails, use status text - always provide a response
+        errorData = { message: response.statusText || 'Unknown error' };
+      }
+      
+      // Always throw an ApiError (this is our "sendResponse" equivalent)
       throw new ApiError(
         response.status,
         errorData.message || `HTTP ${response.status}: ${response.statusText}`,
@@ -78,14 +149,61 @@ async function apiRequest<T>(
     }
 
     // Parse response
-    const data = await response.json();
-    return data as T;
+    let data: T;
+    try {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        // Try to parse as JSON, fallback to text
+        try {
+          data = JSON.parse(text) as T;
+        } catch {
+          // Always provide a response, even if parsing fails
+          throw new ApiError(500, 'Invalid JSON response from server');
+        }
+      }
+    } catch (parseError) {
+      // Re-throw ApiError as-is (already has a response)
+      if (parseError instanceof ApiError) {
+        throw parseError;
+      }
+      // Always provide a response for parse errors
+      throw new ApiError(500, 'Failed to parse response from server');
+    }
+    
+    // Success - return data (this is our successful "sendResponse")
+    return data;
   } catch (error) {
+    // Pattern: Always send a response, even on error
+    // Similar to Chrome extension: sendResponse({ error: ... })
+    
+    // Re-throw ApiError as-is (already has proper response)
     if (error instanceof ApiError) {
       throw error;
     }
     
-    // Network or other errors
+    // Handle abort/cancellation errors - always provide a response
+    if (error instanceof Error) {
+      if (error.name === 'AbortError' || error.message.includes('aborted')) {
+        // Always send response for cancelled requests
+        throw new ApiError(408, 'Request was cancelled');
+      }
+      
+      // Handle network errors - always provide a response
+      if (error.message.includes('Failed to fetch') ||
+          error.message.includes('NetworkError') ||
+          error.message.includes('message port closed') ||
+          error.message.includes('The message port closed') ||
+          error.message.includes('Network request failed')) {
+        // Always send response for network errors
+        throw new ApiError(503, 'Network error: Unable to connect to server');
+      }
+    }
+    
+    // Unknown errors - always provide a response
+    // This ensures we never have an unhandled promise rejection
     throw new ApiError(
       500,
       error instanceof Error ? error.message : 'Unknown error occurred'
@@ -225,18 +343,73 @@ export interface CalendarEvent {
   id: string;
   summary: string;
   description?: string;
-  start: { dateTime: string };
-  end: { dateTime: string };
+  location?: string;
+  start: { dateTime?: string; date?: string };
+  end: { dateTime?: string; date?: string };
+  recurrence?: string[];
+  htmlLink?: string;
+  attendees?: Array<{ email: string }>;
 }
 
-export async function listCalendarEvents(): Promise<CalendarEvent[]> {
-  return apiRequest<CalendarEvent[]>('/api/google/calendar/events');
+export interface CalendarEventsResponse {
+  events: CalendarEvent[];
 }
 
-export async function createCalendarEvent(event: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent> {
+export async function listCalendarEvents(maxResults = 10, timeMin?: string, timeMax?: string): Promise<CalendarEventsResponse> {
+  const params = new URLSearchParams({ maxResults: maxResults.toString() });
+  if (timeMin) params.append('timeMin', timeMin);
+  if (timeMax) params.append('timeMax', timeMax);
+  
+  return apiRequest<CalendarEventsResponse>(`/api/google/calendar/events?${params}`);
+}
+
+export async function getCalendarEvent(eventId: string): Promise<CalendarEvent> {
+  return apiRequest<CalendarEvent>(`/api/google/calendar/events/${eventId}`);
+}
+
+export interface CreateCalendarEventData {
+  summary: string;
+  description?: string;
+  location?: string;
+  startTime: string;
+  endTime: string;
+  attendees?: Array<{ email: string }>;
+  recurrence?: string;
+}
+
+export async function createCalendarEvent(event: CreateCalendarEventData): Promise<CalendarEvent> {
   return apiRequest<CalendarEvent>('/api/google/calendar/events', {
     method: 'POST',
     body: JSON.stringify(event),
+  });
+}
+
+export interface UpdateCalendarEventData {
+  summary?: string;
+  description?: string;
+  location?: string;
+  startTime?: string;
+  endTime?: string;
+  attendees?: Array<{ email: string }>;
+  recurrence?: string | null;
+}
+
+export async function updateCalendarEvent(eventId: string, event: UpdateCalendarEventData): Promise<CalendarEvent> {
+  return apiRequest<CalendarEvent>(`/api/google/calendar/events/${eventId}`, {
+    method: 'PUT',
+    body: JSON.stringify(event),
+  });
+}
+
+export interface DeleteEventResponse {
+  success: boolean;
+  message: string;
+  eventId: string;
+}
+
+export async function deleteCalendarEvent(eventId: string): Promise<DeleteEventResponse> {
+  return apiRequest<DeleteEventResponse>(`/api/google/calendar/events/${eventId}`, {
+    method: 'DELETE',
   });
 }
 
@@ -263,7 +436,10 @@ const apiClient = {
   // Google APIs
   listDriveFiles,
   listCalendarEvents,
+  getCalendarEvent,
   createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
   
   // Utils
   useBackendApi,
@@ -271,4 +447,11 @@ const apiClient = {
 };
 
 export default apiClient;
+
+// Log API URL in development for debugging
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  console.log('[API Client] Using API URL:', API_URL);
+  console.log('[API Client] Use Backend API:', USE_BACKEND_API);
+  console.log('[API Client] Is Production:', isProduction);
+}
 

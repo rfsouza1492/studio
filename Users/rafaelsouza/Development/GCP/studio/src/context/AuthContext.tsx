@@ -2,10 +2,10 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { User, AuthError, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { User, GoogleAuthProvider, signInWithPopup, AuthError } from 'firebase/auth';
 import { useUser, useAuth as useFirebaseAuth } from '@/firebase'; // Renamed import to avoid conflict
 import { useRouter, usePathname } from 'next/navigation';
-import { Target } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -18,53 +18,69 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, userError } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [googleApiToken, setGoogleApiToken] = useState<string | null>(null);
-  const [authIsLoading, setAuthIsLoading] = useState(true);
+  const { toast } = useToast();
 
-  // Combina o carregamento do hook useUser com o nosso próprio estado de carregamento
-  const loading = isUserLoading || authIsLoading;
-
+  // When user auth state changes, handle redirects.
   useEffect(() => {
-    const handleRedirectResult = async () => {
-      if (!auth) return;
-      
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.accessToken) {
-            setGoogleApiToken(credential.accessToken);
-          }
-          // Redireciona para a home após o login bem-sucedido via redirect
-          if (pathname === '/login') {
-            router.replace('/');
-          }
-        }
-      } catch (error) {
-        console.error("Error getting redirect result:", error);
-      } finally {
-        setAuthIsLoading(false);
-      }
-    };
+    if (isUserLoading) return; // Wait until auth state is confirmed
+
+    if (!user && pathname !== '/login') {
+      router.replace('/login');
+    }
     
-    handleRedirectResult();
-  }, [auth, pathname, router]);
+    if (user && pathname === '/login') {
+      router.replace('/');
+    }
+  }, [user, isUserLoading, pathname, router]);
+
+  // If there's an authentication error from the provider, log it.
+  useEffect(() => {
+    if (userError) {
+      console.error("Firebase Auth Error:", userError);
+      // Optionally, you could show a toast here for critical auth errors
+    }
+  }, [userError]);
+
 
   const signInWithGoogle = async () => {
     if (!auth) return;
-    setAuthIsLoading(true);
     const provider = new GoogleAuthProvider();
-    // Adiciona o escopo da API do Google Calendar para obter permissão
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    
     try {
-      await signInWithRedirect(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setGoogleApiToken(credential.accessToken);
+      }
     } catch (error) {
-      console.error("Error signing in with Google:", error);
-      setAuthIsLoading(false);
+      const authError = error as AuthError;
+      
+      if (authError.code === 'auth/popup-closed-by-user') {
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Login cancelled by user");
+        }
+        return;
+      }
+      
+      if (authError.code === 'auth/popup-blocked') {
+        throw new Error('Popup bloqueado. Por favor, permita popups para este site e tente novamente.');
+      }
+      
+      if (authError.code === 'auth/network-request-failed') {
+        throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Error signing in with Google:", error);
+      }
+      
+      throw new Error('Erro ao fazer login. Tente novamente.');
     }
   };
 
@@ -73,24 +89,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await auth.signOut();
       setGoogleApiToken(null);
-      router.push('/login');
     } catch (error) {
       console.error("Error signing out:", error);
     }
   };
 
-  const value = { user, loading, signInWithGoogle, signOut, googleApiToken };
-
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Target className="h-12 w-12 animate-pulse text-primary" />
-          <p className="text-muted-foreground">Verificando autenticação...</p>
-        </div>
-      </div>
-    );
-  }
+  const value = { user, loading: isUserLoading, signInWithGoogle, signOut, googleApiToken };
 
   return (
     <AuthContext.Provider value={value}>
