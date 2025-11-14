@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useHealthCheck, useApiInfo, useBackendAvailable } from '@/hooks/use-api';
 import { CheckCircle2, XCircle, Loader2, RefreshCw } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function BackendStatus() {
   const { available, checking } = useBackendAvailable();
@@ -116,7 +118,9 @@ export default function BackendStatus() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Timestamp</p>
-                  <p className="font-medium text-xs">{new Date(healthData.timestamp).toLocaleTimeString()}</p>
+                  <p className="font-medium text-xs" suppressHydrationWarning>
+                    {format(new Date(healthData.timestamp), 'HH:mm:ss', { locale: ptBR })}
+                  </p>
                 </div>
               </div>
             </div>
