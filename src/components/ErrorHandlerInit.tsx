@@ -1,13 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 
 /**
- * Client-side component to initialize error handler
- * This ensures error handler only runs on client side, preventing hydration issues
+ * Client-side component to initialize error handler EARLY
+ * This ensures error handler runs BEFORE providers initialize
+ * 
+ * IMPORTANT: Uses useLayoutEffect (synchronous, before paint) instead of useEffect
+ * to catch errors that occur during provider initialization (FirebaseClientProvider,
+ * AuthProvider, GoalProvider, etc.)
+ * 
+ * Placed BEFORE providers in layout.tsx to ensure earliest possible initialization
  */
 export function ErrorHandlerInit() {
-  useEffect(() => {
+  // Use useLayoutEffect instead of useEffect to run synchronously before paint
+  // This ensures error handlers are active before providers mount
+  useLayoutEffect(() => {
     // Dynamically import error handler only on client side
     // Handle import errors gracefully - if error handler fails to load,
     // the app should still function (just without error suppression)
