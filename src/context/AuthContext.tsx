@@ -44,16 +44,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setGoogleApiToken(credential.accessToken);
           }
           // User will be set by onAuthStateChanged, redirect handled below
+          
+          // Show success toast
+          toast({
+            title: 'Login realizado com sucesso',
+            description: 'Bem-vindo ao GoalFlow!',
+          });
         }
       } catch (error) {
         const authError = error as AuthError;
         console.error("Error handling redirect result:", authError);
-        // Don't throw - let user try again
+        
+        // Map Firebase error codes to user-friendly messages
+        let errorMessage = 'Erro ao fazer login. Tente novamente.';
+        let errorTitle = 'Erro de Autenticação';
+        
+        if (authError.code === 'auth/account-exists-with-different-credential') {
+          errorTitle = 'Conta já existe';
+          errorMessage = 'Uma conta com este email já existe usando outro método de login.';
+        } else if (authError.code === 'auth/invalid-credential') {
+          errorTitle = 'Credenciais inválidas';
+          errorMessage = 'As credenciais fornecidas são inválidas ou expiraram.';
+        } else if (authError.code === 'auth/network-request-failed') {
+          errorTitle = 'Erro de Conexão';
+          errorMessage = 'Não foi possível conectar ao servidor. Verifique sua internet.';
+        } else if (authError.code === 'auth/popup-closed-by-user') {
+          // User cancelled - don't show error
+          return;
+        }
+        
+        // Show error toast
+        toast({
+          variant: 'destructive',
+          title: errorTitle,
+          description: errorMessage,
+        });
       }
     };
 
     handleRedirectResult();
-  }, [mounted, auth]);
+  }, [mounted, auth, toast]);
 
   // When user auth state changes, handle redirects. This is the single source of truth for redirection.
   useEffect(() => {

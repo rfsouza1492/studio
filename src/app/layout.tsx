@@ -6,7 +6,8 @@ import { GoalProvider } from '@/context/GoalContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { FirebaseClientProvider } from '@/firebase';
 import PrivateRoute from '@/components/auth/PrivateRoute';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { SessionExpiryMonitor } from '@/components/SessionExpiryMonitor';
+// Note: FirebaseErrorListener is already included in FirebaseProvider
 
 export const metadata: Metadata = {
   title: 'GoalFlow',
@@ -40,11 +41,11 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AuthProvider>
             <GoalProvider>
-                <PrivateRoute>
-                    {children}
-                </PrivateRoute>
+              <PrivateRoute>
+                {children}
+              </PrivateRoute>
               <Toaster />
-              <FirebaseErrorListener />
+              <SessionExpiryMonitor />
             </GoalProvider>
           </AuthProvider>
         </FirebaseClientProvider>
