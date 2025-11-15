@@ -59,39 +59,71 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
   // Suppress Chrome extension runtime errors
   var originalError = console.error;
   console.error = function() {
-    var message = arguments[0]?.toString() || '';
-    var hasRuntimeError = Array.prototype.some.call(arguments, function(arg) {
+    // Check all arguments (not just first one)
+    var allArgs = Array.prototype.slice.call(arguments);
+    var allText = allArgs.map(function(arg) {
+      return arg?.toString() || '';
+    }).join(' ');
+    
+    // Check if any argument contains runtime error patterns
+    var hasRuntimeError = allArgs.some(function(arg) {
       if (typeof arg === 'string') {
         return arg.includes('runtime.lastError') || 
                arg.includes('message port closed') ||
-               arg.includes('Unchecked runtime.lastError') ||
+               arg.includes('Unchecked runtime') ||
                arg.includes('The message port closed') ||
                arg.includes('Cross-Origin-Opener-Policy');
       }
       return false;
     });
     
-    if (message.includes('runtime.lastError') || 
-        message.includes('message port closed') ||
-        message.includes('Unchecked runtime.lastError') ||
-        message.includes('The message port closed') ||
-        message.includes('Cross-Origin-Opener-Policy') ||
-        message.includes('would block the window.close call') ||
+    // Check combined text for patterns
+    if (allText.includes('runtime.lastError') || 
+        allText.includes('message port closed') ||
+        allText.includes('Unchecked runtime') ||
+        allText.includes('The message port closed') ||
+        allText.includes('Cross-Origin-Opener-Policy') ||
+        allText.includes('would block the window.close call') ||
         hasRuntimeError) {
-      return;
+      return; // Suppress silently
     }
+    
+    // Not a runtime error, log normally
     originalError.apply(console, arguments);
   };
   
-  // Suppress COOP warnings
+  // Suppress COOP warnings and runtime errors in console.warn
   var originalWarn = console.warn;
   console.warn = function() {
-    var message = arguments[0]?.toString() || '';
-    if (message.includes('Cross-Origin-Opener-Policy') ||
-        message.includes('would block the window.close call')) {
-      return;
+    var allArgs = Array.prototype.slice.call(arguments);
+    var allText = allArgs.map(function(arg) {
+      return arg?.toString() || '';
+    }).join(' ');
+    
+    if (allText.includes('Cross-Origin-Opener-Policy') ||
+        allText.includes('would block the window.close call') ||
+        allText.includes('runtime.lastError') ||
+        allText.includes('message port closed') ||
+        allText.includes('Unchecked runtime')) {
+      return; // Suppress silently
     }
     originalWarn.apply(console, arguments);
+  };
+  
+  // Also suppress in console.log (some extensions log there)
+  var originalLog = console.log;
+  console.log = function() {
+    var allArgs = Array.prototype.slice.call(arguments);
+    var allText = allArgs.map(function(arg) {
+      return arg?.toString() || '';
+    }).join(' ');
+    
+    if (allText.includes('runtime.lastError') ||
+        allText.includes('message port closed') ||
+        allText.includes('Unchecked runtime')) {
+      return; // Suppress silently
+    }
+    originalLog.apply(console, arguments);
   };
   
   // Intercept window.onerror
