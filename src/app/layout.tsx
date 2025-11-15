@@ -6,7 +6,8 @@ import { AuthProvider } from '@/context/AuthContext';
 import { FirebaseClientProvider } from '@/firebase';
 import PrivateRoute from '@/components/auth/PrivateRoute';
 import { SessionExpiryMonitor } from '@/components/SessionExpiryMonitor';
-import { ErrorHandlerInit } from '@/components/ErrorHandlerInit';
+import { ErrorHandlerWrapper } from '@/components/ErrorHandlerWrapper';
+import { ERROR_HANDLER_INLINE_SCRIPT } from '@/lib/error-handler-init';
 // Note: FirebaseErrorListener is already included in FirebaseProvider
 
 export const metadata: Metadata = {
@@ -36,20 +37,28 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
+        {/* Initialize error handlers BEFORE React code runs */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: ERROR_HANDLER_INLINE_SCRIPT,
+          }}
+        />
       </head>
       <body className="font-body antialiased" suppressHydrationWarning>
-        <FirebaseClientProvider>
-          <AuthProvider>
-            <GoalProvider>
-              <PrivateRoute>
-                {children}
-              </PrivateRoute>
-              <Toaster />
-              <SessionExpiryMonitor />
-              <ErrorHandlerInit />
-            </GoalProvider>
-          </AuthProvider>
-        </FirebaseClientProvider>
+        {/* Initialize error handler BEFORE providers to catch initialization errors */}
+        <ErrorHandlerWrapper>
+          <FirebaseClientProvider>
+            <AuthProvider>
+              <GoalProvider>
+                <PrivateRoute>
+                  {children}
+                </PrivateRoute>
+                <Toaster />
+                <SessionExpiryMonitor />
+              </GoalProvider>
+            </AuthProvider>
+          </FirebaseClientProvider>
+        </ErrorHandlerWrapper>
       </body>
     </html>
   );
