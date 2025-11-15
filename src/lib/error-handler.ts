@@ -14,7 +14,9 @@ if (typeof window !== 'undefined') {
     // Suppress Chrome extension errors
     if (message.includes('message port closed') || 
         message.includes('runtime.lastError') ||
+        message.includes('Unchecked runtime.lastError') ||
         message.includes('Extension context invalidated') ||
+        message.includes('The message port closed') ||
         (reason?.name === 'ChromeExtensionError')) {
       event.preventDefault();
       return;
@@ -68,12 +70,24 @@ if (typeof window !== 'undefined') {
       ('lastError' in arg || 'runtime' in arg)
     );
     
+    // Check all arguments for runtime.lastError patterns
+    const hasRuntimeError = args.some(arg => {
+      if (typeof arg === 'string') {
+        return arg.includes('runtime.lastError') || 
+               arg.includes('message port closed') ||
+               arg.includes('Unchecked runtime.lastError') ||
+               arg.includes('The message port closed');
+      }
+      return false;
+    });
+    
     if (message.includes('runtime.lastError') || 
         message.includes('message port closed') ||
         message.includes('Unchecked runtime.lastError') ||
         message.includes('The message port closed') ||
-        hasLastError) {
-      // Suppress Chrome extension errors (similar to checking chrome.runtime.lastError)
+        hasLastError ||
+        hasRuntimeError) {
+      // Suppress Chrome extension errors silently
       return;
     }
     originalError.apply(console, args);
@@ -89,10 +103,8 @@ if (typeof window !== 'undefined') {
         if (typeof callback === 'function') {
           const wrappedCallback = function(response: any) {
             if (chrome.runtime.lastError) {
-              // Handle the error, e.g., the port was closed
-              if (process.env.NODE_ENV === 'development') {
-                console.warn('Error sending message:', chrome.runtime.lastError.message);
-              }
+              // Silently handle the error - port was closed or extension context invalidated
+              // This is normal when extensions reload or pages navigate
               return; // Important to return if an error occurred
             }
             // Process the successful response
@@ -103,6 +115,48 @@ if (typeof window !== 'undefined') {
         return originalSendMessage.apply(chrome.runtime, args);
       };
     }
+    
+    // Also wrap connect to prevent port closure errors
+    const originalConnect = chrome.runtime.connect;
+    if (originalConnect) {
+      chrome.runtime.connect = function(...args: any[]) {
+        try {
+          const port = originalConnect.apply(chrome.runtime, args);
+          if (port && port.onDisconnect) {
+            const originalOnDisconnect = port.onDisconnect.addListener;
+            port.onDisconnect.addListener = function(callback: any) {
+              return originalOnDisconnect.call(port.onDisconnect, function() {
+                // Silently handle disconnect - this is normal
+                if (chrome.runtime.lastError) {
+                  return;
+                }
+                if (callback) callback();
+              });
+            };
+          }
+          return port;
+        } catch (e) {
+          // Silently handle connection errors
+          return null as any;
+        }
+      };
+    }
   }
+  
+  // Also intercept window.onerror to catch runtime.lastError
+  const originalOnError = window.onerror;
+  window.onerror = function(message, source, lineno, colno, error) {
+    const messageStr = message?.toString() || '';
+    if (messageStr.includes('runtime.lastError') || 
+        messageStr.includes('message port closed') ||
+        messageStr.includes('Unchecked runtime.lastError')) {
+      // Suppress Chrome extension errors
+      return true; // Prevent default error handling
+    }
+    if (originalOnError) {
+      return originalOnError.call(window, message, source, lineno, colno, error);
+    }
+    return false;
+  };
 }
 

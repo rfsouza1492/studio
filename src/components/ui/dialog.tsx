@@ -33,27 +33,14 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  // Check if children contain a DialogDescription
-  const hasDescription = React.Children.toArray(children).some(
-    (child) => {
-      if (!React.isValidElement(child)) return false;
-      if (child.type === DialogDescription) return true;
-      
-      // Check nested children (e.g., inside DialogHeader)
-      if (child.props?.children) {
-        return React.Children.toArray(child.props.children).some(
-          (grandchild) =>
-            React.isValidElement(grandchild) && grandchild.type === DialogDescription
-        );
-      }
-      
-      return false;
-    }
-  );
-
-  // Generate a unique ID for aria-describedby if not provided and no description exists
-  const descriptionId = React.useId();
-  const needsFallback = !props['aria-describedby'] && !hasDescription;
+  // Generate a unique ID for aria-describedby fallback
+  // This ensures accessibility even when DialogDescription is not provided
+  const fallbackDescriptionId = React.useId();
+  
+  // Extract aria-describedby from props if provided, otherwise use fallback
+  // Radix UI DialogDescription will automatically set its ID and override this if present
+  const { 'aria-describedby': ariaDescribedByProp, ...restProps } = props;
+  const ariaDescribedBy = ariaDescribedByProp || fallbackDescriptionId;
 
   return (
     <DialogPortal>
@@ -64,13 +51,14 @@ const DialogContent = React.forwardRef<
           "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
           className
         )}
-        aria-describedby={props['aria-describedby'] || (needsFallback ? descriptionId : undefined)}
-        {...props}
+        aria-describedby={ariaDescribedBy}
+        {...restProps}
       >
         {children}
-        {/* Hidden description as fallback for accessibility when no description exists */}
-        {needsFallback && (
-          <DialogPrimitive.Description id={descriptionId} className="sr-only">
+        {/* Hidden description as fallback for accessibility when no DialogDescription exists */}
+        {/* Radix UI will automatically override this ID if DialogDescription is present */}
+        {!ariaDescribedByProp && (
+          <DialogPrimitive.Description id={fallbackDescriptionId} className="sr-only">
             Dialog content
           </DialogPrimitive.Description>
         )}
@@ -130,13 +118,20 @@ DialogTitle.displayName = DialogPrimitive.Title.displayName
 const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Description
-    ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
-    {...props}
-  />
-))
+>(({ className, id, ...props }, ref) => {
+  // Ensure DialogDescription always has an ID for accessibility
+  // Radix UI will generate one if not provided, but we ensure it's always present
+  const descriptionId = id || React.useId();
+  
+  return (
+    <DialogPrimitive.Description
+      ref={ref}
+      id={descriptionId}
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  );
+})
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
 export {
