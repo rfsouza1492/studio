@@ -5,6 +5,15 @@
  * Prevents "Uncaught (in promise)" errors from appearing in console
  */
 
+// Type declaration for Chrome extension API
+declare const chrome: {
+  runtime?: {
+    sendMessage?: (...args: any[]) => any;
+    connect?: (...args: any[]) => any;
+    lastError?: { message?: string };
+  };
+} | undefined;
+
 if (typeof window !== 'undefined') {
   // Handle unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
@@ -59,7 +68,7 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  // Suppress Chrome extension runtime errors
+  // Suppress Chrome extension runtime errors and COOP warnings
   const originalError = console.error;
   console.error = (...args: any[]) => {
     const message = args[0]?.toString() || '';
@@ -81,13 +90,22 @@ if (typeof window !== 'undefined') {
       return false;
     });
     
+    // Check for Cross-Origin-Opener-Policy warnings (Firebase Auth popup cleanup)
+    const hasCOOPWarning = message.includes('Cross-Origin-Opener-Policy') ||
+                           message.includes('would block the window.close call') ||
+                           args.some(arg => 
+                             typeof arg === 'string' && 
+                             arg.includes('Cross-Origin-Opener-Policy')
+                           );
+    
     if (message.includes('runtime.lastError') || 
         message.includes('message port closed') ||
         message.includes('Unchecked runtime.lastError') ||
         message.includes('The message port closed') ||
         hasLastError ||
-        hasRuntimeError) {
-      // Suppress Chrome extension errors silently
+        hasRuntimeError ||
+        hasCOOPWarning) {
+      // Suppress Chrome extension errors and COOP warnings silently
       return;
     }
     originalError.apply(console, args);
@@ -102,7 +120,7 @@ if (typeof window !== 'undefined') {
         const callback = args[args.length - 1];
         if (typeof callback === 'function') {
           const wrappedCallback = function(response: any) {
-            if (chrome.runtime.lastError) {
+            if (chrome?.runtime?.lastError) {
               // Silently handle the error - port was closed or extension context invalidated
               // This is normal when extensions reload or pages navigate
               return; // Important to return if an error occurred
@@ -112,7 +130,7 @@ if (typeof window !== 'undefined') {
           };
           args[args.length - 1] = wrappedCallback;
         }
-        return originalSendMessage.apply(chrome.runtime, args);
+        return originalSendMessage.apply(chrome.runtime!, args);
       };
     }
     
@@ -128,7 +146,7 @@ if (typeof window !== 'undefined') {
               if (typeof originalOnDisconnect === 'function') {
                 return originalOnDisconnect.call(port.onDisconnect, function() {
                   // Silently handle disconnect - this is normal
-                  if (chrome.runtime.lastError) {
+                  if (chrome?.runtime?.lastError) {
                     return;
                   }
                   if (callback) callback();
@@ -145,14 +163,16 @@ if (typeof window !== 'undefined') {
     }
   }
   
-  // Also intercept window.onerror to catch runtime.lastError
+  // Also intercept window.onerror to catch runtime.lastError and COOP warnings
   const originalOnError = window.onerror;
   window.onerror = function(message, source, lineno, colno, error) {
     const messageStr = message?.toString() || '';
     if (messageStr.includes('runtime.lastError') || 
         messageStr.includes('message port closed') ||
-        messageStr.includes('Unchecked runtime.lastError')) {
-      // Suppress Chrome extension errors
+        messageStr.includes('Unchecked runtime.lastError') ||
+        messageStr.includes('Cross-Origin-Opener-Policy') ||
+        messageStr.includes('would block the window.close call')) {
+      // Suppress Chrome extension errors and COOP warnings
       return true; // Prevent default error handling
     }
     if (originalOnError && typeof originalOnError === 'function') {
@@ -165,5 +185,21 @@ if (typeof window !== 'undefined') {
     }
     return false;
   };
+  
+  // Also suppress COOP warnings from console.warn
+  const originalWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    const message = args[0]?.toString() || '';
+    if (message.includes('Cross-Origin-Opener-Policy') ||
+        message.includes('would block the window.close call')) {
+      // Suppress COOP warnings from Firebase Auth popup cleanup
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
 }
+
+// Export empty object to satisfy TypeScript module requirements
+// This is a side-effect module that initializes error handlers
+export {};
 
