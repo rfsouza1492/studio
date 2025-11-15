@@ -122,16 +122,18 @@ if (typeof window !== 'undefined') {
       chrome.runtime.connect = function(...args: any[]) {
         try {
           const port = originalConnect.apply(chrome.runtime, args);
-          if (port && port.onDisconnect) {
+          if (port && port.onDisconnect && typeof port.onDisconnect.addListener === 'function') {
             const originalOnDisconnect = port.onDisconnect.addListener;
             port.onDisconnect.addListener = function(callback: any) {
-              return originalOnDisconnect.call(port.onDisconnect, function() {
-                // Silently handle disconnect - this is normal
-                if (chrome.runtime.lastError) {
-                  return;
-                }
-                if (callback) callback();
-              });
+              if (typeof originalOnDisconnect === 'function') {
+                return originalOnDisconnect.call(port.onDisconnect, function() {
+                  // Silently handle disconnect - this is normal
+                  if (chrome.runtime.lastError) {
+                    return;
+                  }
+                  if (callback) callback();
+                });
+              }
             };
           }
           return port;
@@ -153,8 +155,13 @@ if (typeof window !== 'undefined') {
       // Suppress Chrome extension errors
       return true; // Prevent default error handling
     }
-    if (originalOnError) {
-      return originalOnError.call(window, message, source, lineno, colno, error);
+    if (originalOnError && typeof originalOnError === 'function') {
+      try {
+        return originalOnError.call(window, message, source, lineno, colno, error);
+      } catch (e) {
+        // Silently handle errors in error handler
+        return false;
+      }
     }
     return false;
   };

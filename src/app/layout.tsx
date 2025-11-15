@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import '@/lib/error-handler'; // Import global error handler
 import { Toaster } from '@/components/ui/toaster';
 import { GoalProvider } from '@/context/GoalContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { FirebaseClientProvider } from '@/firebase';
 import PrivateRoute from '@/components/auth/PrivateRoute';
 import { SessionExpiryMonitor } from '@/components/SessionExpiryMonitor';
+import { ErrorHandlerInit } from '@/components/ErrorHandlerInit';
 // Note: FirebaseErrorListener is already included in FirebaseProvider
 
 export const metadata: Metadata = {
@@ -46,6 +46,7 @@ export default function RootLayout({
               </PrivateRoute>
               <Toaster />
               <SessionExpiryMonitor />
+              <ErrorHandlerInit />
             </GoalProvider>
           </AuthProvider>
         </FirebaseClientProvider>
