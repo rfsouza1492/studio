@@ -25,12 +25,6 @@ export default function CalendarPage() {
   const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
   const [isBackendAuthenticated, setIsBackendAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const { listEvents, deleteEvent: deleteEventApi } = useCalendar();
   const { checkAuthStatus, initiateOAuthLogin } = useBackendAuth();
@@ -235,7 +229,7 @@ export default function CalendarPage() {
               <div className="text-center space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
                 <p className="text-muted-foreground" suppressHydrationWarning>
-                  {mounted && checkingAuth ? 'Verificando autenticação...' : 'Carregando eventos...'}
+                  {checkingAuth ? 'Verificando autenticação...' : isLoading ? 'Carregando eventos...' : ''}
                 </p>
               </div>
             </CardContent>
@@ -306,4 +300,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-
