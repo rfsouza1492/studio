@@ -1,45 +1,50 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Target, LogIn, AlertCircle } from 'lucide-react';
-import { useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const DEBOUNCE_DELAY = 2000; // 2 seconds between login attempts
 
 const LoginPage: React.FC = () => {
   const { signInWithGoogle, user, loading } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const lastAttemptRef = useRef<number>(0);
 
-  useEffect(() => {
-    if (!loading && user) {
-      // Clear URL parameters to prevent redirect loops
-      window.history.replaceState({}, '', '/');
-      router.replace('/');
-      // Fallback redirect if router doesn't work immediately
-      setTimeout(() => {
-        if (window.location.pathname === '/login') {
-          window.location.href = '/';
-        }
-      }, 100);
-    }
-  }, [user, loading, router]);
+  // Redirect is handled by AuthContext - no need for local redirect logic
+  // AuthContext will redirect authenticated users away from /login automatically
 
   const handleSignIn = async () => {
+    // Rate limiting: prevent rapid clicks
+    const now = Date.now();
+    const timeSinceLastAttempt = now - lastAttemptRef.current;
+    
+    if (timeSinceLastAttempt < DEBOUNCE_DELAY) {
+      const remainingTime = Math.ceil((DEBOUNCE_DELAY - timeSinceLastAttempt) / 1000);
+      setError(`Por favor, aguarde ${remainingTime} segundo(s) antes de tentar novamente.`);
+      return;
+    }
+
+    // Reset error and update last attempt time
     setError(null);
+    lastAttemptRef.current = now;
     setIsSigningIn(true);
     
     try {
       await signInWithGoogle();
       // If using redirect, the page will navigate away
-      // If using popup, the useEffect above will handle redirect
+      // If using popup, AuthContext will handle redirect
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao fazer login. Tente novamente.';
       setError(errorMessage);
       setIsSigningIn(false);
+      // Reset last attempt on error so user can retry immediately
+      lastAttemptRef.current = 0;
     }
   };
   
