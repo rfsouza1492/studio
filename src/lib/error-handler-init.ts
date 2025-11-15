@@ -56,7 +56,7 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     }
   });
   
-  // Suppress Chrome extension runtime errors
+  // Suppress Chrome extension runtime errors and Firestore connection errors
   var originalError = console.error;
   console.error = function() {
     // Check all arguments (not just first one)
@@ -64,6 +64,19 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     var allText = allArgs.map(function(arg) {
       return arg?.toString() || '';
     }).join(' ');
+    
+    // Suppress Firestore connection/network errors (handled by SDK retry logic)
+    if (allText.includes('ERR_QUIC_PROTOCOL_ERROR') ||
+        allText.includes('QUIC_PUBLIC_RESET') ||
+        allText.includes('firestore.googleapis.com') && (
+          allText.includes('Listen/channel') ||
+          allText.includes('Bad Request') ||
+          allText.includes('net::')
+        ) ||
+        allText.includes('WebChannelConnection') ||
+        allText.includes('Firestore') && allText.includes('transport errored')) {
+      return; // Suppress silently - transient network errors handled by Firestore SDK
+    }
     
     // Check if any argument contains runtime error patterns
     var hasRuntimeError = allArgs.some(function(arg) {
@@ -92,13 +105,24 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     originalError.apply(console, arguments);
   };
   
-  // Suppress COOP warnings and runtime errors in console.warn
+  // Suppress COOP warnings, runtime errors, and Firestore connection errors in console.warn
   var originalWarn = console.warn;
   console.warn = function() {
     var allArgs = Array.prototype.slice.call(arguments);
     var allText = allArgs.map(function(arg) {
       return arg?.toString() || '';
     }).join(' ');
+    
+    // Suppress Firestore connection errors (automatically handled by SDK)
+    if (allText.includes('WebChannelConnection') ||
+        allText.includes('transport errored') ||
+        allText.includes('Firestore') && (
+          allText.includes('stream') || 
+          allText.includes('Listen') ||
+          allText.includes('connection')
+        )) {
+      return; // Suppress silently - Firestore SDK handles reconnection
+    }
     
     if (allText.includes('Cross-Origin-Opener-Policy') ||
         allText.includes('would block the window.close call') ||
