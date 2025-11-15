@@ -54,6 +54,50 @@ export default function CalendarPage() {
     checkAuth();
   }, [checkAuthStatus]);
 
+  // Handle OAuth success redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth_success') === 'true') {
+      toast({
+        title: 'Login realizado com sucesso',
+        description: 'Agora você pode acessar seu calendário.',
+      });
+      
+      // Clear query parameter from URL
+      window.history.replaceState({}, '', '/calendar');
+      
+      // Reload auth status and events
+      const reload = async () => {
+        try {
+          const status = await checkAuthStatus();
+          setIsBackendAuthenticated(status?.authenticated || false);
+          if (status?.authenticated) {
+            // Load events directly to avoid dependency issues
+            setIsLoading(true);
+            setError(null);
+            try {
+              const timeMin = new Date().toISOString();
+              const response = await listEvents(maxResults, timeMin);
+              setEvents(response.events || []);
+            } catch (err: any) {
+              console.error('Failed to load events after OAuth:', err);
+              if (err instanceof ApiError && err.status === 401) {
+                setIsBackendAuthenticated(false);
+              }
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to reload after OAuth:', err);
+        }
+      };
+      
+      reload();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount to check for oauth_success parameter
+
   // Load events
   const loadEvents = async () => {
     setIsLoading(true);
@@ -70,6 +114,7 @@ export default function CalendarPage() {
       if (err instanceof ApiError && err.status === 401) {
         setError('Autenticação necessária. Por favor, faça login com Google para acessar seu calendário.');
         setIsBackendAuthenticated(false);
+        // Don't reload auth status here - already checked in useEffect
       } else {
         setError(err.message || 'Failed to load calendar events. Please try again.');
       }
@@ -203,12 +248,16 @@ export default function CalendarPage() {
                 Você precisa autenticar com Google para acessar seu calendário.
               </span>
               <Button
-                onClick={initiateOAuthLogin}
+                onClick={() => {
+                  setIsLoading(true); // Show loading before redirect
+                  initiateOAuthLogin();
+                }}
                 size="sm"
                 className="ml-4 gap-2"
+                disabled={isLoading}
               >
                 <LogIn className="h-4 w-4" />
-                Fazer Login
+                {isLoading ? 'Redirecionando...' : 'Fazer Login'}
               </Button>
             </AlertDescription>
           </Alert>
