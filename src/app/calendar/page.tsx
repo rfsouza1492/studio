@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/layout/Header';
 import { useCalendar, useBackendAuth } from '@/hooks/use-api';
 import { CalendarEvent, ApiError } from '@/lib/api-client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, Plus, RefreshCw, Loader2, AlertCircle, LogIn } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -25,6 +25,8 @@ export default function CalendarPage() {
   const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
   const [isBackendAuthenticated, setIsBackendAuthenticated] = useState<boolean | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [loadingAfterOAuth, setLoadingAfterOAuth] = useState(false);
+  const eventsLoadedAfterOAuth = useRef(false);
 
   const { listEvents, deleteEvent: deleteEventApi } = useCalendar();
   const { checkAuthStatus, initiateOAuthLogin } = useBackendAuth();
@@ -32,14 +34,25 @@ export default function CalendarPage() {
 
   // Check backend authentication status
   useEffect(() => {
+    // Skip initial auth check if OAuth success is in URL (will be handled by OAuth useEffect)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth_success') === 'true') {
+      // OAuth success handler will check auth, so skip this check
+      return;
+    }
+
     const checkAuth = async () => {
       // Only check if backend API is enabled
+      // If backend is not enabled, skip authentication check
       if (!apiClient.useBackendApi()) {
-        setIsBackendAuthenticated(true); // Skip check if backend not enabled
+        // Backend not enabled - assume authenticated to allow calendar access
+        // This allows the calendar to work without backend API
+        setIsBackendAuthenticated(true);
         setCheckingAuth(false);
         return;
       }
 
+      // Backend is enabled - check authentication status
       try {
         const status = await checkAuthStatus();
         setIsBackendAuthenticated(status?.authenticated || false);
@@ -58,38 +71,67 @@ export default function CalendarPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('oauth_success') === 'true') {
-      toast({
-        title: 'Login realizado com sucesso',
-        description: 'Agora você pode acessar seu calendário.',
-      });
-      
-      // Clear query parameter from URL
+      // Clear query parameter from URL immediately
       window.history.replaceState({}, '', '/calendar');
       
       // Reload auth status and events
       const reload = async () => {
         try {
+          // Set checkingAuth to true while verifying authentication
+          setCheckingAuth(true);
+          setError(null);
+          
           const status = await checkAuthStatus();
-          setIsBackendAuthenticated(status?.authenticated || false);
-          if (status?.authenticated) {
+          const authenticated = status?.authenticated || false;
+          setIsBackendAuthenticated(authenticated);
+          
+          if (authenticated) {
             // Load events directly to avoid dependency issues
+            setLoadingAfterOAuth(true); // Flag to prevent double loading
             setIsLoading(true);
-            setError(null);
             try {
               const timeMin = new Date().toISOString();
               const response = await listEvents(maxResults, timeMin);
-              setEvents(response.events || []);
+              const eventsList = response.events || [];
+              setEvents(eventsList);
+              eventsLoadedAfterOAuth.current = true; // Mark that events were loaded
+              
+              // Show success toast only after events are loaded successfully
+              toast({
+                title: 'Login realizado com sucesso',
+                description: `Seus eventos foram carregados com sucesso.${eventsList.length > 0 ? ` ${eventsList.length} evento(s) encontrado(s).` : ''}`,
+              });
+              
+              // Debug log (only in development)
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Events loaded after OAuth:', eventsList.length, 'events');
+              }
             } catch (err: any) {
               console.error('Failed to load events after OAuth:', err);
               if (err instanceof ApiError && err.status === 401) {
                 setIsBackendAuthenticated(false);
+                setError('Erro ao carregar eventos. Por favor, tente novamente.');
+              } else {
+                const errorMessage = err instanceof ApiError 
+                  ? err.message 
+                  : err?.message || 'Erro ao carregar eventos.';
+                setError(errorMessage);
               }
             } finally {
               setIsLoading(false);
+              setLoadingAfterOAuth(false);
+              setCheckingAuth(false); // Set to false after events are loaded (or failed)
             }
+          } else {
+            // If not authenticated after OAuth success, show error
+            setError('Autenticação não confirmada. Por favor, tente fazer login novamente.');
+            setCheckingAuth(false); // Set to false when not authenticated
           }
         } catch (err) {
           console.error('Failed to reload after OAuth:', err);
+          setCheckingAuth(false);
+          setIsBackendAuthenticated(false);
+          setError('Erro ao verificar autenticação. Por favor, recarregue a página.');
         }
       };
       
@@ -124,16 +166,38 @@ export default function CalendarPage() {
     }
   };
 
-  // Load events on mount and when maxResults changes (only if authenticated)
+  // Reset the flag when loadingAfterOAuth transitions from true to false
+  // This ensures the flag is reset after OAuth loading completes
   useEffect(() => {
-    if (!checkingAuth && isBackendAuthenticated) {
+    if (!loadingAfterOAuth && eventsLoadedAfterOAuth.current) {
+      // Reset flag after OAuth loading completes
+      // This allows future loads to proceed normally
+      eventsLoadedAfterOAuth.current = false;
+    }
+  }, [loadingAfterOAuth]);
+
+  // Load events on mount and when maxResults changes (only if authenticated)
+  // Skip if we're already loading after OAuth to avoid double loading
+  useEffect(() => {
+    // Only load if:
+    // 1. Not checking auth
+    // 2. Authenticated (explicitly true, not just truthy)
+    // 3. Not currently loading after OAuth
+    // 4. Not already loading events
+    // 5. Events weren't just loaded after OAuth (to prevent double loading)
+    if (!checkingAuth && 
+        isBackendAuthenticated === true && 
+        !loadingAfterOAuth && 
+        !isLoading &&
+        !eventsLoadedAfterOAuth.current) {
       loadEvents();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maxResults, checkingAuth, isBackendAuthenticated]);
+  }, [maxResults, checkingAuth, isBackendAuthenticated, loadingAfterOAuth]);
 
   // Handle delete event
   const handleDelete = async (eventId: string, summary: string) => {
+    // Confirm deletion with user
     if (!confirm(`Tem certeza que deseja deletar "${summary}"?`)) {
       return;
     }
@@ -142,7 +206,7 @@ export default function CalendarPage() {
       await deleteEventApi(eventId);
       toast({
         title: 'Evento deletado',
-        description: 'O evento foi removido do seu calendário.',
+        description: `"${summary}" foi removido do seu calendário.`,
       });
       // Reload events with error handling
       try {
@@ -152,10 +216,13 @@ export default function CalendarPage() {
         console.warn('Failed to reload events after delete:', reloadErr);
       }
     } catch (err: any) {
+      const errorMessage = err instanceof ApiError 
+        ? err.message 
+        : err?.message || 'Não foi possível deletar o evento.';
       toast({
         variant: 'destructive',
         title: 'Erro ao deletar',
-        description: err.message || 'Não foi possível deletar o evento.',
+        description: errorMessage,
       });
     }
   };
@@ -287,7 +354,7 @@ export default function CalendarPage() {
         )}
 
         {/* Events List */}
-        {!isLoading && !checkingAuth && isBackendAuthenticated && !error && (
+        {!isLoading && !checkingAuth && isBackendAuthenticated === true && (
           <>
             {events.length === 0 ? (
               <Card>
