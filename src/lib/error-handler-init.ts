@@ -296,4 +296,3 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
   };
 })();
 `.trim();
-
