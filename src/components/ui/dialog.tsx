@@ -40,7 +40,11 @@ const DialogContent = React.forwardRef<
   // Extract aria-describedby from props if provided, otherwise use fallback
   // Radix UI DialogDescription will automatically set its ID and override this if present
   const { 'aria-describedby': ariaDescribedByProp, ...restProps } = props;
-  const ariaDescribedBy = ariaDescribedByProp || fallbackDescriptionId;
+  // Ensure aria-describedby is never undefined - use fallback if not provided or explicitly undefined
+  // This prevents accessibility warnings when DialogDescription is not present
+  const ariaDescribedBy = (ariaDescribedByProp && typeof ariaDescribedByProp === 'string') 
+    ? ariaDescribedByProp 
+    : fallbackDescriptionId;
 
   return (
     <DialogPortal>
@@ -57,7 +61,7 @@ const DialogContent = React.forwardRef<
         {children}
         {/* Hidden description as fallback for accessibility when no DialogDescription exists */}
         {/* Radix UI will automatically override this ID if DialogDescription is present */}
-        {!ariaDescribedByProp && (
+        {!(ariaDescribedByProp && typeof ariaDescribedByProp === 'string') && (
           <DialogPrimitive.Description id={fallbackDescriptionId} className="sr-only">
             Dialog content
           </DialogPrimitive.Description>
