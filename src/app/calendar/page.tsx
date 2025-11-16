@@ -27,6 +27,8 @@ export default function CalendarPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [loadingAfterOAuth, setLoadingAfterOAuth] = useState(false);
   const eventsLoadedAfterOAuth = useRef(false);
+  const prevMaxResults = useRef(maxResults);
+  const resetFlagTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { listEvents, deleteEvent: deleteEventApi } = useCalendar();
   const { checkAuthStatus, initiateOAuthLogin } = useBackendAuth();
@@ -106,15 +108,18 @@ export default function CalendarPage() {
               if (process.env.NODE_ENV === 'development') {
                 console.log('Events loaded after OAuth:', eventsList.length, 'events');
               }
-            } catch (err: any) {
-              console.error('Failed to load events after OAuth:', err);
+            } catch (err: unknown) {
+              // Only log unexpected errors in development
+              if (process.env.NODE_ENV === 'development') {
+                console.error('Failed to load events after OAuth:', err);
+              }
               if (err instanceof ApiError && err.status === 401) {
                 setIsBackendAuthenticated(false);
                 setError('Erro ao carregar eventos. Por favor, tente novamente.');
               } else {
                 const errorMessage = err instanceof ApiError 
                   ? err.message 
-                  : err?.message || 'Erro ao carregar eventos.';
+                  : (err instanceof Error ? err.message : 'Erro ao carregar eventos.');
                 setError(errorMessage);
               }
             } finally {
@@ -138,18 +143,28 @@ export default function CalendarPage() {
       reload();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally empty: only runs once on mount to check for oauth_success parameter.
+    // listEvents and maxResults are stable references from hooks/state, and we want to capture
+    // their values at mount time to avoid re-running this effect unnecessarily.
   }, []); // Only run once on mount to check for oauth_success parameter
 
   // Load events
   const loadEvents = async () => {
     setIsLoading(true);
     setError(null);
+    // Reset flag when manually loading (user action)
+    eventsLoadedAfterOAuth.current = false;
+    // Cancel any pending timer since we're resetting the flag now
+    if (resetFlagTimerRef.current) {
+      clearTimeout(resetFlagTimerRef.current);
+      resetFlagTimerRef.current = null;
+    }
 
     try {
       const timeMin = new Date().toISOString();
       const response = await listEvents(maxResults, timeMin);
       setEvents(response.events || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Handle authentication errors specifically
       if (err instanceof ApiError && err.status === 401) {
         // Don't log expected auth errors - they're handled gracefully
@@ -157,28 +172,91 @@ export default function CalendarPage() {
         setIsBackendAuthenticated(false);
         // Don't reload auth status here - already checked in useEffect
       } else {
-        // Only log unexpected errors
-        console.error('Failed to load events:', err);
-        setError(err.message || 'Failed to load calendar events. Please try again.');
+        // Handle other errors (network, server errors, etc.)
+        const errorMessage = err instanceof ApiError 
+          ? err.message 
+          : (err instanceof Error ? err.message : 'Erro ao carregar eventos do calendário. Por favor, tente novamente.');
+        setError(errorMessage);
+        // Only log unexpected errors in development
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to load events:', err);
+        }
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Reset the flag when loadingAfterOAuth transitions from true to false
-  // This ensures the flag is reset after OAuth loading completes
+  // Reset flag after OAuth loading completes and all states are stable
+  // Delay to ensure the regular loading effect has already evaluated its conditions
+  const FLAG_RESET_DELAY_MS = 200;
+  
   useEffect(() => {
+    // Only reset when loadingAfterOAuth transitions from true to false
+    // This happens after OAuth completes
     if (!loadingAfterOAuth && eventsLoadedAfterOAuth.current) {
-      // Reset flag after OAuth loading completes
-      // This allows future loads to proceed normally
-      eventsLoadedAfterOAuth.current = false;
+      // Wait for all loading states to be complete before resetting
+      // This ensures the regular loading effect has already evaluated
+      if (!isLoading && !checkingAuth) {
+        // Clear any existing timer first (in case effect ran multiple times)
+        if (resetFlagTimerRef.current) {
+          clearTimeout(resetFlagTimerRef.current);
+          resetFlagTimerRef.current = null;
+        }
+        
+        // Use a small delay to ensure the regular loading effect has already evaluated
+        // This prevents double loading by ensuring the flag stays true during the critical window
+        resetFlagTimerRef.current = setTimeout(() => {
+          // Only reset if flag is still true (hasn't been reset by other means)
+          if (eventsLoadedAfterOAuth.current) {
+            eventsLoadedAfterOAuth.current = false;
+          }
+          resetFlagTimerRef.current = null;
+        }, FLAG_RESET_DELAY_MS); // Small delay to let the regular effect run first
+      }
+      // If loading states are not complete yet, wait for next render
+      // The effect will run again when isLoading or checkingAuth change
+    } else if (loadingAfterOAuth) {
+      // If loadingAfterOAuth is true, cancel any pending timer
+      // This handles the case where OAuth starts again before previous timer completes
+      if (resetFlagTimerRef.current) {
+        clearTimeout(resetFlagTimerRef.current);
+        resetFlagTimerRef.current = null;
+      }
     }
-  }, [loadingAfterOAuth]);
+    
+    // Cleanup: always cancel timer if effect runs again or component unmounts
+    return () => {
+      if (resetFlagTimerRef.current) {
+        clearTimeout(resetFlagTimerRef.current);
+        resetFlagTimerRef.current = null;
+      }
+    };
+  }, [loadingAfterOAuth, isLoading, checkingAuth]);
 
   // Load events on mount and when maxResults changes (only if authenticated)
   // Skip if we're already loading after OAuth to avoid double loading
   useEffect(() => {
+    // Check if maxResults actually changed
+    const maxResultsChanged = prevMaxResults.current !== maxResults;
+    
+    // Reset flag when maxResults changes (user wants to reload with different count)
+    // This is safe because maxResults change means we want to reload anyway
+    if (maxResultsChanged && eventsLoadedAfterOAuth.current) {
+      eventsLoadedAfterOAuth.current = false;
+      // Cancel any pending timer since we're resetting the flag now
+      if (resetFlagTimerRef.current) {
+        clearTimeout(resetFlagTimerRef.current);
+        resetFlagTimerRef.current = null;
+      }
+    }
+    
+    // Update prevMaxResults ONLY when maxResults actually changed
+    // Skip on initial mount to avoid false positive on first render
+    if (maxResultsChanged) {
+      prevMaxResults.current = maxResults;
+    }
+    
     // Only load if:
     // 1. Not checking auth
     // 2. Authenticated (explicitly true, not just truthy)
@@ -215,10 +293,10 @@ export default function CalendarPage() {
         // Error already handled in loadEvents
         console.warn('Failed to reload events after delete:', reloadErr);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage = err instanceof ApiError 
         ? err.message 
-        : err?.message || 'Não foi possível deletar o evento.';
+        : (err instanceof Error ? err.message : 'Não foi possível deletar o evento.');
       toast({
         variant: 'destructive',
         title: 'Erro ao deletar',

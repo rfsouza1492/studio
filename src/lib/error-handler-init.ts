@@ -97,7 +97,10 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
         (allText.includes('401') && allText.includes('calendar/events')) ||
         (allText.includes('GET') && allText.includes('401') && allText.includes('goflow')) ||
         (allText.includes('401') && allText.includes('goflow--magnetai-4h4a8')) ||
-        (allText.includes('Unauthorized') && allText.includes('goflow'))) {
+        (allText.includes('Unauthorized') && allText.includes('goflow')) ||
+        (allText.includes('Failed to load resource') && allText.includes('401')) ||
+        (allText.includes('the server responded with a status of 401')) ||
+        (allText.includes('status of 401'))) {
       return; // Suppress silently - authentication errors are handled by UI
     }
     
@@ -154,7 +157,13 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     }
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
-    if (allText.includes('401') && (allText.includes('Unauthorized') || allText.includes('calendar/events'))) {
+    if (allText.includes('401') && (
+        allText.includes('Unauthorized') || 
+        allText.includes('calendar/events') ||
+        allText.includes('Failed to load resource') ||
+        allText.includes('the server responded with a status of 401') ||
+        allText.includes('status of 401')
+      )) {
       return; // Suppress silently - authentication errors are handled by UI
     }
     
@@ -186,8 +195,13 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     }
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
-    if ((allText.includes('401') && allText.includes('Unauthorized')) ||
-        (allText.includes('401') && allText.includes('calendar/events')) ||
+    if (allText.includes('401') && (
+        allText.includes('Unauthorized') || 
+        allText.includes('calendar/events') ||
+        allText.includes('Failed to load resource') ||
+        allText.includes('the server responded with a status of 401') ||
+        allText.includes('status of 401')
+      ) ||
         (allText.includes('GET') && allText.includes('401') && allText.includes('goflow')) ||
         (allText.includes('Unauthorized') && allText.includes('goflow'))) {
       return; // Suppress silently - authentication errors are handled by UI
@@ -206,6 +220,17 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
   var originalOnError = window.onerror;
   window.onerror = function(message, source, lineno, colno, error) {
     var messageStr = message?.toString() || '';
+    
+    // Suppress expected authentication errors (401) - handled gracefully by UI
+    if (messageStr.includes('401') && (
+        messageStr.includes('Unauthorized') || 
+        messageStr.includes('Failed to load resource') ||
+        messageStr.includes('the server responded with a status of 401') ||
+        messageStr.includes('status of 401')
+      )) {
+      return true; // Suppress authentication errors
+    }
+    
     if (messageStr.includes('runtime.lastError') || 
         messageStr.includes('message port closed') ||
         messageStr.includes('message port closed before a response') ||
