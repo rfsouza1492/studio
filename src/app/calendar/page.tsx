@@ -57,10 +57,29 @@ export default function CalendarPage() {
       // Backend is enabled - check OAuth authentication status (required for Google Calendar)
       try {
         const status = await apiClient.getOAuthStatus();
-        setIsBackendAuthenticated(status?.authenticated || false);
+        const authenticated = status?.authenticated || false;
+        setIsBackendAuthenticated(authenticated);
+        
+        // Debug log (only in development)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[DEBUG] OAuth Status Check:', {
+            authenticated,
+            user: status?.user,
+            hasUser: !!status?.user,
+            timestamp: new Date().toISOString(),
+          });
+        }
       } catch (err) {
         // If OAuth check fails, assume not authenticated
         setIsBackendAuthenticated(false);
+        
+        // Debug log (only in development)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[DEBUG] OAuth Status Check Failed:', {
+            error: err instanceof Error ? err.message : 'Unknown error',
+            timestamp: new Date().toISOString(),
+          });
+        }
       } finally {
         setCheckingAuth(false);
       }
@@ -88,6 +107,17 @@ export default function CalendarPage() {
           const status = await apiClient.getOAuthStatus();
           const authenticated = status?.authenticated || false;
           setIsBackendAuthenticated(authenticated);
+          
+          // Debug log (only in development)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[DEBUG] OAuth Success Handler:', {
+              authenticated,
+              user: status?.user,
+              hasUser: !!status?.user,
+              hasTokens: !!status?.user,
+              timestamp: new Date().toISOString(),
+            });
+          }
           
           if (authenticated) {
             // Load events directly to avoid dependency issues
