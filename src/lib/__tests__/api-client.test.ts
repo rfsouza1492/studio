@@ -7,6 +7,36 @@ import apiClient, { ApiError } from '../api-client'
 // Mock fetch
 global.fetch = jest.fn()
 
+const createMockResponse = (
+  data: any,
+  options: {
+    ok?: boolean
+    status?: number
+    statusText?: string
+    contentType?: string
+  } = {}
+) => {
+  const contentType = options.contentType ?? 'application/json'
+  const serialized = typeof data === 'string' ? data : JSON.stringify(data)
+
+  return {
+    ok: options.ok ?? true,
+    status: options.status ?? 200,
+    statusText: options.statusText ?? 'OK',
+    body: serialized,
+    headers: {
+      get: (key: string) => {
+        if (key.toLowerCase() === 'content-type') {
+          return contentType
+        }
+        return null
+      },
+    },
+    json: async () => (contentType.includes('application/json') ? data : JSON.parse(serialized)),
+    text: async () => serialized,
+  }
+}
+
 describe('API Client', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -23,10 +53,7 @@ describe('API Client', () => {
         memory: { used: 10, total: 20 },
       }
 
-      ;(global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => mockResponse,
-      })
+      ;(global.fetch as jest.Mock).mockResolvedValue(createMockResponse(mockResponse))
 
       const result = await apiClient.checkHealth()
 
@@ -43,12 +70,16 @@ describe('API Client', () => {
     })
 
     it('should handle HTTP errors', async () => {
-      ;(global.fetch as jest.Mock).mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-        json: async () => ({ message: 'Server error' }),
-      })
+      ;(global.fetch as jest.Mock).mockResolvedValue(
+        createMockResponse(
+          { message: 'Server error' },
+          {
+            ok: false,
+            status: 500,
+            statusText: 'Internal Server Error',
+          }
+        )
+      )
 
       await expect(apiClient.checkHealth()).rejects.toThrow(ApiError)
       await expect(apiClient.checkHealth()).rejects.toThrow('Server error')
@@ -71,10 +102,7 @@ describe('API Client', () => {
         features: [],
       }
 
-      ;(global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => mockInfo,
-      })
+      ;(global.fetch as jest.Mock).mockResolvedValue(createMockResponse(mockInfo))
 
       const result = await apiClient.getApiInfo()
 

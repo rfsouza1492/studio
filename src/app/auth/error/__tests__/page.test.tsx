@@ -63,7 +63,7 @@ describe('AuthErrorPage', () => {
     });
   });
 
-  test('should show error code', async () => {
+  test('should show sanitized error code when message is invalid', async () => {
     (useSearchParams as jest.Mock).mockReturnValue({
       get: jest.fn((key: string) => {
         if (key === 'message') return 'test_error';
@@ -74,7 +74,8 @@ describe('AuthErrorPage', () => {
     render(<AuthErrorPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('test_error')).toBeInTheDocument();
+      // Invalid codes fallback to unknown_error
+      expect(screen.getByText('unknown_error')).toBeInTheDocument();
     });
   });
 
