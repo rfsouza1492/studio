@@ -1,30 +1,23 @@
 'use client';
 
-import { ReactNode, useLayoutEffect } from 'react';
+import { ReactNode } from 'react';
 
 /**
- * Wrapper component that initializes error handlers BEFORE rendering children
- * This ensures error handlers are active before any providers mount
+ * Wrapper component that wraps children for error handling
  * 
- * IMPORTANT: Uses useLayoutEffect to initialize synchronously before paint,
- * ensuring error handlers are active before providers mount and can throw errors
+ * IMPORTANT: Error handlers are already initialized via ERROR_HANDLER_INLINE_SCRIPT
+ * in the <head> of layout.tsx. This wrapper does NOT import error-handler.ts
+ * to avoid double-wrapping handlers and pattern matching conflicts.
+ * 
+ * The inline script (error-handler-init.ts) provides comprehensive error suppression
+ * including Firestore errors, 401 authentication errors, Chrome extension errors,
+ * and more. Importing error-handler.ts would wrap the already-wrapped handlers,
+ * causing the less comprehensive patterns in error-handler.ts to override the
+ * more comprehensive patterns in error-handler-init.ts.
  */
 export function ErrorHandlerWrapper({ children }: { children: ReactNode }) {
-  // Initialize error handler EARLY using useLayoutEffect (before paint)
-  // This ensures it's active before providers mount and can throw errors
-  useLayoutEffect(() => {
-    // Dynamically import full error handler for additional features
-    // The inline script in head already provides basic error suppression
-    import('@/lib/error-handler').catch((error) => {
-      // Silently handle import failures - error handler is non-critical
-      // Log only in development for debugging
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Failed to load error handler:', error);
-      }
-    });
-  }, []);
-
-  // Render children immediately - error handler initialization happens in parallel
+  // Error handlers are already initialized via inline script in <head>
+  // No need to import error-handler.ts here - it would cause double-wrapping
   return <>{children}</>;
 }
 
