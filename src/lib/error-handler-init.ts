@@ -67,7 +67,10 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     "parameter 1 is not of type 'Node'",
     'observe.*MutationObserver',
     'Cross-Origin-Opener-Policy',
-    'would block the window.close call'
+    'would block the window.close',
+    'would block the window.closed',
+    'window.close call',
+    'window.closed call'
   ];
   
   // Handle unhandled promise rejections
