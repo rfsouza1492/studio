@@ -54,12 +54,12 @@ export default function CalendarPage() {
         return;
       }
 
-      // Backend is enabled - check authentication status
+      // Backend is enabled - check OAuth authentication status (required for Google Calendar)
       try {
-        const status = await checkAuthStatus();
+        const status = await apiClient.getOAuthStatus();
         setIsBackendAuthenticated(status?.authenticated || false);
       } catch (err) {
-        // If auth check fails, assume not authenticated
+        // If OAuth check fails, assume not authenticated
         setIsBackendAuthenticated(false);
       } finally {
         setCheckingAuth(false);
@@ -67,7 +67,8 @@ export default function CalendarPage() {
     };
 
     checkAuth();
-  }, [checkAuthStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Handle OAuth success redirect
   useEffect(() => {
@@ -83,7 +84,8 @@ export default function CalendarPage() {
           setCheckingAuth(true);
           setError(null);
           
-          const status = await checkAuthStatus();
+          // Check OAuth status (required for Google Calendar)
+          const status = await apiClient.getOAuthStatus();
           const authenticated = status?.authenticated || false;
           setIsBackendAuthenticated(authenticated);
           

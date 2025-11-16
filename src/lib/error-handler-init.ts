@@ -14,41 +14,89 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
   // This runs before React components mount, ensuring errors during
   // provider initialization are caught
   
+  // Helper function to normalize text for comparison (case-insensitive, trimmed)
+  function normalizeText(text) {
+    if (!text) return '';
+    return text.toString().trim().toLowerCase();
+  }
+  
+  // Helper function to check if text matches any pattern (case-insensitive)
+  function matchesPattern(text, patterns) {
+    var normalized = normalizeText(text);
+    return patterns.some(function(pattern) {
+      return normalized.includes(normalizeText(pattern));
+    });
+  }
+  
+  // Helper function to check error object (message, stack, toString)
+  function checkErrorObject(error, patterns) {
+    if (!error || typeof error !== 'object') return false;
+    
+    // Check message
+    if (error.message && matchesPattern(error.message, patterns)) return true;
+    
+    // Check stack trace
+    if (error.stack && matchesPattern(error.stack, patterns)) return true;
+    
+    // Check toString
+    try {
+      var str = error.toString();
+      if (matchesPattern(str, patterns)) return true;
+    } catch (e) {
+      // Ignore toString errors
+    }
+    
+    return false;
+  }
+  
+  // Chrome extension error patterns
+  var chromeExtensionPatterns = [
+    'message port closed',
+    'runtime.lastError',
+    'Unchecked runtime.lastError',
+    'Extension context invalidated',
+    'The message port closed',
+    'message port closed before a response',
+    'message port closed before a response was received',
+    'ChromePolyfill',
+    'inject.bundle.js',
+    'Cross-Origin-Opener-Policy',
+    'would block the window.close call'
+  ];
+  
   // Handle unhandled promise rejections
   window.addEventListener('unhandledrejection', function(event) {
     var reason = event.reason;
     var message = reason?.message || reason?.toString() || '';
+    var reasonStr = reason?.toString() || '';
     
-    // Suppress Chrome extension errors
-    if (message.includes('message port closed') || 
-        message.includes('runtime.lastError') ||
-        message.includes('Unchecked runtime.lastError') ||
-        message.includes('Extension context invalidated') ||
-        message.includes('The message port closed')) {
+    // Suppress Chrome extension errors (check both message and full reason string)
+    if (matchesPattern(message, chromeExtensionPatterns) ||
+        matchesPattern(reasonStr, chromeExtensionPatterns) ||
+        checkErrorObject(reason, chromeExtensionPatterns)) {
       event.preventDefault();
       return;
     }
     
-    // Suppress abort/cancellation errors
-    if (message.includes('Request was cancelled') ||
-        message.includes('Request timeout') ||
-        message.includes('timeout') ||
-        message.includes('AbortError')) {
+    // Abort/cancellation error patterns
+    var abortPatterns = ['Request was cancelled', 'Request timeout', 'timeout', 'AbortError'];
+    if (matchesPattern(message, abortPatterns) ||
+        matchesPattern(reasonStr, abortPatterns)) {
       event.preventDefault();
       return;
     }
     
     // Suppress timeout errors from Firebase
-    if (message.includes('timeout') && 
-        (message.includes('getRedirectResult') || message.includes('Firebase'))) {
+    if (matchesPattern(message, ['timeout']) && 
+        (matchesPattern(message, ['getRedirectResult']) || matchesPattern(message, ['Firebase']))) {
       event.preventDefault();
       return;
     }
     
     // Suppress network errors that are handled gracefully
-    if (message.includes('Network error') ||
-        message.includes('Failed to fetch') ||
-        message.includes('Network request failed')) {
+    var networkPatterns = ['Network error', 'Failed to fetch', 'Network request failed'];
+    if (matchesPattern(message, networkPatterns) ||
+        matchesPattern(reasonStr, networkPatterns)) {
       if (reason?.status && reason.status >= 400) {
         event.preventDefault();
         return;
@@ -56,14 +104,47 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     }
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
-    if (message.includes('Invalid or expired authentication') ||
-        message.includes('authentication') && reason?.status === 401 ||
-        message.includes('ApiError') && reason?.status === 401 ||
-        message.includes('401') && (message.includes('Unauthorized') || message.includes('calendar/events'))) {
+    var authPatterns = ['Invalid or expired authentication', 'authentication', 'ApiError', '401', 'Unauthorized', 'calendar/events'];
+    if ((matchesPattern(message, ['Invalid or expired authentication']) ||
+         (matchesPattern(message, ['authentication']) && reason?.status === 401) ||
+         (matchesPattern(message, ['ApiError']) && reason?.status === 401) ||
+         (matchesPattern(message, ['401']) && (matchesPattern(message, ['Unauthorized']) || matchesPattern(message, ['calendar/events']))))) {
       event.preventDefault();
       return;
     }
   });
+  
+  // Firestore error patterns
+  var firestorePatterns = [
+    'ERR_QUIC_PROTOCOL_ERROR',
+    'QUIC_PUBLIC_RESET',
+    'firestore.googleapis.com',
+    'Listen/channel',
+    'Bad Request',
+    'net::',
+    'WebChannelConnection',
+    'Firestore',
+    'transport errored',
+    'stream',
+    'Listen',
+    'connection'
+  ];
+  
+  // Authentication error patterns (401)
+  var auth401Patterns = [
+    'Invalid or expired authentication',
+    'authentication',
+    '401',
+    'ApiError',
+    'Unauthorized',
+    'calendar/events',
+    'Failed to load events',
+    'Failed to load resource',
+    'the server responded with a status of 401',
+    'status of 401',
+    'goflow',
+    'goflow--magnetai-4h4a8'
+  ];
   
   // Suppress Chrome extension runtime errors and Firestore connection errors
   var originalError = console.error;
@@ -75,61 +156,46 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     }).join(' ');
     
     // Suppress Firestore connection/network errors (handled by SDK retry logic)
-    if (allText.includes('ERR_QUIC_PROTOCOL_ERROR') ||
-        allText.includes('QUIC_PUBLIC_RESET') ||
-        allText.includes('firestore.googleapis.com') && (
-          allText.includes('Listen/channel') ||
-          allText.includes('Bad Request') ||
-          allText.includes('net::')
-        ) ||
-        allText.includes('WebChannelConnection') ||
-        allText.includes('Firestore') && allText.includes('transport errored')) {
+    // Check for specific Firestore error patterns
+    if (matchesPattern(allText, ['ERR_QUIC_PROTOCOL_ERROR']) ||
+        matchesPattern(allText, ['QUIC_PUBLIC_RESET']) ||
+        (matchesPattern(allText, ['firestore.googleapis.com']) && 
+         (matchesPattern(allText, ['Listen/channel']) ||
+          matchesPattern(allText, ['Bad Request']) ||
+          matchesPattern(allText, ['net::']))) ||
+        matchesPattern(allText, ['WebChannelConnection']) ||
+        (matchesPattern(allText, ['Firestore']) && matchesPattern(allText, ['transport errored']))) {
       return; // Suppress silently - transient network errors handled by Firestore SDK
     }
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
-    // This includes network errors, API errors, and fetch failures
-    if (allText.includes('Invalid or expired authentication') ||
-        allText.includes('authentication') && allText.includes('401') ||
-        allText.includes('ApiError') && allText.includes('401') ||
-        allText.includes('Failed to load events') && allText.includes('401') ||
-        (allText.includes('401') && allText.includes('Unauthorized')) ||
-        (allText.includes('401') && allText.includes('calendar/events')) ||
-        (allText.includes('GET') && allText.includes('401') && allText.includes('goflow')) ||
-        (allText.includes('401') && allText.includes('goflow--magnetai-4h4a8')) ||
-        (allText.includes('Unauthorized') && allText.includes('goflow')) ||
-        (allText.includes('Failed to load resource') && allText.includes('401')) ||
-        (allText.includes('the server responded with a status of 401')) ||
-        (allText.includes('status of 401'))) {
+    // Check for various 401 error patterns
+    if (matchesPattern(allText, ['Invalid or expired authentication']) ||
+        (matchesPattern(allText, ['authentication']) && matchesPattern(allText, ['401'])) ||
+        (matchesPattern(allText, ['ApiError']) && matchesPattern(allText, ['401'])) ||
+        (matchesPattern(allText, ['Failed to load events']) && matchesPattern(allText, ['401'])) ||
+        (matchesPattern(allText, ['401']) && matchesPattern(allText, ['Unauthorized'])) ||
+        (matchesPattern(allText, ['401']) && matchesPattern(allText, ['calendar/events'])) ||
+        (matchesPattern(allText, ['GET']) && matchesPattern(allText, ['401']) && matchesPattern(allText, ['goflow'])) ||
+        (matchesPattern(allText, ['401']) && matchesPattern(allText, ['goflow--magnetai-4h4a8'])) ||
+        (matchesPattern(allText, ['Unauthorized']) && matchesPattern(allText, ['goflow'])) ||
+        (matchesPattern(allText, ['Failed to load resource']) && matchesPattern(allText, ['401'])) ||
+        matchesPattern(allText, ['the server responded with a status of 401']) ||
+        matchesPattern(allText, ['status of 401'])) {
       return; // Suppress silently - authentication errors are handled by UI
     }
     
     // Check if any argument contains runtime error patterns
     var hasRuntimeError = allArgs.some(function(arg) {
       if (typeof arg === 'string') {
-        return arg.includes('runtime.lastError') || 
-               arg.includes('message port closed') ||
-               arg.includes('Unchecked runtime') ||
-               arg.includes('The message port closed') ||
-               arg.includes('message port closed before a response') ||
-               arg.includes('ChromePolyfill') ||
-               arg.includes('inject.bundle.js') ||
-               arg.includes('Cross-Origin-Opener-Policy');
+        return matchesPattern(arg, chromeExtensionPatterns);
       }
-      return false;
+      // Also check Error objects (message, stack, toString)
+      return checkErrorObject(arg, chromeExtensionPatterns);
     });
     
     // Check combined text for patterns (more comprehensive)
-    if (allText.includes('runtime.lastError') || 
-        allText.includes('message port closed') ||
-        allText.includes('Unchecked runtime') ||
-        allText.includes('The message port closed') ||
-        allText.includes('message port closed before a response') ||
-        allText.includes('ChromePolyfill') ||
-        allText.includes('inject.bundle.js') ||
-        allText.includes('Cross-Origin-Opener-Policy') ||
-        allText.includes('would block the window.close call') ||
-        hasRuntimeError) {
+    if (matchesPattern(allText, chromeExtensionPatterns) || hasRuntimeError) {
       return; // Suppress silently - Chrome extension communication errors
     }
     
@@ -146,38 +212,26 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     }).join(' ');
     
     // Suppress Firestore connection errors (automatically handled by SDK)
-    if (allText.includes('WebChannelConnection') ||
-        allText.includes('transport errored') ||
-        allText.includes('Firestore') && (
-          allText.includes('stream') || 
-          allText.includes('Listen') ||
-          allText.includes('connection')
-        )) {
+    if (matchesPattern(allText, firestorePatterns) &&
+        (matchesPattern(allText, ['WebChannelConnection']) ||
+         matchesPattern(allText, ['Firestore']) && matchesPattern(allText, ['stream', 'Listen', 'connection']))) {
       return; // Suppress silently - Firestore SDK handles reconnection
     }
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
-    if (allText.includes('401') && (
-        allText.includes('Unauthorized') || 
-        allText.includes('calendar/events') ||
-        allText.includes('Failed to load resource') ||
-        allText.includes('the server responded with a status of 401') ||
-        allText.includes('status of 401')
-      )) {
+    if (matchesPattern(allText, auth401Patterns) && matchesPattern(allText, ['401'])) {
       return; // Suppress silently - authentication errors are handled by UI
     }
     
-    if (allText.includes('Cross-Origin-Opener-Policy') ||
-        allText.includes('would block the window.close call') ||
-        allText.includes('runtime.lastError') ||
-        allText.includes('message port closed') ||
-        allText.includes('message port closed before a response') ||
-        allText.includes('Unchecked runtime') ||
-        allText.includes('ChromePolyfill')) {
+    // Suppress Chrome extension errors
+    if (matchesPattern(allText, chromeExtensionPatterns)) {
       return; // Suppress silently - Chrome extension communication errors
     }
     originalWarn.apply(console, arguments);
   };
+  
+  // Chrome extension info message patterns
+  var chromeInfoPatterns = ['[ChromePolyfill]', 'Chrome API support enabled', 'ChromePolyfill'];
   
   // Also suppress in console.log (some extensions log there)
   var originalLog = console.log;
@@ -188,29 +242,17 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     }).join(' ');
     
     // Suppress Chrome extension messages (info messages, not errors)
-    if (allText.includes('[ChromePolyfill]') ||
-        allText.includes('Chrome API support enabled') ||
-        allText.includes('ChromePolyfill')) {
+    if (matchesPattern(allText, chromeInfoPatterns)) {
       return; // Suppress Chrome extension info messages
     }
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
-    if (allText.includes('401') && (
-        allText.includes('Unauthorized') || 
-        allText.includes('calendar/events') ||
-        allText.includes('Failed to load resource') ||
-        allText.includes('the server responded with a status of 401') ||
-        allText.includes('status of 401')
-      ) ||
-        (allText.includes('GET') && allText.includes('401') && allText.includes('goflow')) ||
-        (allText.includes('Unauthorized') && allText.includes('goflow'))) {
+    if (matchesPattern(allText, auth401Patterns) && matchesPattern(allText, ['401'])) {
       return; // Suppress silently - authentication errors are handled by UI
     }
     
-    if (allText.includes('runtime.lastError') ||
-        allText.includes('message port closed') ||
-        allText.includes('message port closed before a response') ||
-        allText.includes('Unchecked runtime')) {
+    // Suppress Chrome extension errors
+    if (matchesPattern(allText, chromeExtensionPatterns)) {
       return; // Suppress silently - Chrome extension communication errors
     }
     originalLog.apply(console, arguments);
@@ -222,25 +264,16 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     var messageStr = message?.toString() || '';
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
-    if (messageStr.includes('401') && (
-        messageStr.includes('Unauthorized') || 
-        messageStr.includes('Failed to load resource') ||
-        messageStr.includes('the server responded with a status of 401') ||
-        messageStr.includes('status of 401')
-      )) {
+    if (matchesPattern(messageStr, auth401Patterns) && matchesPattern(messageStr, ['401'])) {
       return true; // Suppress authentication errors
     }
     
-    if (messageStr.includes('runtime.lastError') || 
-        messageStr.includes('message port closed') ||
-        messageStr.includes('message port closed before a response') ||
-        messageStr.includes('Unchecked runtime.lastError') ||
-        messageStr.includes('ChromePolyfill') ||
-        messageStr.includes('inject.bundle.js') ||
-        messageStr.includes('Cross-Origin-Opener-Policy') ||
-        messageStr.includes('would block the window.close call')) {
+    // Suppress Chrome extension errors (check message and error object)
+    if (matchesPattern(messageStr, chromeExtensionPatterns) ||
+        checkErrorObject(error, chromeExtensionPatterns)) {
       return true; // Suppress Chrome extension errors
     }
+    
     if (originalOnError && typeof originalOnError === 'function') {
       try {
         return originalOnError.call(window, message, source, lineno, colno, error);
