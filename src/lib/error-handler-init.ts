@@ -101,20 +101,26 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
                arg.includes('message port closed') ||
                arg.includes('Unchecked runtime') ||
                arg.includes('The message port closed') ||
+               arg.includes('message port closed before a response') ||
+               arg.includes('ChromePolyfill') ||
+               arg.includes('inject.bundle.js') ||
                arg.includes('Cross-Origin-Opener-Policy');
       }
       return false;
     });
     
-    // Check combined text for patterns
+    // Check combined text for patterns (more comprehensive)
     if (allText.includes('runtime.lastError') || 
         allText.includes('message port closed') ||
         allText.includes('Unchecked runtime') ||
         allText.includes('The message port closed') ||
+        allText.includes('message port closed before a response') ||
+        allText.includes('ChromePolyfill') ||
+        allText.includes('inject.bundle.js') ||
         allText.includes('Cross-Origin-Opener-Policy') ||
         allText.includes('would block the window.close call') ||
         hasRuntimeError) {
-      return; // Suppress silently
+      return; // Suppress silently - Chrome extension communication errors
     }
     
     // Not a runtime error, log normally
@@ -144,8 +150,10 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
         allText.includes('would block the window.close call') ||
         allText.includes('runtime.lastError') ||
         allText.includes('message port closed') ||
-        allText.includes('Unchecked runtime')) {
-      return; // Suppress silently
+        allText.includes('message port closed before a response') ||
+        allText.includes('Unchecked runtime') ||
+        allText.includes('ChromePolyfill')) {
+      return; // Suppress silently - Chrome extension communication errors
     }
     originalWarn.apply(console, arguments);
   };
@@ -158,10 +166,18 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
       return arg?.toString() || '';
     }).join(' ');
     
+    // Suppress Chrome extension messages (info messages, not errors)
+    if (allText.includes('[ChromePolyfill]') ||
+        allText.includes('Chrome API support enabled')) {
+      return; // Suppress Chrome extension info messages
+    }
+    
     if (allText.includes('runtime.lastError') ||
         allText.includes('message port closed') ||
-        allText.includes('Unchecked runtime')) {
-      return; // Suppress silently
+        allText.includes('message port closed before a response') ||
+        allText.includes('Unchecked runtime') ||
+        allText.includes('ChromePolyfill')) {
+      return; // Suppress silently - Chrome extension communication errors
     }
     originalLog.apply(console, arguments);
   };
@@ -172,10 +188,13 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     var messageStr = message?.toString() || '';
     if (messageStr.includes('runtime.lastError') || 
         messageStr.includes('message port closed') ||
+        messageStr.includes('message port closed before a response') ||
         messageStr.includes('Unchecked runtime.lastError') ||
+        messageStr.includes('ChromePolyfill') ||
+        messageStr.includes('inject.bundle.js') ||
         messageStr.includes('Cross-Origin-Opener-Policy') ||
         messageStr.includes('would block the window.close call')) {
-      return true;
+      return true; // Suppress Chrome extension errors
     }
     if (originalOnError && typeof originalOnError === 'function') {
       try {
