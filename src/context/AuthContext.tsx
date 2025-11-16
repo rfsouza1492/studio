@@ -92,8 +92,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     if (isUserLoading) return; // Wait until auth state is confirmed
 
+    // Check if we're handling OAuth callback from backend (oauth_success=true)
+    // Don't redirect in this case - let the calendar page handle OAuth flow
+    const searchParams = new URLSearchParams(window.location.search);
+    const oauthSuccess = searchParams.get('oauth_success') === 'true';
+    const isCalendarPage = pathname === '/calendar';
+
     // If user is NOT logged in and is NOT on the login page, redirect to login.
-    if (!user && pathname !== '/login') {
+    // EXCEPT: Don't redirect if we're on calendar page with oauth_success (backend OAuth callback)
+    if (!user && pathname !== '/login' && !(isCalendarPage && oauthSuccess)) {
       router.replace('/login');
     }
     
