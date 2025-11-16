@@ -58,7 +58,8 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     // Suppress expected authentication errors (401) - handled gracefully by UI
     if (message.includes('Invalid or expired authentication') ||
         message.includes('authentication') && reason?.status === 401 ||
-        message.includes('ApiError') && reason?.status === 401) {
+        message.includes('ApiError') && reason?.status === 401 ||
+        message.includes('401') && (message.includes('Unauthorized') || message.includes('calendar/events'))) {
       event.preventDefault();
       return;
     }
@@ -87,10 +88,16 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     }
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
+    // This includes network errors, API errors, and fetch failures
     if (allText.includes('Invalid or expired authentication') ||
         allText.includes('authentication') && allText.includes('401') ||
         allText.includes('ApiError') && allText.includes('401') ||
-        allText.includes('Failed to load events') && allText.includes('401')) {
+        allText.includes('Failed to load events') && allText.includes('401') ||
+        (allText.includes('401') && allText.includes('Unauthorized')) ||
+        (allText.includes('401') && allText.includes('calendar/events')) ||
+        (allText.includes('GET') && allText.includes('401') && allText.includes('goflow')) ||
+        (allText.includes('401') && allText.includes('goflow--magnetai-4h4a8')) ||
+        (allText.includes('Unauthorized') && allText.includes('goflow'))) {
       return; // Suppress silently - authentication errors are handled by UI
     }
     
@@ -146,6 +153,11 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
       return; // Suppress silently - Firestore SDK handles reconnection
     }
     
+    // Suppress expected authentication errors (401) - handled gracefully by UI
+    if (allText.includes('401') && (allText.includes('Unauthorized') || allText.includes('calendar/events'))) {
+      return; // Suppress silently - authentication errors are handled by UI
+    }
+    
     if (allText.includes('Cross-Origin-Opener-Policy') ||
         allText.includes('would block the window.close call') ||
         allText.includes('runtime.lastError') ||
@@ -168,15 +180,23 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     
     // Suppress Chrome extension messages (info messages, not errors)
     if (allText.includes('[ChromePolyfill]') ||
-        allText.includes('Chrome API support enabled')) {
+        allText.includes('Chrome API support enabled') ||
+        allText.includes('ChromePolyfill')) {
       return; // Suppress Chrome extension info messages
+    }
+    
+    // Suppress expected authentication errors (401) - handled gracefully by UI
+    if ((allText.includes('401') && allText.includes('Unauthorized')) ||
+        (allText.includes('401') && allText.includes('calendar/events')) ||
+        (allText.includes('GET') && allText.includes('401') && allText.includes('goflow')) ||
+        (allText.includes('Unauthorized') && allText.includes('goflow'))) {
+      return; // Suppress silently - authentication errors are handled by UI
     }
     
     if (allText.includes('runtime.lastError') ||
         allText.includes('message port closed') ||
         allText.includes('message port closed before a response') ||
-        allText.includes('Unchecked runtime') ||
-        allText.includes('ChromePolyfill')) {
+        allText.includes('Unchecked runtime')) {
       return; // Suppress silently - Chrome extension communication errors
     }
     originalLog.apply(console, arguments);
