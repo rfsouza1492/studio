@@ -272,7 +272,24 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     var combinedStr = messageStr + ' ' + sourceStr;
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
-    if (matchesPattern(messageStr, auth401Patterns) && matchesPattern(messageStr, ['401'])) {
+    // Use same granular checks as console.error for consistency
+    if (matchesPattern(messageStr, ['Invalid or expired authentication']) ||
+        matchesPattern(combinedStr, ['Invalid or expired authentication']) ||
+        (matchesPattern(messageStr, ['authentication']) && matchesPattern(messageStr, ['401'])) ||
+        (matchesPattern(messageStr, ['ApiError']) && matchesPattern(messageStr, ['401'])) ||
+        (matchesPattern(messageStr, ['Failed to load events']) && matchesPattern(messageStr, ['401'])) ||
+        (matchesPattern(messageStr, ['401']) && matchesPattern(messageStr, ['Unauthorized'])) ||
+        (matchesPattern(messageStr, ['401']) && matchesPattern(messageStr, ['calendar/events'])) ||
+        (matchesPattern(messageStr, ['GET']) && matchesPattern(messageStr, ['401']) && matchesPattern(messageStr, ['goflow'])) ||
+        (matchesPattern(messageStr, ['401']) && matchesPattern(messageStr, ['goflow--magnetai-4h4a8'])) ||
+        (matchesPattern(messageStr, ['Unauthorized']) && matchesPattern(messageStr, ['goflow'])) ||
+        (matchesPattern(messageStr, ['Failed to load resource']) && matchesPattern(messageStr, ['401'])) ||
+        (matchesPattern(combinedStr, ['Failed to load resource']) && matchesPattern(combinedStr, ['401'])) ||
+        matchesPattern(messageStr, ['the server responded with a status of 401']) ||
+        matchesPattern(messageStr, ['status of 401']) ||
+        // Check combined string for network errors with 401
+        (matchesPattern(combinedStr, ['GET']) && matchesPattern(combinedStr, ['401']) && matchesPattern(combinedStr, ['goflow'])) ||
+        (matchesPattern(combinedStr, ['401']) && matchesPattern(combinedStr, ['Unauthorized']))) {
       return true; // Suppress authentication errors
     }
     
