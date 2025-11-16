@@ -17,7 +17,7 @@ import apiClient from '@/lib/api-client';
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [maxResults, setMaxResults] = useState(10);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
