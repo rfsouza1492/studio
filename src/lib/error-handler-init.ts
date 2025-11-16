@@ -63,8 +63,8 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     'content-script.js',
     'web-client-content-script',
     'MutationObserver',
-    'Failed to execute \'observe\' on \'MutationObserver\'',
-    'parameter 1 is not of type \'Node\'',
+    "Failed to execute 'observe' on 'MutationObserver'",
+    "parameter 1 is not of type 'Node'",
     'observe.*MutationObserver',
     'Cross-Origin-Opener-Policy',
     'would block the window.close call'
