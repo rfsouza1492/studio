@@ -108,14 +108,15 @@ export default function CalendarPage() {
       const response = await listEvents(maxResults, timeMin);
       setEvents(response.events || []);
     } catch (err: any) {
-      console.error('Failed to load events:', err);
-      
       // Handle authentication errors specifically
       if (err instanceof ApiError && err.status === 401) {
+        // Don't log expected auth errors - they're handled gracefully
         setError('Autenticação necessária. Por favor, faça login com Google para acessar seu calendário.');
         setIsBackendAuthenticated(false);
         // Don't reload auth status here - already checked in useEffect
       } else {
+        // Only log unexpected errors
+        console.error('Failed to load events:', err);
         setError(err.message || 'Failed to load calendar events. Please try again.');
       }
     } finally {

@@ -54,6 +54,14 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
         return;
       }
     }
+    
+    // Suppress expected authentication errors (401) - handled gracefully by UI
+    if (message.includes('Invalid or expired authentication') ||
+        message.includes('authentication') && reason?.status === 401 ||
+        message.includes('ApiError') && reason?.status === 401) {
+      event.preventDefault();
+      return;
+    }
   });
   
   // Suppress Chrome extension runtime errors and Firestore connection errors
@@ -76,6 +84,14 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
         allText.includes('WebChannelConnection') ||
         allText.includes('Firestore') && allText.includes('transport errored')) {
       return; // Suppress silently - transient network errors handled by Firestore SDK
+    }
+    
+    // Suppress expected authentication errors (401) - handled gracefully by UI
+    if (allText.includes('Invalid or expired authentication') ||
+        allText.includes('authentication') && allText.includes('401') ||
+        allText.includes('ApiError') && allText.includes('401') ||
+        allText.includes('Failed to load events') && allText.includes('401')) {
+      return; // Suppress silently - authentication errors are handled by UI
     }
     
     // Check if any argument contains runtime error patterns
