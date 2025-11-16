@@ -60,6 +60,12 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
     'message port closed before a response was received',
     'ChromePolyfill',
     'inject.bundle.js',
+    'content-script.js',
+    'web-client-content-script',
+    'MutationObserver',
+    'Failed to execute \'observe\' on \'MutationObserver\'',
+    'parameter 1 is not of type \'Node\'',
+    'observe.*MutationObserver',
     'Cross-Origin-Opener-Policy',
     'would block the window.close call'
   ];
@@ -262,14 +268,19 @@ export const ERROR_HANDLER_INLINE_SCRIPT = `
   var originalOnError = window.onerror;
   window.onerror = function(message, source, lineno, colno, error) {
     var messageStr = message?.toString() || '';
+    var sourceStr = source?.toString() || '';
+    var combinedStr = messageStr + ' ' + sourceStr;
     
     // Suppress expected authentication errors (401) - handled gracefully by UI
     if (matchesPattern(messageStr, auth401Patterns) && matchesPattern(messageStr, ['401'])) {
       return true; // Suppress authentication errors
     }
     
-    // Suppress Chrome extension errors (check message and error object)
+    // Suppress Chrome extension errors (check message, source, and error object)
+    // Also check source file name (e.g., content-script.js, web-client-content-script.js)
     if (matchesPattern(messageStr, chromeExtensionPatterns) ||
+        matchesPattern(sourceStr, chromeExtensionPatterns) ||
+        matchesPattern(combinedStr, chromeExtensionPatterns) ||
         checkErrorObject(error, chromeExtensionPatterns)) {
       return true; // Suppress Chrome extension errors
     }
